@@ -1,0 +1,166 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.3</storyId>
+    <title>WebSocket Connection Without Authentication</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-10</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-3-websocket-connection-without-authentication.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>party guest (player)</asA>
+    <iWant>to establish a WebSocket connection to Beatsy without HA credentials</iWant>
+    <soThat>I can receive real-time updates during gameplay</soThat>
+    <tasks>
+      - Task 1: Research HA WebSocket Patterns (AC: #1)
+      - Task 2: Create WebSocket Handler Module (AC: #1, #6)
+      - Task 3: Implement Message Receiving Logic (AC: #3)
+      - Task 4: Implement Broadcasting Mechanism (AC: #4)
+      - Task 5: Register WebSocket Endpoint in Component Init (AC: #1)
+      - Task 6: Update test.html with WebSocket Client (AC: #2, #3, #4)
+      - Task 7: Test Basic Connectivity (AC: #2, #3, #4)
+      - Task 8: Test Concurrent Connections (AC: #5)
+      - Task 9: Test Disconnection Handling (AC: #6)
+      - Task 10: Document WebSocket Protocol &amp; Patterns (AC: All)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC-1: WebSocket Endpoint Registration
+    - WebSocket endpoint registered at /api/beatsy/ws
+    - Endpoint does NOT require HA authentication (requires_auth = False)
+    - HA logs confirm registration message
+
+    AC-2: Client Connection Establishment
+    - Connection establishes successfully without auth token
+    - Client receives connection confirmation
+    - No authentication errors
+
+    AC-3: Client-to-Server Messaging
+    - Client can send test messages to server
+    - Server receives and acknowledges messages
+    - Message format: {"action": "test_ping", "data": {...}}
+
+    AC-4: Server-to-Client Broadcasting
+    - Server broadcasts to all connected clients within 500ms
+    - Message includes server timestamp
+    - Message format: {"type": "test_broadcast", "data": {...}, "timestamp": "..."}
+
+    AC-5: Multiple Concurrent Connections
+    - 10+ clients connect simultaneously
+    - All connections stable, no drops
+    - HA remains responsive
+
+    AC-6: Connection Lifecycle Management
+    - Server detects disconnections
+    - Connections removed from registry
+    - No resource leaks
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/tech-spec-epic-1.md" title="Epic 1 Technical Specification" section="Story 1.3: WebSocket Connection Test">
+        Validates unauthenticated WebSocket pattern. Test endpoint ws://&lt;HA_IP&gt;:8123/api/beatsy/ws without auth. Success criteria: Bidirectional messaging, 10+ concurrent connections, &lt;500ms latency.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Pattern 1: Unauthenticated WebSocket in HA Ecosystem">
+        Solution: Public WebSocket View with Game-Based Authorization. Uses HomeAssistantView base class with requires_auth=False. WebSocket upgrade via aiohttp.web.WebSocketResponse. Broadcast mechanism for all connected clients.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Pattern 5: WebSocket Message Protocol">
+        Server→Client: {"type": "game_state"|"round_start"|"round_end"|"error", "data": {...}, "timestamp": "..."}. Client→Server: {"action": "join_game"|"submit_guess"|"start_round", "player_id": "uuid", "data": {...}}.
+      </doc>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 1.3: WebSocket Connection Without Authentication">
+        As party guest, establish WebSocket without HA credentials for real-time updates. Research HomeAssistantView for public routes, investigate requires_auth=False pattern. CRITICAL TEST: If pattern fails, pivot to SSE/polling.
+      </doc>
+      <doc path="docs/stories/1-2-serve-static-html-without-authentication.md" title="Story 1.2 - HTTP Access Pattern" section="Dev Agent Record">
+        Pattern validated: HomeAssistantView with requires_auth=False works for HTTP. Same pattern extends to WebSocket. HTTP view registered successfully via hass.http.register_view(). Files ready: test.html for WebSocket client extension.
+      </doc>
+    </docs>
+    <code>
+      <artifact path="home-assistant-config/custom_components/beatsy/__init__.py" kind="component" symbol="async_setup" lines="16-39" reason="Component setup function where WebSocket view will be registered. HTTP view registration pattern already established (line 33)." />
+      <artifact path="home-assistant-config/custom_components/beatsy/http_view.py" kind="view" symbol="BeatsyTestView" lines="14-66" reason="Reference pattern for WebSocket view. Shows HomeAssistantView with requires_auth=False, error handling, logging patterns." />
+      <artifact path="home-assistant-config/custom_components/beatsy/const.py" kind="constants" symbol="DOMAIN" lines="1-3" reason="Domain constant 'beatsy' used for hass.data namespace and view registration." />
+      <artifact path="home-assistant-config/custom_components/beatsy/www/test.html" kind="html" reason="Test page ready for WebSocket client JavaScript extension. Currently serves static content, will add WebSocket connection code." />
+    </code>
+    <dependencies>
+      <python>
+        <package name="aiohttp" version="bundled">WebSocket support via aiohttp.web.WebSocketResponse</package>
+        <package name="asyncio" version="stdlib">Async primitives for message loop</package>
+        <package name="json" version="stdlib">Message serialization/deserialization</package>
+        <package name="uuid" version="stdlib">Connection ID generation</package>
+        <package name="logging" version="stdlib">Logging infrastructure</package>
+      </python>
+      <homeassistant>
+        <api>homeassistant.components.http.HomeAssistantView</api>
+        <api>hass.http.register_view()</api>
+        <api>hass.data[DOMAIN]</api>
+      </homeassistant>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Use homeassistant.components.http.HomeAssistantView as base class (validated pattern from Story 1.2)
+    - Set requires_auth = False class attribute for public access
+    - Use aiohttp.web.WebSocketResponse for WebSocket upgrade
+    - Track connections in hass.data[DOMAIN]["ws_connections"] dict
+    - Message format: JSON with "action" (client→server) or "type" (server→client)
+    - Implement cleanup on disconnect to prevent resource leaks
+    - Follow async/await patterns throughout (no blocking operations)
+    - Use module-level _LOGGER = logging.getLogger(__name__) for logging
+    - Modern Python 3.11+ type hints: dict[str, Any] not Dict[str, Any]
+    - Register view in async_setup() after HTTP view registration
+    - POC security: No input validation (intentional for testing), will be added in Epic 10
+    - Target performance: &lt;500ms broadcast latency, 10+ concurrent connections
+    - NO Spotify dependency (removed in Story 1.2, will re-add in Story 1.4)
+  </constraints>
+
+  <interfaces>
+    <interface name="BeatsyWebSocketView" kind="WebSocket endpoint">
+      <signature>
+        class BeatsyWebSocketView(HomeAssistantView):
+            url = "/api/beatsy/ws"
+            name = "api:beatsy:websocket"
+            requires_auth = False
+
+            async def get(self, request: web.Request) -> web.WebSocketResponse:
+                # WebSocket upgrade and message loop
+      </signature>
+      <path>home-assistant-config/custom_components/beatsy/websocket_handler.py (NEW FILE)</path>
+    </interface>
+    <interface name="broadcast_message" kind="function">
+      <signature>
+        async def broadcast_message(hass: HomeAssistant, msg_type: str, data: dict) -> None:
+            # Broadcast to all connected clients
+      </signature>
+      <path>home-assistant-config/custom_components/beatsy/websocket_handler.py</path>
+    </interface>
+    <interface name="WebSocket Client API" kind="JavaScript WebSocket">
+      <signature>
+        const ws = new WebSocket('ws://&lt;HA_IP&gt;:8123/api/beatsy/ws');
+        ws.send(JSON.stringify({action: "test_ping", data: {...}}));
+        ws.onmessage = (event) => { const msg = JSON.parse(event.data); };
+      </signature>
+      <path>home-assistant-config/custom_components/beatsy/www/test.html</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Manual integration testing for POC (Epic 1). Test from actual devices without HA authentication. HA logs used for validation. Python load test script for concurrent connections. Success criteria: zero auth prompts, bidirectional messaging, 10+ concurrent connections stable, broadcast latency &lt;500ms, clean disconnection handling.
+    </standards>
+    <locations>
+      - Manual tests: home-assistant-config/custom_components/beatsy/www/test.html (browser-based)
+      - Load tests: tests/poc_websocket_load_test.py (to be created)
+      - HA logs: /config/home-assistant.log (validation)
+    </locations>
+    <ideas>
+      <test id="AC-1">Verify WebSocket endpoint registered at /api/beatsy/ws, check HA logs for registration message</test>
+      <test id="AC-2">Open test.html in browser, verify connection established without auth prompt, check console for confirmation</test>
+      <test id="AC-3">Send test message from client, verify server receives and logs message, check for acknowledgment response</test>
+      <test id="AC-4">Open test.html in two browser tabs, trigger broadcast from server, verify both clients receive message within 500ms</test>
+      <test id="AC-5">Run Python load test script with 10 concurrent WebSocket clients, verify all connect successfully and receive broadcasts</test>
+      <test id="AC-6">Connect client, close browser tab, verify server logs disconnection and removes from registry, check for no memory leaks</test>
+    </ideas>
+  </tests>
+</story-context>

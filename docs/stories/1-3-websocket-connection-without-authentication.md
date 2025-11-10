@@ -1,6 +1,6 @@
 # Story 1.3: WebSocket Connection Without Authentication
 
-Status: drafted
+Status: ready-for-dev
 
 ## Story
 
@@ -56,56 +56,56 @@ So that **I can receive real-time updates during gameplay**.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Research HA WebSocket Patterns (AC: #1)
-  - [ ] Research `homeassistant.components.http.HomeAssistantView` for WebSocket views
-  - [ ] Investigate `aiohttp.web.WebSocketResponse` for WebSocket handling
-  - [ ] Research `requires_auth` attribute for public WebSocket access
-  - [ ] Review HA source code for WebSocket endpoint examples
-  - [ ] Document pattern for unauthenticated WebSocket in HA 2024.x
+- [x] Task 1: Research HA WebSocket Patterns (AC: #1)
+  - [x] Research `homeassistant.components.http.HomeAssistantView` for WebSocket views
+  - [x] Investigate `aiohttp.web.WebSocketResponse` for WebSocket handling
+  - [x] Research `requires_auth` attribute for public WebSocket access
+  - [x] Review HA source code for WebSocket endpoint examples
+  - [x] Document pattern for unauthenticated WebSocket in HA 2024.x
 
-- [ ] Task 2: Create WebSocket Handler Module (AC: #1, #6)
-  - [ ] Create `custom_components/beatsy/websocket_handler.py`
-  - [ ] Import: `aiohttp`, `HomeAssistantView`, `asyncio`, `logging`
-  - [ ] Implement `BeatsyWebSocketView` class extending `HomeAssistantView`
-  - [ ] Set `url = "/api/beatsy/ws"` and `requires_auth = False`
-  - [ ] Implement `async def get(self, request)` method for WebSocket upgrade
-  - [ ] Initialize `WebSocketResponse` and call `await ws.prepare(request)`
-  - [ ] Track active connections in instance variable or hass.data
-  - [ ] Implement connection cleanup on close
+- [x] Task 2: Create WebSocket Handler Module (AC: #1, #6)
+  - [x] Create `custom_components/beatsy/websocket_handler.py`
+  - [x] Import: `aiohttp`, `HomeAssistantView`, `asyncio`, `logging`
+  - [x] Implement `BeatsyWebSocketView` class extending `HomeAssistantView`
+  - [x] Set `url = "/api/beatsy/ws"` and `requires_auth = False`
+  - [x] Implement `async def get(self, request)` method for WebSocket upgrade
+  - [x] Initialize `WebSocketResponse` and call `await ws.prepare(request)`
+  - [x] Track active connections in instance variable or hass.data
+  - [x] Implement connection cleanup on close
 
-- [ ] Task 3: Implement Message Receiving Logic (AC: #3)
-  - [ ] Create message receive loop: `async for msg in ws:`
-  - [ ] Parse JSON messages from clients: `data = json.loads(msg.data)`
-  - [ ] Log received messages: `_LOGGER.debug("Received: %s", data)`
-  - [ ] Validate message format (has "action" and "data" fields)
-  - [ ] Send acknowledgment back to client
-  - [ ] Handle parsing errors gracefully
+- [x] Task 3: Implement Message Receiving Logic (AC: #3)
+  - [x] Create message receive loop: `async for msg in ws:`
+  - [x] Parse JSON messages from clients: `data = json.loads(msg.data)`
+  - [x] Log received messages: `_LOGGER.debug("Received: %s", data)`
+  - [x] Validate message format (has "action" and "data" fields)
+  - [x] Send acknowledgment back to client
+  - [x] Handle parsing errors gracefully
 
-- [ ] Task 4: Implement Broadcasting Mechanism (AC: #4)
-  - [ ] Store all active WebSocket connections in `hass.data[DOMAIN]["ws_connections"]`
-  - [ ] Create `broadcast_message(hass, msg_type, data)` function
-  - [ ] Iterate through all connections and send message
-  - [ ] Add server timestamp to all broadcast messages
-  - [ ] Handle send errors (disconnected clients)
-  - [ ] Remove failed connections from registry
+- [x] Task 4: Implement Broadcasting Mechanism (AC: #4)
+  - [x] Store all active WebSocket connections in `hass.data[DOMAIN]["ws_connections"]`
+  - [x] Create `broadcast_message(hass, msg_type, data)` function
+  - [x] Iterate through all connections and send message
+  - [x] Add server timestamp to all broadcast messages
+  - [x] Handle send errors (disconnected clients)
+  - [x] Remove failed connections from registry
 
-- [ ] Task 5: Register WebSocket Endpoint in Component Init (AC: #1)
-  - [ ] Update `custom_components/beatsy/__init__.py`
-  - [ ] Import: `from .websocket_handler import BeatsyWebSocketView`
-  - [ ] Register view in `async_setup()`: `hass.http.register_view(BeatsyWebSocketView())`
-  - [ ] Initialize `hass.data[DOMAIN]["ws_connections"] = {}`
-  - [ ] Add INFO log: "Beatsy WebSocket endpoint registered at /api/beatsy/ws"
-  - [ ] Implement cleanup handler in `async_unload_entry()` to close all connections
+- [x] Task 5: Register WebSocket Endpoint in Component Init (AC: #1)
+  - [x] Update `custom_components/beatsy/__init__.py`
+  - [x] Import: `from .websocket_handler import BeatsyWebSocketView`
+  - [x] Register view in `async_setup()`: `hass.http.register_view(BeatsyWebSocketView())`
+  - [x] Initialize `hass.data[DOMAIN]["ws_connections"] = {}`
+  - [x] Add INFO log: "Beatsy WebSocket endpoint registered at /api/beatsy/ws"
+  - [x] Implement cleanup handler in `async_unload_entry()` to close all connections
 
-- [ ] Task 6: Update test.html with WebSocket Client (AC: #2, #3, #4)
-  - [ ] Update `custom_components/beatsy/www/test.html`
-  - [ ] Add JavaScript WebSocket client code
-  - [ ] Connect to `ws://<HA_IP>:8123/api/beatsy/ws`
-  - [ ] Send test ping message on connection: `{"action": "test_ping", "data": {"client_id": "test-1"}}`
-  - [ ] Listen for broadcast messages
-  - [ ] Display received messages in page UI (simple list or console log)
-  - [ ] Add "Send Test Message" button for manual testing
-  - [ ] Display connection status (Connected/Disconnected)
+- [x] Task 6: Update test.html with WebSocket Client (AC: #2, #3, #4)
+  - [x] Update `custom_components/beatsy/www/test.html`
+  - [x] Add JavaScript WebSocket client code
+  - [x] Connect to `ws://<HA_IP>:8123/api/beatsy/ws`
+  - [x] Send test ping message on connection: `{"action": "test_ping", "data": {"client_id": "test-1"}}`
+  - [x] Listen for broadcast messages
+  - [x] Display received messages in page UI (simple list or console log)
+  - [x] Add "Send Test Message" button for manual testing
+  - [x] Display connection status (Connected/Disconnected)
 
 - [ ] Task 7: Test Basic Connectivity (AC: #2, #3, #4)
   - [ ] Deploy updated component files to HA
@@ -275,47 +275,71 @@ ws.onclose = () => {
 
 ### Learnings from Previous Story
 
-**From Story 1.2 (Status: drafted)**
+**From Story 1.2 (Status: review)**
 
-- **HTTP View Registration Pattern Established**:
-  - `homeassistant.components.http.HomeAssistantView` base class confirmed working
-  - `requires_auth = False` pattern successfully validated for HTTP
-  - Same pattern should work for WebSocket upgrade
-  - `hass.http.register_view()` method for endpoint registration
+- **Unauthenticated HTTP Access Pattern VALIDATED**:
+  - `homeassistant.components.http.HomeAssistantView` with `requires_auth = False` confirmed working in HA 2025
+  - Pattern actively used in core integrations (Telegram webhook) - NOT deprecated
+  - HTTP view successfully serves content without authentication prompts
+  - Same base class and pattern should extend to WebSocket upgrade
+  - `hass.http.register_view()` registration method works as expected
 
-- **www/ Directory Structure Created**:
-  - `custom_components/beatsy/www/` directory exists
-  - `test.html` file ready to be extended with WebSocket client
-  - Static files automatically served at `/local/beatsy/`
+- **Files Created - Ready to Extend**:
+  - `custom_components/beatsy/www/test.html` - Static HTML with timestamp, device info (READY FOR WEBSOCKET CLIENT)
+  - `custom_components/beatsy/http_view.py` - BeatsyTestView class with `requires_auth=False`
+  - `custom_components/beatsy/__init__.py` - HTTP view registration with error handling
 
-- **Component Foundation Stable (from Story 1.1)**:
-  - `hass.data[DOMAIN]` initialized as empty dict
-  - Module-level `_LOGGER` pattern established
-  - Async/await patterns working correctly
-  - Component loads without errors
+- **Deployment Issue Resolved**:
+  - **Issue Found**: Manifest declared `spotify` dependency but Spotify not configured
+  - **Fix Applied**: Removed spotify from manifest dependencies (commit 418c90bc)
+  - **Resolution**: Component loads successfully after configuration reload
+  - **Action for Story 1.3**: No Spotify dependency blocking WebSocket implementation
+  - **Future**: Spotify will be re-added in Story 1.4 when actually needed
 
-- **Key Patterns to Reuse**:
-  - Import structure: `from homeassistant.components.http import HomeAssistantView`
-  - Type hints: Modern Python 3.11+ syntax
-  - Logging: Use `_LOGGER = logging.getLogger(__name__)`
-  - Error handling: Try/except with graceful degradation
+- **2025 Standards Applied & Validated**:
+  - Manifest includes `version`, `iot_class: "local_push"` fields (2025 requirement)
+  - Modern type hints used (`dict[str, Any]` vs `Dict[str, Any]`)
+  - Async/await pattern established and working
+  - Module-level `_LOGGER = logging.getLogger(__name__)` logging pattern
 
-- **Files to Extend**:
-  - `__init__.py`: Add WebSocket view registration
-  - `test.html`: Add JavaScript WebSocket client
-  - NEW FILE: `websocket_handler.py` for WebSocket logic
+- **Component Foundation Confirmed Stable**:
+  - Component loads in HA without errors (validated in Story 1.1)
+  - `hass.data[DOMAIN]` initialized as empty dict, ready for ws_connections tracking
+  - HTTP dependency already in manifest (available for WebSocket)
+  - Error handling patterns established (try/except with graceful degradation)
 
-- **Dependency Chain**:
-  - Story 1.1: Component loads ✅
-  - Story 1.2: HTTP unauthenticated access ✅
-  - Story 1.3: WebSocket unauthenticated access (THIS STORY)
-  - Story 1.4+: Can proceed if WebSocket succeeds
+- **Key Patterns to Reuse in This Story**:
+  - **Base Class**: `from homeassistant.components.http import HomeAssistantView`
+  - **Auth Bypass**: Set `requires_auth = False` class attribute
+  - **Registration**: `hass.http.register_view(ViewClass(hass))` in `async_setup()`
+  - **Logging**: Use established `_LOGGER` variable, INFO for registration, DEBUG for operations
+  - **Error Handling**: Comprehensive try/except blocks with user-friendly error messages
+  - **Type Hints**: Modern Python 3.11+ syntax throughout
 
-**Technical Debt from Previous Stories:**
-- None blocking this story
-- Story 2.7 (config flow) deferred but not blocking POC
+- **Files to Modify/Create in This Story**:
+  - MODIFY: `__init__.py` - Add WebSocket view registration after HTTP view
+  - MODIFY: `test.html` - Add JavaScript WebSocket client code
+  - CREATE: `websocket_handler.py` - New module for WebSocket endpoint logic
 
-[Source: stories/1-2-serve-static-html-without-authentication.md]
+- **Architectural Validation**:
+  - HTTP unauthenticated access ✅ CONFIRMED (Story 1.2 complete)
+  - WebSocket unauthenticated access ⏳ TO BE VALIDATED (THIS STORY)
+  - Pattern consistency: Same `requires_auth = False` approach for both HTTP and WebSocket
+  - Risk: If WebSocket requires different auth handling, pivot plan documented in Story 1.7
+
+- **Testing Approach Established**:
+  - Manual testing on actual devices (iPhone, laptop, tablet)
+  - Zero authentication prompts = success criterion
+  - HA logs used for validation (component loaded, view registered, no errors)
+  - Multi-device concurrent testing pattern validated
+
+- **No Blocking Technical Debt**:
+  - All Story 1.1 and 1.2 foundations are stable
+  - No unresolved errors or warnings in HA logs
+  - Story 2.7 (config flow) intentionally deferred for post-POC (not blocking)
+  - Spotify dependency issue resolved (removed from manifest)
+
+[Source: stories/1-2-serve-static-html-without-authentication.md#Dev-Agent-Record]
 
 ### Project Structure Notes
 
@@ -550,14 +574,56 @@ asyncio.run(main())
 
 ### Context Reference
 
-<!-- Path(s) to story context XML will be added here by context workflow -->
+- docs/stories/1-3-websocket-connection-without-authentication.context.xml
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-4-5-20250929
 
 ### Debug Log References
 
+**Implementation Plan:**
+1. Researched HA WebSocket patterns - confirmed `HomeAssistantView` with `requires_auth = False` extends to WebSocket
+2. Created `websocket_handler.py` with `BeatsyWebSocketView` class implementing WebSocket upgrade
+3. Implemented message receiving loop with JSON parsing and validation
+4. Implemented `broadcast_message()` function with timestamp and error handling
+5. Registered WebSocket endpoint in `__init__.py` with connection tracking in `hass.data[DOMAIN]["ws_connections"]`
+6. Updated `test.html` with full WebSocket client UI (auto-connect, ping, broadcast, message log)
+7. Created `tests/poc_websocket_load_test.py` for AC-5 concurrent connection testing
+8. Ready for deployment and testing
+
+**Implementation Approach:**
+- Followed Story 1.2 patterns: `HomeAssistantView`, `requires_auth = False`, module-level `_LOGGER`
+- WebSocket upgrade via `aiohttp.web.WebSocketResponse`
+- Connection lifecycle: connect → send confirmation → message loop → cleanup on close
+- Broadcasting: iterate all connections, send JSON, remove failed connections
+- Error handling: comprehensive try/except blocks, graceful degradation
+- Message protocol: "action" (client→server), "type" (server→client), timestamps on all server messages
+
+**READY FOR TESTING - Requires HA restart to load new component**
+
 ### Completion Notes List
 
+**Implementation Complete (Tasks 1-6):**
+- ✅ WebSocket handler module created with full lifecycle management
+- ✅ Message receiving and validation implemented
+- ✅ Broadcasting mechanism with automatic cleanup
+- ✅ WebSocket endpoint registered in component init
+- ✅ test.html enhanced with WebSocket client UI
+- ✅ Load test script created for concurrent connections
+- ⏸️ **Awaiting deployment**: Need HA restart to test AC-1 through AC-6
+
+**Testing Strategy:**
+1. Restart HA and verify WebSocket endpoint registration in logs
+2. Open test.html in browser, verify auto-connection
+3. Test ping/pong messaging
+4. Open second tab, test broadcast functionality
+5. Run load test script: `python tests/poc_websocket_load_test.py <HA_IP>:8123 10 60`
+6. Test disconnection handling (close tab, check logs)
+
 ### File List
+
+- home-assistant-config/custom_components/beatsy/__init__.py (modified)
+- home-assistant-config/custom_components/beatsy/websocket_handler.py (new)
+- home-assistant-config/custom_components/beatsy/www/test.html (modified)
+- tests/poc_websocket_load_test.py (new)
