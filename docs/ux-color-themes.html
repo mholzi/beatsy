@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beatsy - Color Theme Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .theme-card { margin-bottom: 3rem; border-radius: 1rem; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .swatch { width: 100%; height: 80px; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+        .component-preview { padding: 2rem; }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // Theme 1: Sunset Groove (Warm, Energetic)
+                        sunset: {
+                            primary: '#FF6B35',    // Vibrant orange
+                            secondary: '#F7931E',  // Golden orange
+                            accent: '#FFB627',     // Warm yellow
+                            success: '#4ECDC4',    // Teal
+                            warning: '#FFB627',
+                            error: '#FF006E',      // Hot pink
+                            bg: '#FFF8F0',         // Warm cream
+                            text: '#2D2D2A',       // Dark charcoal
+                            muted: '#A8998C'       // Warm gray
+                        },
+                        // Theme 2: Vinyl Nights (Cool, Sophisticated)
+                        vinyl: {
+                            primary: '#6C63FF',    // Electric purple
+                            secondary: '#4A47A3',  // Deep purple
+                            accent: '#FF6584',     // Coral pink
+                            success: '#00D9A5',    // Mint green
+                            warning: '#FFB800',
+                            error: '#FF4757',
+                            bg: '#F8F9FA',         // Light gray
+                            text: '#2C2C54',       // Deep navy
+                            muted: '#95A3B3'       // Cool gray
+                        },
+                        // Theme 3: Retro Glow (Bold, Fun)
+                        retro: {
+                            primary: '#FF2E63',    // Bright pink
+                            secondary: '#08D9D6',  // Cyan
+                            accent: '#FFD93D',     // Bright yellow
+                            success: '#6BCF7F',    // Fresh green
+                            warning: '#FFB400',
+                            error: '#FF2E63',
+                            bg: '#FAFAFA',         // Clean white
+                            text: '#252A34',       // Charcoal
+                            muted: '#8B8C9E'       // Neutral gray
+                        },
+                        // Theme 4: Warm Vinyl (Nostalgic, Classic)
+                        warm: {
+                            primary: '#E85D75',    // Rose
+                            secondary: '#D4A574',  // Warm tan
+                            accent: '#F4A261',     // Peach
+                            success: '#2A9D8F',    // Teal green
+                            warning: '#E9C46A',    // Soft yellow
+                            error: '#E76F51',      // Terra cotta
+                            bg: '#FFF5EB',         // Warm off-white
+                            text: '#3D3D3D',       // Dark gray
+                            muted: '#A68B7B'       // Brown gray
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-12">
+            <h1 class="text-5xl font-bold text-gray-900 mb-4">🎵 Beatsy Color Theme Explorer</h1>
+            <p class="text-xl text-gray-600">Explore 4 color directions for your party game</p>
+            <p class="text-sm text-gray-500 mt-2">Based on emotions: Confident, Nostalgic, Playfully Competitive</p>
+        </header>
+
+        <!-- Theme 1: Sunset Groove -->
+        <div class="theme-card bg-white">
+            <div class="bg-gradient-to-r from-sunset-primary to-sunset-secondary p-6">
+                <h2 class="text-3xl font-bold text-white">Theme 1: Sunset Groove</h2>
+                <p class="text-white/90 mt-2">Warm | Energetic | Social</p>
+            </div>
+
+            <!-- Color Swatches -->
+            <div class="grid grid-cols-2 md:grid-cols-4">
+                <div class="swatch bg-sunset-primary text-white">#FF6B35<br/>Primary</div>
+                <div class="swatch bg-sunset-secondary text-white">#F7931E<br/>Secondary</div>
+                <div class="swatch bg-sunset-accent text-gray-900">#FFB627<br/>Accent</div>
+                <div class="swatch bg-sunset-success text-white">#4ECDC4<br/>Success</div>
+            </div>
+
+            <!-- Component Examples -->
+            <div class="component-preview bg-sunset-bg">
+                <div class="mb-6">
+                    <h3 class="text-2xl font-bold text-sunset-text mb-4">Song: Stayin' Alive</h3>
+                    <p class="text-sunset-muted mb-4">Artist: Bee Gees</p>
+
+                    <div class="flex gap-3 flex-wrap">
+                        <button class="px-6 py-3 bg-sunset-primary text-white rounded-lg font-semibold hover:bg-sunset-secondary transition-colors">
+                            BET ON IT! 🎯
+                        </button>
+                        <button class="px-6 py-3 bg-sunset-secondary text-white rounded-lg font-semibold hover:bg-sunset-primary transition-colors">
+                            Submit Guess
+                        </button>
+                        <button class="px-6 py-3 border-2 border-sunset-primary text-sunset-primary rounded-lg font-semibold hover:bg-sunset-primary hover:text-white transition-colors">
+                            Next Song
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-lg shadow-sm mb-4">
+                    <div class="flex items-center justify-between">
+                        <span class="font-semibold text-sunset-text">Sarah</span>
+                        <span class="text-2xl font-bold text-sunset-success">+10 pts</span>
+                    </div>
+                    <div class="text-sm text-sunset-muted mt-1">Exact match! Guessed 1977 ✓</div>
+                </div>
+
+                <div class="bg-sunset-success/10 border-l-4 border-sunset-success p-4 rounded">
+                    <p class="text-sunset-success font-semibold">Perfect guess! You nailed it!</p>
+                </div>
+
+                <p class="mt-4 text-sm text-gray-600"><strong>Vibe:</strong> Warm and inviting, like a sunset party. Energetic orange creates excitement without being aggressive. Perfect for nostalgic music vibes.</p>
+            </div>
+        </div>
+
+        <!-- Theme 2: Vinyl Nights -->
+        <div class="theme-card bg-white">
+            <div class="bg-gradient-to-r from-vinyl-primary to-vinyl-secondary p-6">
+                <h2 class="text-3xl font-bold text-white">Theme 2: Vinyl Nights</h2>
+                <p class="text-white/90 mt-2">Cool | Sophisticated | Modern</p>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4">
+                <div class="swatch bg-vinyl-primary text-white">#6C63FF<br/>Primary</div>
+                <div class="swatch bg-vinyl-secondary text-white">#4A47A3<br/>Secondary</div>
+                <div class="swatch bg-vinyl-accent text-white">#FF6584<br/>Accent</div>
+                <div class="swatch bg-vinyl-success text-white">#00D9A5<br/>Success</div>
+            </div>
+
+            <div class="component-preview bg-vinyl-bg">
+                <div class="mb-6">
+                    <h3 class="text-2xl font-bold text-vinyl-text mb-4">Song: Billie Jean</h3>
+                    <p class="text-vinyl-muted mb-4">Artist: Michael Jackson</p>
+
+                    <div class="flex gap-3 flex-wrap">
+                        <button class="px-6 py-3 bg-vinyl-primary text-white rounded-lg font-semibold hover:bg-vinyl-secondary transition-colors">
+                            BET ON IT! 🎯
+                        </button>
+                        <button class="px-6 py-3 bg-vinyl-secondary text-white rounded-lg font-semibold hover:bg-vinyl-primary transition-colors">
+                            Submit Guess
+                        </button>
+                        <button class="px-6 py-3 border-2 border-vinyl-primary text-vinyl-primary rounded-lg font-semibold hover:bg-vinyl-primary hover:text-white transition-colors">
+                            Next Song
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-lg shadow-sm mb-4">
+                    <div class="flex items-center justify-between">
+                        <span class="font-semibold text-vinyl-text">Mike</span>
+                        <span class="text-2xl font-bold text-vinyl-success">+10 pts</span>
+                    </div>
+                    <div class="text-sm text-vinyl-muted mt-1">Exact match! Guessed 1983 ✓</div>
+                </div>
+
+                <div class="bg-vinyl-success/10 border-l-4 border-vinyl-success p-4 rounded">
+                    <p class="text-vinyl-success font-semibold">Perfect guess! You nailed it!</p>
+                </div>
+
+                <p class="mt-4 text-sm text-gray-600"><strong>Vibe:</strong> Modern and sleek, like a vinyl record store at night. Electric purple feels sophisticated and fun without being corporate.</p>
+            </div>
+        </div>
+
+        <!-- Theme 3: Retro Glow -->
+        <div class="theme-card bg-white">
+            <div class="bg-gradient-to-r from-retro-primary to-retro-secondary p-6">
+                <h2 class="text-3xl font-bold text-white">Theme 3: Retro Glow</h2>
+                <p class="text-white/90 mt-2">Bold | Fun | High-Energy</p>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4">
+                <div class="swatch bg-retro-primary text-white">#FF2E63<br/>Primary</div>
+                <div class="swatch bg-retro-secondary text-white">#08D9D6<br/>Secondary</div>
+                <div class="swatch bg-retro-accent text-gray-900">#FFD93D<br/>Accent</div>
+                <div class="swatch bg-retro-success text-white">#6BCF7F<br/>Success</div>
+            </div>
+
+            <div class="component-preview bg-retro-bg">
+                <div class="mb-6">
+                    <h3 class="text-2xl font-bold text-retro-text mb-4">Song: Take On Me</h3>
+                    <p class="text-retro-muted mb-4">Artist: A-ha</p>
+
+                    <div class="flex gap-3 flex-wrap">
+                        <button class="px-6 py-3 bg-retro-primary text-white rounded-lg font-semibold hover:bg-retro-primary/90 transition-colors">
+                            BET ON IT! 🎯
+                        </button>
+                        <button class="px-6 py-3 bg-retro-secondary text-white rounded-lg font-semibold hover:bg-retro-secondary/90 transition-colors">
+                            Submit Guess
+                        </button>
+                        <button class="px-6 py-3 border-2 border-retro-primary text-retro-primary rounded-lg font-semibold hover:bg-retro-primary hover:text-white transition-colors">
+                            Next Song
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-lg shadow-sm mb-4">
+                    <div class="flex items-center justify-between">
+                        <span class="font-semibold text-retro-text">Alex</span>
+                        <span class="text-2xl font-bold text-retro-success">+10 pts</span>
+                    </div>
+                    <div class="text-sm text-retro-muted mt-1">Exact match! Guessed 1985 ✓</div>
+                </div>
+
+                <div class="bg-retro-success/10 border-l-4 border-retro-success p-4 rounded">
+                    <p class="text-retro-success font-semibold">Perfect guess! You nailed it!</p>
+                </div>
+
+                <p class="mt-4 text-sm text-gray-600"><strong>Vibe:</strong> Bold 80s energy with neon vibes. High contrast and playful - maximum fun factor. Feels like an arcade meets music trivia.</p>
+            </div>
+        </div>
+
+        <!-- Theme 4: Warm Vinyl -->
+        <div class="theme-card bg-white">
+            <div class="bg-gradient-to-r from-warm-primary to-warm-secondary p-6">
+                <h2 class="text-3xl font-bold text-white">Theme 4: Warm Vinyl</h2>
+                <p class="text-white/90 mt-2">Nostalgic | Classic | Approachable</p>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4">
+                <div class="swatch bg-warm-primary text-white">#E85D75<br/>Primary</div>
+                <div class="swatch bg-warm-secondary text-white">#D4A574<br/>Secondary</div>
+                <div class="swatch bg-warm-accent text-white">#F4A261<br/>Accent</div>
+                <div class="swatch bg-warm-success text-white">#2A9D8F<br/>Success</div>
+            </div>
+
+            <div class="component-preview bg-warm-bg">
+                <div class="mb-6">
+                    <h3 class="text-2xl font-bold text-warm-text mb-4">Song: Wonderwall</h3>
+                    <p class="text-warm-muted mb-4">Artist: Oasis</p>
+
+                    <div class="flex gap-3 flex-wrap">
+                        <button class="px-6 py-3 bg-warm-primary text-white rounded-lg font-semibold hover:bg-warm-primary/90 transition-colors">
+                            BET ON IT! 🎯
+                        </button>
+                        <button class="px-6 py-3 bg-warm-secondary text-white rounded-lg font-semibold hover:bg-warm-secondary/90 transition-colors">
+                            Submit Guess
+                        </button>
+                        <button class="px-6 py-3 border-2 border-warm-primary text-warm-primary rounded-lg font-semibold hover:bg-warm-primary hover:text-white transition-colors">
+                            Next Song
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-lg shadow-sm mb-4">
+                    <div class="flex items-center justify-between">
+                        <span class="font-semibold text-warm-text">Jamie</span>
+                        <span class="text-2xl font-bold text-warm-success">+10 pts</span>
+                    </div>
+                    <div class="text-sm text-warm-muted mt-1">Exact match! Guessed 1995 ✓</div>
+                </div>
+
+                <div class="bg-warm-success/10 border-l-4 border-warm-success p-4 rounded">
+                    <p class="text-warm-success font-semibold">Perfect guess! You nailed it!</p>
+                </div>
+
+                <p class="mt-4 text-sm text-gray-600"><strong>Vibe:</strong> Like a well-loved record collection. Warm and inviting with classic appeal. Nostalgic without feeling dated.</p>
+            </div>
+        </div>
+
+        <!-- Selection Guide -->
+        <div class="bg-white p-8 rounded-2xl shadow-lg mt-12">
+            <h2 class="text-3xl font-bold text-gray-900 mb-6">Which Theme Speaks to You?</h2>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">🌅 Choose Sunset Groove if:</h3>
+                    <ul class="text-gray-600 space-y-1">
+                        <li>✓ You want warm, energetic, social vibes</li>
+                        <li>✓ Orange/golden colors feel right for music</li>
+                        <li>✓ You want inviting, not aggressive</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">💿 Choose Vinyl Nights if:</h3>
+                    <ul class="text-gray-600 space-y-1">
+                        <li>✓ You want modern and sophisticated</li>
+                        <li>✓ Electric purple feels fresh and fun</li>
+                        <li>✓ You like cooler tones over warm</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">🎮 Choose Retro Glow if:</h3>
+                    <ul class="text-gray-600 space-y-1">
+                        <li>✓ You want maximum energy and fun</li>
+                        <li>✓ Bold 80s/arcade vibes appeal to you</li>
+                        <li>✓ You want high contrast and playful</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">📻 Choose Warm Vinyl if:</h3>
+                    <ul class="text-gray-600 space-y-1">
+                        <li>✓ Nostalgia is your priority</li>
+                        <li>✓ Rose/peach tones feel warm and classic</li>
+                        <li>✓ You want approachable and timeless</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mt-8 p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl">
+                <p class="text-lg text-gray-700 mb-4"><strong>Pro Tip:</strong> All themes work beautifully for Beatsy! Consider:</p>
+                <ul class="text-gray-600 space-y-2">
+                    <li>• <strong>Your audience:</strong> Younger crowd → Retro Glow; Mixed ages → Sunset Groove or Warm Vinyl</li>
+                    <li>• <strong>Your space:</strong> Modern home → Vinyl Nights; Cozy gatherings → Warm Vinyl</li>
+                    <li>• <strong>Your gut:</strong> Which colors made you smile when you saw them?</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
