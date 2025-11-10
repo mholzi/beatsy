@@ -571,11 +571,13 @@ So that **clients can send events and receive broadcasts**.
 
 ---
 
-### Story 2.7: Configuration Entry (Optional Setup Flow)
+### Story 2.7: Configuration Entry Setup Flow (2025 Best Practice)
+
+**⚠️ UPDATED 2025-11-10:** Reflects modern HA 2025 config flow patterns (Story 1.1 completion)
 
 As a **Home Assistant user**,
-I want **a configuration UI in HA to set up Beatsy** (optional),
-So that **I can configure basic settings through HA's integrations page**.
+I want **a configuration UI in HA to set up Beatsy**,
+So that **I can configure basic settings through HA's integrations page following 2025 best practices**.
 
 **Acceptance Criteria:**
 
@@ -587,20 +589,47 @@ So that **I can configure basic settings through HA's integrations page**.
 - Default timer duration (optional, default: 30 seconds)
 - Default year range (optional, default: 1950-2024)
 
-**And** config is saved to `hass.data[DOMAIN]["config"]`
+**And** component uses `async_setup_entry()` pattern (2025 standard)
+
+**And** config is persisted via ConfigEntry (not just `hass.data`)
 
 **And** config can be updated later via integration options
 
-**Or** if config flow not implemented: Game configuration happens entirely in web UI (Epic 3)
-
 **Prerequisites:** Story 2.3 (state management)
 
-**Technical Notes:**
-- This story is OPTIONAL - game can be fully configured via web UI in Epic 3
-- If implemented: Create `config_flow.py` with `ConfigFlow` class
-- ConfigEntry not strictly needed for this integration (no persistent device/entity setup)
-- Recommendation: SKIP this story for MVP, add post-MVP if users request it
-- Focus effort on web-based config (Epic 3) instead
+**Technical Notes (Updated for 2025):**
+
+**Modern Config Flow Pattern:**
+- Config entries are now the **PREFERRED** pattern in Home Assistant (2025)
+- Legacy `async_setup()` used in Story 1.1 for POC only
+- Production integrations should use `async_setup_entry()` + `ConfigFlow`
+- Provides better user experience and integration with HA UI
+
+**Implementation Approach:**
+1. Create `config_flow.py` with `ConfigFlow` class extending `config_entries.ConfigFlow`
+2. Implement `async_step_user()` for initial setup flow
+3. Add `async_step_reconfigure()` for updating settings
+4. Update `__init__.py` to use `async_setup_entry()` instead of `async_setup()`
+5. Register config flow in manifest.json: `"config_flow": true`
+
+**Config Entry vs Legacy YAML:**
+- **Config Entry (2025):** UI-based setup, persisted in `.storage/`, no YAML editing
+- **Legacy YAML:** Defined in `configuration.yaml`, deprecated for new integrations
+- **Decision:** Use Config Entry for better UX and future-proofing
+
+**Storage Pattern:**
+- ConfigEntry data stored in `.storage/core.config_entries`
+- Runtime state still in `hass.data[DOMAIN]` (ephemeral)
+- Use `entry.data` for user config, `entry.options` for changeable settings
+
+**References:**
+- [HA Config Entries Docs](https://developers.home-assistant.io/docs/config_entries_index/)
+- [Config Flow Best Practices](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/)
+
+**Story Priority:**
+- OPTIONAL for MVP (game can be fully configured via web UI in Epic 3)
+- RECOMMENDED for production quality and HACS compliance
+- Consider implementing post-POC if time permits
 
 ---
 
