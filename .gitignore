@@ -1,0 +1,42 @@
+# DashView Build Artifacts
+dashview/frontend/node_modules/
+dashview/frontend/dist/
+dashview/frontend/.vite/
+dashview/backend/node_modules/
+dashview/backend/dist/
+dashview/backend/build/
+
+# Environment Variables
+dashview/**/.env
+dashview/**/.env.local
+dashview/**/.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+dashview/**/logs/
+dashview/**/*.log
+dashview/**/npm-debug.log*
+dashview/**/yarn-debug.log*
+dashview/**/yarn-error.log*
+
+# Testing
+dashview/**/coverage/
+
+# Database
+dashview/database/data/
+*.db
+*.sqlite
+
+# Temporary files
+dashview/**/tmp/
+dashview/**/.cache/
