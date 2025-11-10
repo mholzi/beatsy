@@ -349,6 +349,13 @@ Implementation approach:
 
 **Implementation Complete (2025-11-10):**
 
+**Deployment Issue Found & Fixed:**
+- Initial deployment failed: Component detected but not initialized
+- Root cause: Manifest declared `spotify` dependency, but Spotify not configured in HA
+- Fix: Removed `spotify` from manifest dependencies (will be re-added in Story 1.4)
+- Spotify not needed for Story 1.2 HTTP view testing
+- Commit: 418c90bc - "Remove Spotify dependency from manifest (Story 1.2 fix)"
+
 Files created:
 - `home-assistant-config/custom_components/beatsy/www/test.html` - Static HTML test page with timestamp and device detection
 - `home-assistant-config/custom_components/beatsy/http_view.py` - BeatsyTestView class with `requires_auth=False`
