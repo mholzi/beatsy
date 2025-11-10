@@ -1,15 +1,15 @@
 # DashView Build Artifacts
-dashview/frontend/node_modules/
-dashview/frontend/dist/
-dashview/frontend/.vite/
-dashview/backend/node_modules/
-dashview/backend/dist/
-dashview/backend/build/
+home-assistant-config/dashview/frontend/node_modules/
+home-assistant-config/dashview/frontend/dist/
+home-assistant-config/dashview/frontend/.vite/
+home-assistant-config/dashview/backend/node_modules/
+home-assistant-config/dashview/backend/dist/
+home-assistant-config/dashview/backend/build/
 
 # Environment Variables
-dashview/**/.env
-dashview/**/.env.local
-dashview/**/.env.*.local
+home-assistant-config/dashview/**/.env
+home-assistant-config/dashview/**/.env.local
+home-assistant-config/dashview/**/.env.*.local
 
 # IDE
 .vscode/
@@ -23,20 +23,20 @@ dashview/**/.env.*.local
 Thumbs.db
 
 # Logs
-dashview/**/logs/
-dashview/**/*.log
-dashview/**/npm-debug.log*
-dashview/**/yarn-debug.log*
-dashview/**/yarn-error.log*
+home-assistant-config/dashview/**/logs/
+home-assistant-config/dashview/**/*.log
+home-assistant-config/dashview/**/npm-debug.log*
+home-assistant-config/dashview/**/yarn-debug.log*
+home-assistant-config/dashview/**/yarn-error.log*
 
 # Testing
-dashview/**/coverage/
+home-assistant-config/dashview/**/coverage/
 
 # Database
-dashview/database/data/
+home-assistant-config/dashview/database/data/
 *.db
 *.sqlite
 
 # Temporary files
-dashview/**/tmp/
-dashview/**/.cache/
+home-assistant-config/dashview/**/tmp/
+home-assistant-config/dashview/**/.cache/
