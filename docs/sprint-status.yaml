@@ -36,7 +36,7 @@ story_location: "{project-root}/docs/stories"
 
 development_status:
   epic-1: contexted
-  1-1-minimal-component-structure-registration: review
+  1-1-minimal-component-structure-registration: done
   1-2-serve-static-html-without-authentication: backlog
   1-3-websocket-connection-without-authentication: backlog
   1-4-spotify-api-basic-integration-test: backlog
