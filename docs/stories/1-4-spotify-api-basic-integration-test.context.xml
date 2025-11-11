@@ -1,0 +1,360 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>4</storyId>
+    <title>Spotify API Basic Integration Test</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-10</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-4-spotify-api-basic-integration-test.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Beatsy developer</asA>
+    <iWant>to verify I can fetch a playlist and play one song via HA's Spotify integration</iWant>
+    <soThat>I validate Spotify API viability before building game mechanics</soThat>
+    <tasks>
+      <task id="1" ac="1,2">
+        <title>Research HA Spotify Integration Patterns</title>
+        <subtasks>
+          <subtask>Review Home Assistant Spotify integration documentation</subtask>
+          <subtask>Research spotify.get_playlist() or equivalent service/API</subtask>
+          <subtask>Investigate how to access playlist tracks via HA</subtask>
+          <subtask>Document Spotify URI format requirements</subtask>
+          <subtask>Identify API pagination requirements (if applicable)</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="1,2">
+        <title>Create Spotify Helper Module</title>
+        <subtasks>
+          <subtask>Create custom_components/beatsy/spotify_helper.py</subtask>
+          <subtask>Import: homeassistant.core, logging, aiohttp if needed</subtask>
+          <subtask>Implement async def fetch_playlist_tracks(hass, playlist_uri) -> list[dict]</subtask>
+          <subtask>Handle Spotify API via HA integration (not direct API calls)</subtask>
+          <subtask>Parse playlist URI (support both spotify:playlist:xxx and https://open.spotify.com/playlist/xxx formats)</subtask>
+          <subtask>Extract track metadata: uri, name, artists, album, release_date</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="2">
+        <title>Extract and Validate Metadata Structure</title>
+        <subtasks>
+          <subtask>Implement extract_track_metadata(track_data) -> dict function</subtask>
+          <subtask>Parse album.release_date field (format: "YYYY-MM-DD" or "YYYY")</subtask>
+          <subtask>Extract year: int(release_date.split('-')[0])</subtask>
+          <subtask>Handle missing release year gracefully (log warning, return None)</subtask>
+          <subtask>Select album cover URL from album.images array (prefer medium size ~300px)</subtask>
+          <subtask>Return clean structure: {uri, title, artist, year, album, cover_url}</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="3">
+        <title>Implement Playback Service Call</title>
+        <subtasks>
+          <subtask>Implement async def play_track(hass, entity_id, track_uri) -> bool function</subtask>
+          <subtask>Call HA service: hass.services.async_call("media_player", "play_media", ...)</subtask>
+          <subtask>Service data structure: {entity_id, media_content_type: "music", media_content_id: track_uri}</subtask>
+          <subtask>Add error handling: HomeAssistantError, network timeout, invalid entity</subtask>
+          <subtask>Log playback initiation with track URI and entity ID</subtask>
+          <subtask>Return success/failure status</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="4">
+        <title>Read Media Player State</title>
+        <subtasks>
+          <subtask>Implement async def get_media_player_metadata(hass, entity_id) -> dict function</subtask>
+          <subtask>Wait 2 seconds after playback initiation (allow HA state to update)</subtask>
+          <subtask>Call: state = hass.states.get(entity_id)</subtask>
+          <subtask>Extract attributes: media_title, media_artist, media_album_name, entity_picture</subtask>
+          <subtask>Validate all required fields are present</subtask>
+          <subtask>Return metadata dictionary</subtask>
+          <subtask>Handle case where state update hasn't completed (retry once after additional 2s)</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="1-4">
+        <title>Create Test Script for POC Validation</title>
+        <subtasks>
+          <subtask>Create tests/poc_spotify_test.py test script</subtask>
+          <subtask>Accept CLI arguments: --playlist_uri, --media_player_entity</subtask>
+          <subtask>Test sequence: fetch tracks, extract metadata, play first track, read state</subtask>
+          <subtask>Output metrics to JSON: {test_date, ha_version, tracks_fetched, metadata_complete, playback_success, errors}</subtask>
+        </subtasks>
+      </task>
+      <task id="7" ac="All">
+        <title>Update Component Init to Load Spotify Helper</title>
+        <subtasks>
+          <subtask>Update custom_components/beatsy/__init__.py</subtask>
+          <subtask>Import: from .spotify_helper import fetch_playlist_tracks, play_track</subtask>
+          <subtask>Store Spotify helper functions reference in hass.data[DOMAIN]</subtask>
+          <subtask>Log: "Beatsy: Spotify helper loaded"</subtask>
+          <subtask>Handle case where Spotify integration not configured (log warning)</subtask>
+        </subtasks>
+      </task>
+      <task id="8" ac="1-4">
+        <title>Test with Real Spotify Playlist</title>
+        <subtasks>
+          <subtask>Ensure Spotify integration configured in HA</subtask>
+          <subtask>Identify available Spotify-capable media player</subtask>
+          <subtask>Create or select test playlist (10-20 tracks, mix of decades)</subtask>
+          <subtask>Run test script with parameters</subtask>
+          <subtask>Verify playlist tracks fetched successfully</subtask>
+          <subtask>Verify metadata includes release years</subtask>
+          <subtask>Verify playback initiates and song plays audibly</subtask>
+          <subtask>Verify media player state updates with correct metadata</subtask>
+        </subtasks>
+      </task>
+      <task id="9" ac="2,5">
+        <title>Document Missing Year Data Handling</title>
+        <subtasks>
+          <subtask>Test with tracks that have incomplete metadata</subtask>
+          <subtask>Document percentage of tracks with missing year data</subtask>
+          <subtask>Propose filtering strategy for Epic 7: Skip tracks without year</subtask>
+          <subtask>Log warning for each track with missing year</subtask>
+          <subtask>Update documentation with findings</subtask>
+        </subtasks>
+      </task>
+      <task id="10" ac="5">
+        <title>Document Spotify Integration Patterns</title>
+        <subtasks>
+          <subtask>Create documentation section in POC Decision Document (Story 1.7)</subtask>
+          <subtask>Document exact API methods and service calls used</subtask>
+          <subtask>Capture metadata structure with example JSON</subtask>
+          <subtask>Document playback patterns and timing requirements</subtask>
+          <subtask>Note limitations discovered (year data, API delays, player compatibility)</subtask>
+          <subtask>Provide code snippets for Epic 7 reference</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">
+      <title>Playlist Track List Fetching</title>
+      <given>Home Assistant has an active Spotify integration configured</given>
+      <when>Beatsy attempts to fetch playlist track list from Spotify URI</when>
+      <then>
+        <condition>playlist track list is successfully retrieved</condition>
+        <condition>track data includes: uri, title, artist, album</condition>
+        <condition>playlist fetch completes within 5 seconds</condition>
+        <condition>HA logs confirm: "Beatsy: Fetched {count} tracks from playlist {playlist_id}"</condition>
+      </then>
+    </criterion>
+    <criterion id="AC-2">
+      <title>Track Metadata Extraction</title>
+      <given>playlist tracks have been fetched</given>
+      <when>Beatsy extracts metadata for each track</when>
+      <then>
+        <condition>each track includes required fields: uri, title, artist, album, release_year, cover_url</condition>
+        <condition>tracks without release year data are identified and logged</condition>
+        <condition>metadata structure is documented for Epic 7</condition>
+      </then>
+    </criterion>
+    <criterion id="AC-3">
+      <title>Media Player Playback</title>
+      <given>track metadata has been extracted</given>
+      <when>Beatsy calls hass.services.async_call("media_player", "play_media", {...})</when>
+      <then>
+        <condition>specified Spotify track plays on the configured media player</condition>
+        <condition>playback starts within 2 seconds of command</condition>
+        <condition>HA logs confirm: "Beatsy: Playing track {track_uri} on {media_player_entity}"</condition>
+        <condition>no playback errors occur</condition>
+      </then>
+    </criterion>
+    <criterion id="AC-4">
+      <title>Media Player State Reading</title>
+      <given>track is playing via media player</given>
+      <when>Beatsy reads media player state after 2-second delay</when>
+      <then>
+        <condition>media player attributes include: media_title, media_artist, media_album_name, entity_picture</condition>
+        <condition>retrieved metadata matches expected track data</condition>
+        <condition>metadata is available for game display</condition>
+      </then>
+    </criterion>
+    <criterion id="AC-5">
+      <title>Spotify Integration Documentation</title>
+      <given>all Spotify tests complete</given>
+      <when>developer reviews Spotify integration patterns</when>
+      <then>
+        <condition>documentation includes: exact method for fetching playlist, metadata structure, playback patterns, known limitations</condition>
+        <condition>documentation saved for Epic 7 implementation</condition>
+      </then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification: Foundation & Multi-Risk POC</title>
+        <section>Story 1.4: Spotify API Basic Integration Test</section>
+        <snippet>Validates Spotify API integration by testing playlist fetching, metadata extraction, and playback initiation via HA's Spotify integration. Critical for proving ADR-003 (Minimal JSON + Runtime Metadata pattern) is viable for Epic 7.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Beatsy - Epic Breakdown</title>
+        <section>Epic 1: Foundation & Multi-Risk POC - Story 1.4</section>
+        <snippet>As a Beatsy developer, I want to verify I can fetch a playlist and play one song via HA's Spotify integration, so that I validate Spotify API viability before building game mechanics. Acceptance criteria include fetching playlist, extracting metadata with release year, playback within 2 seconds, and documenting Spotify metadata structure and API limits.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Beatsy Architecture</title>
+        <section>ADR-003: Minimal JSON + Runtime Metadata</section>
+        <snippet>Decision to store only (URI, year, fun_fact) in JSON playlists, fetching title/artist/album/cover from HA media player state at runtime. This story validates metadata is accessible and complete. Consequences: 2-second delay for HA state update after playback starts.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Beatsy Architecture</title>
+        <section>Integration Points - Home Assistant Spotify Integration</section>
+        <snippet>Beatsy leverages existing HA Spotify integration via service calls. Pattern: hass.services.async_call("media_player", "play_media", {...}). Metadata retrieved from media player state attributes after playback. No separate Spotify auth required.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Beatsy Product Requirements Document</title>
+        <section>NFR-P3: Music Playback Performance</section>
+        <snippet>Target: Music playback initiates within 2 seconds of command. Critical for maintaining game flow and player engagement. Validated in Story 1.4.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Beatsy Product Requirements Document</title>
+        <section>FR-1.2: Spotify Integration</section>
+        <snippet>Leverage existing HA Spotify integration. Respect user's existing setup, avoid auth conflicts and credential management complexity.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>custom_components/beatsy/__init__.py</path>
+        <kind>component_init</kind>
+        <symbol>async_setup</symbol>
+        <lines></lines>
+        <reason>Component initialization - will be modified to import and register Spotify helper functions</reason>
+      </artifact>
+      <artifact>
+        <path>custom_components/beatsy/const.py</path>
+        <kind>constants</kind>
+        <symbol>DOMAIN</symbol>
+        <lines></lines>
+        <reason>Domain constant ("beatsy") used for hass.data storage</reason>
+      </artifact>
+      <artifact>
+        <path>custom_components/beatsy/manifest.json</path>
+        <kind>manifest</kind>
+        <symbol></symbol>
+        <lines></lines>
+        <reason>Component metadata - Spotify dependency was removed in Story 1.3 (commit 418c90bc) to fix loading issue</reason>
+      </artifact>
+      <artifact>
+        <path>custom_components/beatsy/websocket_handler.py</path>
+        <kind>service</kind>
+        <symbol>BeatsyWebSocketView</symbol>
+        <lines></lines>
+        <reason>Existing WebSocket handler from Story 1.3 - not needed for this story but demonstrates async service call patterns</reason>
+      </artifact>
+      <artifact>
+        <path>custom_components/beatsy/www/test.html</path>
+        <kind>static_file</kind>
+        <symbol></symbol>
+        <lines></lines>
+        <reason>Test HTML page from Story 1.2 - not needed for this story</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="homeassistant" version="2024.1+">Home Assistant Core - provides hass object, service calls, state management</package>
+        <package name="aiohttp" version="bundled">Async HTTP library bundled with HA - available if needed for API calls</package>
+        <package name="asyncio" version="stdlib">Python standard library - async/await runtime</package>
+        <package name="logging" version="stdlib">Python standard library - logging infrastructure</package>
+      </python>
+      <ha_integrations>
+        <integration name="spotify" required="true">Existing HA Spotify integration - user must configure before Story 1.4 testing</integration>
+        <integration name="media_player" required="true">HA Media Player domain - provides play_media service and state attributes</integration>
+      </ha_integrations>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint category="architecture">Use HA's existing Spotify integration - DO NOT create separate Spotify auth or direct API calls (ADR-003, Architecture)</constraint>
+    <constraint category="architecture">Leverage service call pattern: hass.services.async_call() for all Spotify operations (Architecture - Integration Points)</constraint>
+    <constraint category="architecture">Fetch metadata from HA media player state after playback starts - 2-second delay required (ADR-003)</constraint>
+    <constraint category="performance">Playlist fetch must complete within 5 seconds (AC-1)</constraint>
+    <constraint category="performance">Playback must initiate within 2 seconds of command (AC-3, NFR-P3)</constraint>
+    <constraint category="data">Track metadata MUST include release year for scoring - filter tracks without year (AC-2, Tech Spec)</constraint>
+    <constraint category="testing">POC validation approach - manual test with real Spotify playlist, no mocking (Tech Spec)</constraint>
+    <constraint category="testing">Test with developer's actual Spotify account and media players (Tech Spec)</constraint>
+    <constraint category="error_handling">Handle Spotify token expired, network timeout, invalid playlist URI, media player offline (Dev Notes)</constraint>
+    <constraint category="logging">Use module-level _LOGGER = logging.getLogger(__name__) pattern (Story 1.3 learnings)</constraint>
+    <constraint category="logging">Log levels: INFO for operations, DEBUG for details, ERROR for failures (Story 1.3 learnings)</constraint>
+    <constraint category="code_style">Modern Python 3.11+ type hints throughout: dict[str, Any] not Dict[str, Any] (Story 1.3 learnings)</constraint>
+    <constraint category="code_style">Async service call pattern: await hass.services.async_call(...) (2025 HA standards)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>hass.services.async_call</name>
+      <kind>HA_service_call</kind>
+      <signature>async def async_call(domain: str, service: str, service_data: dict, blocking: bool = False, context: Context | None = None) -> None</signature>
+      <path>homeassistant.core</path>
+      <usage>Call media_player.play_media service with Spotify track URI</usage>
+    </interface>
+    <interface>
+      <name>hass.states.get</name>
+      <kind>HA_state_accessor</kind>
+      <signature>def get(entity_id: str) -> State | None</signature>
+      <path>homeassistant.core</path>
+      <usage>Read media player state attributes after playback starts</usage>
+    </interface>
+    <interface>
+      <name>fetch_playlist_tracks</name>
+      <kind>function_signature</kind>
+      <signature>async def fetch_playlist_tracks(hass: HomeAssistant, playlist_uri: str) -> list[dict]</signature>
+      <path>custom_components/beatsy/spotify_helper.py (NEW)</path>
+      <usage>Fetch all tracks from Spotify playlist via HA integration</usage>
+    </interface>
+    <interface>
+      <name>extract_track_metadata</name>
+      <kind>function_signature</kind>
+      <signature>def extract_track_metadata(track_data: dict) -> dict</signature>
+      <path>custom_components/beatsy/spotify_helper.py (NEW)</path>
+      <usage>Extract and normalize track metadata including release year</usage>
+    </interface>
+    <interface>
+      <name>play_track</name>
+      <kind>function_signature</kind>
+      <signature>async def play_track(hass: HomeAssistant, entity_id: str, track_uri: str) -> bool</signature>
+      <path>custom_components/beatsy/spotify_helper.py (NEW)</path>
+      <usage>Initiate Spotify track playback on specified media player</usage>
+    </interface>
+    <interface>
+      <name>get_media_player_metadata</name>
+      <kind>function_signature</kind>
+      <signature>async def get_media_player_metadata(hass: HomeAssistant, entity_id: str) -> dict</signature>
+      <path>custom_components/beatsy/spotify_helper.py (NEW)</path>
+      <usage>Read media player state attributes for runtime metadata</usage>
+    </interface>
+    <interface>
+      <name>media_player.play_media</name>
+      <kind>HA_service</kind>
+      <signature>service: play_media | data: {entity_id: str, media_content_type: str, media_content_id: str}</signature>
+      <path>homeassistant.components.media_player</path>
+      <usage>HA service to play Spotify tracks - media_content_id is spotify:track:xxxxx</usage>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>POC testing approach (Epic 1): Manual integration testing with real Spotify playlist, no mocking. Test with developer's actual HA instance, Spotify account, and media players. Metrics collected to JSON file for POC Decision Document (Story 1.7). Python test scripts for POC validation, not pytest unit tests.</standards>
+    <locations>
+      <location>tests/poc_spotify_test.py (NEW) - POC validation test script</location>
+      <location>tests/poc_metrics.json - Test results output for Story 1.7</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-1">Test playlist fetch with 10-20 track playlist (varied decades) - verify track count matches</idea>
+      <idea ac="AC-1">Test playlist fetch timing - measure duration, verify < 5 seconds</idea>
+      <idea ac="AC-2">Test metadata extraction for first 3 tracks - verify all required fields present (uri, title, artist, album, year, cover_url)</idea>
+      <idea ac="AC-2">Test tracks without release year - document percentage missing year data, verify graceful handling</idea>
+      <idea ac="AC-3">Test playback initiation - measure time from service call to playback start, verify < 2 seconds</idea>
+      <idea ac="AC-3">Test playback with real audio output - verify song plays audibly on media player</idea>
+      <idea ac="AC-4">Test media player state reading - verify metadata available 2 seconds after playback</idea>
+      <idea ac="AC-4">Test metadata completeness - verify media_title, media_artist, media_album_name, entity_picture all present</idea>
+      <idea ac="AC-5">Document all findings in POC Decision Document section for Story 1.7</idea>
+      <idea ac="all">Test error scenarios: Spotify token expired, network timeout, invalid playlist URI, media player offline</idea>
+      <idea ac="all">Monitor HA logs during all tests - verify INFO log messages appear for fetch and playback</idea>
+    </ideas>
+  </tests>
+</story-context>
