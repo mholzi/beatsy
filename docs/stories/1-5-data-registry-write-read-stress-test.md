@@ -1,6 +1,6 @@
 # Story 1.5: Data Registry Write/Read Stress Test
 
-Status: review
+Status: done
 
 ## Story
 
