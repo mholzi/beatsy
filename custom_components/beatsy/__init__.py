@@ -238,26 +238,33 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if unload_ok:
         # Get and remove entry data (now a BeatsyGameState object)
-        state = hass.data[DOMAIN].pop(entry.entry_id)
+        # Defensive: Check if DOMAIN exists and has our entry_id
+        if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
+            state = hass.data[DOMAIN].pop(entry.entry_id)
 
-        # Close all WebSocket connections (Story 2.6)
-        # Handle both dict (legacy) and BeatsyGameState (current)
-        if hasattr(state, "websocket_connections"):
-            websocket_connections = state.websocket_connections
-        else:
-            websocket_connections = state.get("websocket_connections", {})
-
-        for connection_id, conn_info in websocket_connections.items():
+            # Close all WebSocket connections (Story 2.6)
+            # Handle both dict (legacy) and BeatsyGameState (current)
             try:
-                connection = conn_info.get("connection")
-                if connection and hasattr(connection, "close"):
-                    await connection.close()
-                _LOGGER.debug(f"Closed WebSocket connection: {connection_id}")
-            except Exception as e:
-                _LOGGER.warning(f"Error closing connection {connection_id}: {e}")
+                if hasattr(state, "websocket_connections"):
+                    websocket_connections = state.websocket_connections
+                else:
+                    websocket_connections = state.get("websocket_connections", {})
 
-        # Clear connection tracking
-        websocket_connections.clear()
+                for connection_id, conn_info in list(websocket_connections.items()):
+                    try:
+                        connection = conn_info.get("connection")
+                        if connection and hasattr(connection, "close"):
+                            await connection.close()
+                        _LOGGER.debug(f"Closed WebSocket connection: {connection_id}")
+                    except Exception as e:
+                        _LOGGER.warning(f"Error closing connection {connection_id}: {e}")
+
+                # Clear connection tracking
+                websocket_connections.clear()
+            except Exception as e:
+                _LOGGER.warning(f"Error during WebSocket cleanup: {e}")
+        else:
+            _LOGGER.debug(f"Entry {entry.entry_id} not found in hass.data during unload")
 
         # Note: HTTP views are global and shared across all entries
         # They will be unregistered when HA shuts down
