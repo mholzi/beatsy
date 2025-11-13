@@ -1,0 +1,269 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>5</storyId>
+    <title>HTTP Route Registration</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-12</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-5-http-route-registration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Beatsy component</asA>
+    <iWant>to register HTTP routes for serving web interfaces and API endpoints</iWant>
+    <soThat>admin and players can access the game UIs and the component can handle REST API requests</soThat>
+    <tasks>
+      <task id="1" ac="1,2">Create HTTP View Module</task>
+      <task id="2" ac="1">Implement Admin View Class</task>
+      <task id="3" ac="2">Implement Player View Class</task>
+      <task id="4" ac="3">Implement API Endpoints View</task>
+      <task id="5" ac="1,2,3">Register Views in Component Setup</task>
+      <task id="6" ac="4">CORS Configuration</task>
+      <task id="7" ac="5">Error Handling and Logging</task>
+      <task id="8-17">Testing Tasks (Unit, Integration, Manual)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1">
+      <title>Admin HTTP Route Registration</title>
+      <details>
+        - `/api/beatsy/admin` route is available
+        - Route requires HA authentication (returns 401 without valid HA token)
+        - Authenticated access returns 200 OK with placeholder content
+        - Route supports GET method for HTML delivery
+      </details>
+    </criterion>
+    <criterion id="AC-2">
+      <title>Player HTTP Route Registration</title>
+      <details>
+        - `/api/beatsy/player` route is available
+        - Route does NOT require authentication (unauthenticated access per Epic 1 POC)
+        - Unauthenticated access returns 200 OK with placeholder content
+        - Route supports GET method for HTML delivery
+      </details>
+    </criterion>
+    <criterion id="AC-3">
+      <title>API Endpoints Registration</title>
+      <details>
+        - `/api/beatsy/api/media_players` endpoint is available (GET)
+        - `/api/beatsy/api/validate_playlist` endpoint is available (POST)
+        - `/api/beatsy/api/start_game` endpoint is available (POST)
+        - `/api/beatsy/api/next_song` endpoint is available (POST)
+        - `/api/beatsy/api/reset_game` endpoint is available (POST)
+        - All API endpoints require HA authentication
+        - Endpoints return appropriate HTTP status codes (200, 400, 401, 500)
+      </details>
+    </criterion>
+    <criterion id="AC-4">
+      <title>CORS Configuration</title>
+      <details>
+        - CORS headers appropriately configured for local network access
+        - Player route supports cross-origin requests (for phones/tablets)
+        - OPTIONS preflight requests handled correctly
+        - CORS configuration follows HA's built-in patterns
+      </details>
+    </criterion>
+    <criterion id="AC-5">
+      <title>Error Handling</title>
+      <details>
+        - Exceptions are caught and logged
+        - Appropriate error responses returned (4xx/5xx)
+        - Server remains stable (no crashes)
+        - Error details logged at ERROR level for debugging
+      </details>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Epic Technical Specification: HACS Integration & Core Infrastructure</title>
+        <section>Story 2.5: HTTP Route Registration</section>
+        <snippet>Implements HTTP routes for admin/player interfaces and API endpoints. Admin requires authentication, player does not (Epic 1 POC pattern). Routes include /api/beatsy/admin (authenticated), /api/beatsy/player (unauthenticated), and /api/beatsy/api/* (REST API endpoints). CORS handled automatically by HA framework.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>HTTP Endpoints Specification</title>
+        <section>APIs and Interfaces - HTTP Endpoints</section>
+        <snippet>Admin interface route: GET /api/beatsy/admin (auth required, placeholder HTML). Player interface route: GET /api/beatsy/player (no auth required per Epic 1 POC, placeholder HTML). API endpoints for media_players, validate_playlist, start_game, next_song, reset_game (all authenticated, JSON responses).</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/epics.md</path>
+        <title>Story 2.5: HTTP Route Registration</title>
+        <section>Epic 2: HACS Integration & Core Infrastructure</section>
+        <snippet>Register HTTP routes using hass.http.register_view(). Admin view requires_auth=True, player view requires_auth=False. Routes handle CORS for local network access. Routes return placeholder HTML for Epic 2, real UIs in Epic 3-4.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/poc-decision.md</path>
+        <title>Epic 1 POC Decision Document</title>
+        <section>Unauthenticated HTTP Access Pattern</section>
+        <snippet>POC validated unauthenticated access pattern using requires_auth=False on HomeAssistantView. Pattern works for local network access (players on same WiFi). Critical for zero-friction player joining experience.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>HTTP Routing Pattern</section>
+        <snippet>HA provides HomeAssistantView base class. Views registered via hass.http.register_view(). Authentication handled by HA framework. CORS configured automatically for /api/* routes. Views support async request handling.</snippet>
+      </artifact>
+    </docs>
+    <code>
+      <artifact>
+        <path>home-assistant-config/custom_components/beatsy/http_view.py</path>
+        <kind>module</kind>
+        <symbol>BeatsyTestView</symbol>
+        <lines>14-66</lines>
+        <reason>Existing HTTP view class demonstrating unauthenticated access pattern (requires_auth=False). Shows error handling, logging, and HTML response patterns to reuse for new views.</reason>
+      </artifact>
+      <artifact>
+        <path>home-assistant-config/custom_components/beatsy/__init__.py</path>
+        <kind>module</kind>
+        <symbol>async_setup_entry</symbol>
+        <lines>30-160</lines>
+        <reason>Component setup function showing how to register HTTP views using hass.http.register_view(). Pattern at lines 76-81 demonstrates view registration with error handling.</reason>
+      </artifact>
+      <artifact>
+        <path>home-assistant-config/custom_components/beatsy/const.py</path>
+        <kind>module</kind>
+        <symbol>DOMAIN</symbol>
+        <lines>1-10</lines>
+        <reason>Contains DOMAIN constant needed for state access in HTTP views. Import pattern: from .const import DOMAIN</reason>
+      </artifact>
+      <artifact>
+        <path>home-assistant-config/custom_components/beatsy/spotify_helper.py</path>
+        <kind>module</kind>
+        <symbol>get_media_player_metadata, fetch_playlist_tracks</symbol>
+        <lines>1-50</lines>
+        <reason>Spotify helper functions that API endpoints will call (Story 2.4 integration). Media players endpoint will use get_media_player_metadata(), validate_playlist will use fetch_playlist_tracks().</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="homeassistant">Home Assistant Core (2024.1+)</package>
+        <package name="aiohttp">Async HTTP server (bundled with HA)</package>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C-1">
+      <title>Authentication Pattern</title>
+      <description>Admin and API routes MUST use requires_auth=True. Player route MUST use requires_auth=False per Epic 1 POC validation. No manual token checks - use HA framework's built-in authentication.</description>
+      <source>docs/tech-spec-epic-2.md#NFR-S1-Unauthenticated-Access-Scope</source>
+    </constraint>
+    <constraint id="C-2">
+      <title>Placeholder Content</title>
+      <description>Epic 2 routes return placeholder HTML only. Real admin UI implemented in Epic 3, real player UI in Epic 4. API endpoints return placeholder JSON with "not yet implemented" messages.</description>
+      <source>docs/tech-spec-epic-2.md#Story-2.5-Workflows</source>
+    </constraint>
+    <constraint id="C-3">
+      <title>CORS Handling</title>
+      <description>Do NOT implement custom CORS logic. HA's HTTP component automatically handles CORS for /api/* routes. Document this behavior in code comments only.</description>
+      <source>docs/tech-spec-epic-2.md#NFR-S1</source>
+    </constraint>
+    <constraint id="C-4">
+      <title>Error Handling</title>
+      <description>All view methods MUST be wrapped in try/except blocks. Log errors at ERROR level with full context. Return appropriate HTTP status codes (200/400/401/404/500). Exceptions must not crash the component.</description>
+      <source>docs/tech-spec-epic-2.md#NFR-R3-Error-Recovery</source>
+    </constraint>
+    <constraint id="C-5">
+      <title>View Registration</title>
+      <description>Views must be registered in async_setup_entry() AFTER state initialization. Use hass.http.register_view() pattern shown in existing code. Log registration at INFO level.</description>
+      <source>home-assistant-config/custom_components/beatsy/__init__.py#76-81</source>
+    </constraint>
+    <constraint id="C-6">
+      <title>HTTP Response Format</title>
+      <description>HTML views: Use web.Response() with content_type="text/html". API endpoints: Use web.json_response() for JSON. Include mobile viewport meta tag in HTML.</description>
+      <source>home-assistant-config/custom_components/beatsy/http_view.py#45-49</source>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>HomeAssistantView</name>
+      <kind>Base Class</kind>
+      <signature>
+class BeatsyAdminView(HomeAssistantView):
+    url = "/api/beatsy/admin"
+    name = "api:beatsy:admin"
+    requires_auth = True
+
+    async def get(self, request: web.Request) -> web.Response:
+        """Handle GET requests."""
+        pass
+      </signature>
+      <path>homeassistant.components.http.HomeAssistantView</path>
+    </interface>
+    <interface>
+      <name>hass.http.register_view()</name>
+      <kind>Registration Method</kind>
+      <signature>
+hass.http.register_view(BeatsyAdminView())
+      </signature>
+      <path>home-assistant-config/custom_components/beatsy/__init__.py:77</path>
+    </interface>
+    <interface>
+      <name>web.Response</name>
+      <kind>HTTP Response</kind>
+      <signature>
+return web.Response(
+    text=html_content,
+    content_type="text/html",
+    status=200
+)
+      </signature>
+      <path>aiohttp.web</path>
+    </interface>
+    <interface>
+      <name>web.json_response</name>
+      <kind>JSON Response</kind>
+      <signature>
+return web.json_response(
+    {"data": value},
+    status=200
+)
+      </signature>
+      <path>aiohttp.web</path>
+    </interface>
+    <interface>
+      <name>State Access Pattern</name>
+      <kind>Data Access</kind>
+      <signature>
+hass: HomeAssistant = request.app["hass"]
+state = hass.data[DOMAIN][entry.entry_id]
+      </signature>
+      <path>home-assistant-config/custom_components/beatsy/__init__.py:45-52</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+Testing uses pytest with pytest-asyncio for async tests and pytest-homeassistant-custom-component for HA integration test helpers. Unit tests verify view properties (requires_auth, url) and method behavior with mocked requests. Integration tests use aiohttp.test_utils.TestClient to make actual HTTP requests against registered views. Manual testing validates browser access, authentication behavior, and mobile device compatibility. All tests must verify appropriate HTTP status codes and content types.
+    </standards>
+    <locations>
+      <location>tests/test_http_view.py</location>
+      <location>tests/integration/test_http_routes.py</location>
+    </locations>
+    <ideas>
+      <test ac="AC-1">Test admin view requires_auth property is True and url is correct</test>
+      <test ac="AC-1">Test admin view GET method returns 200 OK with HTML content when authenticated</test>
+      <test ac="AC-1">Test admin view returns 401 without authentication token</test>
+      <test ac="AC-2">Test player view requires_auth property is False and url is correct</test>
+      <test ac="AC-2">Test player view GET method returns 200 OK with HTML content without authentication</test>
+      <test ac="AC-2">Test player view accessible from any origin (CORS)</test>
+      <test ac="AC-3">Test API view GET /media_players endpoint returns JSON with appropriate structure</test>
+      <test ac="AC-3">Test API view POST endpoints (validate_playlist, start_game, next_song, reset_game) return placeholder JSON</test>
+      <test ac="AC-3">Test API view requires authentication for all endpoints</test>
+      <test ac="AC-3">Test API view returns 404 for unknown endpoints</test>
+      <test ac="AC-4">Test OPTIONS preflight request to player route returns CORS headers</test>
+      <test ac="AC-4">Test GET request to player route includes Access-Control-Allow-Origin header</test>
+      <test ac="AC-5">Test exception in view method returns 500 error with JSON error response</test>
+      <test ac="AC-5">Test invalid JSON in POST request returns 400 error</test>
+      <test ac="AC-5">Test error logging occurs at ERROR level when exceptions happen</test>
+      <test ac="AC-1,AC-2,AC-3">Integration test: Load component and verify all routes registered and accessible</test>
+      <test ac="AC-2">Manual test: Access player route from mobile device on same WiFi without authentication</test>
+    </ideas>
+  </tests>
+</story-context>

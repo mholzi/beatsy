@@ -1,0 +1,229 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>3</storyId>
+    <title>In-Memory Game State Management</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-12</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-3-in-memory-game-state-management.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Beatsy game manager</asA>
+    <iWant>a structured in-memory state system using `hass.data` with modern Python type safety</iWant>
+    <soThat>game state is fast, accessible across all modules, and maintainable with clear type contracts</soThat>
+    <tasks>
+      - Task 1: Define State Type Models (GameConfig TypedDict, Player/RoundState/BeatsyGameState dataclasses)
+      - Task 2: Implement State Initialization (init_game_state function)
+      - Task 3: Implement Config Accessor Functions (get_game_config, update_game_config with validation)
+      - Task 4: Implement Player Accessor Functions (get_players, add_player, get_player, update_player_score, reset_players)
+      - Task 5: Implement Round Accessor Functions (get_current_round, set_current_round, clear_current_round, add_guess)
+      - Task 6: Implement Song History Functions (get_played_songs, add_played_song, is_song_played)
+      - Task 7: Implement Config Persistence (load_config/save_config using hass.helpers.storage.Store)
+      - Task 8: Add Thread Safety Documentation (module docstring explaining async safety)
+      - Task 9-13: Unit Tests (state init, config, players, rounds, song history)
+      - Task 14: Integration Test - State Lifecycle
+      - Task 15: Performance Test - In-Memory Speed (&lt;1ms operations)
+      - Task 16-17: Manual Testing (state access, config persistence)
+      - Task 18: Update __init__.py Integration (import init_game_state and load_config)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1" title="State Structure Initialization">
+      - hass.data[DOMAIN] contains structured BeatsyGameState object
+      - State uses Python 3.14+ type hints and dataclasses
+      - Structure includes: game_config (TypedDict), players (List[Player]), current_round (Optional[RoundState]), played_songs (List[str]), websocket_connections (Dict)
+    </criterion>
+    <criterion id="AC-2" title="State Accessor Functions">
+      - Accessor functions available: get_game_config, get_players, add_player, update_player_score, get_current_round, set_current_round, add_played_song
+      - All functions have complete type hints
+      - Functions raise ValueError for invalid operations
+    </criterion>
+    <criterion id="AC-3" title="Thread-Safe State Access">
+      - State access thread-safe by default (HA async architecture)
+      - No race conditions during state updates
+      - State mutations are atomic operations
+    </criterion>
+    <criterion id="AC-4" title="In-Memory Performance">
+      - Operations complete in &lt;1ms (in-memory speed)
+      - No database I/O operations occur
+      - State resets on HA restart (acceptable for games)
+    </criterion>
+    <criterion id="AC-5" title="Optional Config Persistence">
+      - Config persists across HA restarts using hass.helpers.storage
+      - Active game state remains in-memory only
+      - Config loaded on component setup
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Services and Modules - game_state.py</section>
+        <snippet>Module: game_state.py handles game state data structure and accessors with functions: init_game_state(), get_game_config(), get_players(), update_player_score(), get_current_round(). Owner: Story 2.3</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Data Models and Contracts - Game State Structure</section>
+        <snippet>Game state stored in hass.data[DOMAIN] with structure: game_config (dict with media_player, playlist_uri, timer settings, scoring rules), players (list with name, session_id, points, admin flag), current_round (song_uri, started_at, status, guesses), played_songs (list), available_songs (list with metadata)</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Decision Summary - Game State Storage</section>
+        <snippet>Decision: Hybrid (Memory + HA Registry) - Fast in-memory gameplay, persistent config/scores. Rationale: Fast access for real-time game state, persistent storage only for configuration.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/2-2-component-lifecycle-management.md</path>
+        <title>Story 2.2: Component Lifecycle Management</title>
+        <section>Learnings from Previous Story</section>
+        <snippet>Story 2.2 initializes hass.data[DOMAIN] in async_setup(), handles cleanup in async_unload(), provides foundation for Story 2.3 state management.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>home-assistant-config/custom_components/beatsy/const.py</path>
+        <kind>module</kind>
+        <symbol>DOMAIN, DEFAULT_* constants</symbol>
+        <lines>1-13</lines>
+        <reason>Provides DOMAIN constant and default configuration values that Story 2.3 will use in GameConfig TypedDict and game_state.py module</reason>
+      </artifact>
+      <artifact>
+        <path>home-assistant-config/custom_components/beatsy/__init__.py</path>
+        <kind>component entry point</kind>
+        <symbol>async_setup_entry</symbol>
+        <lines>30-62</lines>
+        <reason>Currently initializes state as plain dict (lines 45-52). Story 2.3 will refactor this to use BeatsyGameState dataclass via init_game_state() call. Shows current state structure that needs to be migrated to typed dataclass pattern.</reason>
+      </artifact>
+      <artifact>
+        <path>home-assistant-config/custom_components/beatsy/__init__.py</path>
+        <kind>component entry point</kind>
+        <symbol>async_unload_entry</symbol>
+        <lines>163-190</lines>
+        <reason>Handles cleanup of WebSocket connections and state (lines 178-183). Story 2.3 must ensure game_state.py works with this cleanup pattern. No changes needed to unload logic.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <homeassistant>
+        <core>homeassistant.core.HomeAssistant</core>
+        <helpers>homeassistant.helpers.storage.Store (for config persistence)</helpers>
+        <integrations>http, spotify (declared in manifest.json)</integrations>
+      </homeassistant>
+      <python>
+        <stdlib>
+          <module>typing (TypedDict, Any)</module>
+          <module>dataclasses (dataclass, field)</module>
+          <module>logging</module>
+        </stdlib>
+        <version>3.11+ (Home Assistant 2024.x requirement)</version>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Python 3.14+ type hints required: Use modern union syntax (int | None), dataclasses, and TypedDict</constraint>
+    <constraint>In-memory only for active game state: No database I/O during gameplay, state resets on HA restart (acceptable for games)</constraint>
+    <constraint>Config persistence only: Use hass.helpers.storage.Store ONLY for admin config, not active game state</constraint>
+    <constraint>Thread-safe by design: HA asyncio event loop ensures thread safety, no locks needed for state access</constraint>
+    <constraint>Performance target: All state operations must complete in &lt;1ms (in-memory access)</constraint>
+    <constraint>Integration with existing __init__.py: Must refactor existing plain dict initialization (lines 45-52) to use BeatsyGameState dataclass</constraint>
+    <constraint>Module location: Create game_state.py in custom_components/beatsy/</constraint>
+    <constraint>Import pattern: from .const import DOMAIN (relative import)</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>init_game_state</name>
+      <kind>function</kind>
+      <signature>def init_game_state(hass: HomeAssistant) -> BeatsyGameState</signature>
+      <path>custom_components/beatsy/game_state.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>get_game_config</name>
+      <kind>function</kind>
+      <signature>def get_game_config(hass: HomeAssistant) -> GameConfig</signature>
+      <path>custom_components/beatsy/game_state.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>update_game_config</name>
+      <kind>function</kind>
+      <signature>def update_game_config(hass: HomeAssistant, config: GameConfig) -> None</signature>
+      <path>custom_components/beatsy/game_state.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>get_players</name>
+      <kind>function</kind>
+      <signature>def get_players(hass: HomeAssistant) -> list[Player]</signature>
+      <path>custom_components/beatsy/game_state.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>add_player</name>
+      <kind>function</kind>
+      <signature>def add_player(hass: HomeAssistant, player: Player) -> None</signature>
+      <path>custom_components/beatsy/game_state.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>update_player_score</name>
+      <kind>function</kind>
+      <signature>def update_player_score(hass: HomeAssistant, player_name: str, points: int) -> None</signature>
+      <path>custom_components/beatsy/game_state.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>get_current_round</name>
+      <kind>function</kind>
+      <signature>def get_current_round(hass: HomeAssistant) -> RoundState | None</signature>
+      <path>custom_components/beatsy/game_state.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>set_current_round</name>
+      <kind>function</kind>
+      <signature>def set_current_round(hass: HomeAssistant, round_state: RoundState) -> None</signature>
+      <path>custom_components/beatsy/game_state.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>add_played_song</name>
+      <kind>function</kind>
+      <signature>def add_played_song(hass: HomeAssistant, track_uri: str) -> None</signature>
+      <path>custom_components/beatsy/game_state.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>load_config</name>
+      <kind>async function</kind>
+      <signature>async def load_config(hass: HomeAssistant) -> GameConfig</signature>
+      <path>custom_components/beatsy/game_state.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>save_config</name>
+      <kind>async function</kind>
+      <signature>async def save_config(hass: HomeAssistant, config: GameConfig) -> None</signature>
+      <path>custom_components/beatsy/game_state.py (NEW)</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      Testing framework: pytest with pytest-asyncio for async tests. Use pytest-homeassistant-custom-component for HA test fixtures (hass fixture).
+      Performance testing: pytest-benchmark for timing measurements (verify &lt;1ms operations).
+      Type checking: mypy/pyright for static type validation.
+      Test structure: Unit tests for each accessor function, integration test for full lifecycle, performance test for speed validation.
+      Mock patterns: Mock hass.helpers.storage.Store for config persistence tests.
+      Test naming: test_&lt;function_name&gt;_&lt;scenario&gt; (e.g., test_add_player_duplicate_raises)
+    </standards>
+    <locations>
+      tests/test_game_state.py (NEW FILE - all unit and integration tests for game_state.py module)
+    </locations>
+    <ideas>
+      <idea ac="AC-1">Test init_game_state creates BeatsyGameState with correct default values and type structure</idea>
+      <idea ac="AC-2">Test get_game_config returns config dict, update_game_config updates values, validation raises ValueError for invalid data</idea>
+      <idea ac="AC-2">Test add_player adds to list, duplicate names raise ValueError, get_player finds by name, update_player_score increments correctly</idea>
+      <idea ac="AC-2">Test round lifecycle: set_current_round, get_current_round, clear_current_round, add_guess with validation</idea>
+      <idea ac="AC-2">Test song history: add_played_song appends unique URIs, is_song_played returns correct boolean</idea>
+      <idea ac="AC-3">Integration test: Full game lifecycle (init → add players → start round → guesses → scores → end round) verifies thread-safe state mutations</idea>
+      <idea ac="AC-4">Performance test: Benchmark 1000 state operations complete in &lt;100ms total (&lt;1ms each), no database queries</idea>
+      <idea ac="AC-5">Test load_config/save_config with mocked Store, verify config persists and loads correctly, defaults returned when no file exists</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,383 @@
+<story-context id="2-6-websocket-command-registration" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.6</storyId>
+    <title>WebSocket Command Registration</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-12</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-6-websocket-command-registration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Beatsy component</asA>
+    <iWant>to register WebSocket commands for real-time bidirectional communication</iWant>
+    <soThat>clients can send game commands and receive real-time event broadcasts during gameplay</soThat>
+    <tasks>
+      - Create WebSocket API module (websocket_api.py)
+      - Define command schemas with voluptuous validation
+      - Implement 5 command handlers: join_game, submit_guess, place_bet, start_game, next_song
+      - Implement broadcast_event() function for real-time events
+      - Track WebSocket connections in hass.data[DOMAIN]
+      - Register commands in component setup (__init__.py)
+      - Implement connection cleanup on disconnect and unload
+      - Write comprehensive unit and integration tests
+      - Add documentation and docstrings
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1" priority="high">
+      <description>WebSocket Command Registration - Register 5 commands (join_game, submit_guess, place_bet, start_game, next_song) via websocket_api.async_register_command() following HA WebSocket API schema</description>
+      <validation>Commands discoverable via HA WebSocket introspection, follow HA schema with id/type/data</validation>
+    </criterion>
+    <criterion id="AC-2" priority="high">
+      <description>WebSocket Connection Management - Track connections in hass.data[DOMAIN]["websocket_connections"] with metadata (connection_id, player_name, connected_at, last_ping), cleanup on disconnect</description>
+      <validation>Connections tracked correctly, removed on disconnect, accessible for debugging</validation>
+    </criterion>
+    <criterion id="AC-3" priority="high">
+      <description>Broadcast Infrastructure - Implement broadcast_event(hass, event_type, data) to send events to all connected clients within 500ms, format: {type: "beatsy/event", event_type, data}</description>
+      <validation>Broadcasts reach all clients within 500ms, individual failures don't affect others</validation>
+    </criterion>
+    <criterion id="AC-4" priority="medium">
+      <description>Command Input Validation - Validate all inputs via voluptuous schemas: player_name (max 20 chars, alphanumeric+spaces, no HTML), year_guess (int in range 1950-2024), bet_placed (boolean)</description>
+      <validation>Invalid inputs return error response, validation errors logged at WARNING level</validation>
+    </criterion>
+    <criterion id="AC-5" priority="medium">
+      <description>Error Handling and Logging - Catch exceptions, log at ERROR level, send error responses to client with code/message, maintain server stability</description>
+      <validation>Errors handled gracefully, component remains stable, proper error responses sent</validation>
+    </criterion>
+    <criterion id="AC-6" priority="medium">
+      <description>Authentication and Authorization - Follow Epic 1 POC decision (unauthenticated WebSocket), admin commands validate admin status from game state, player commands accessible to all</description>
+      <validation>Authentication per Epic 1 POC, admin validation in place, unauthorized actions return error</validation>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Story 2.6: WebSocket Command Registration</section>
+        <snippet>Establishes WebSocket infrastructure for real-time bidirectional communication. Implements 5 commands (join_game, submit_guess, place_bet, start_game, next_song), broadcast_event() function, and connection tracking. Target broadcast latency: &lt;500ms (NFR-P2).</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>WebSocket Message Schema</section>
+        <snippet>Client→Server: {id, type, data}. Server→Client Success: {id, type:"result", success:true, result}. Server→Client Error: {id, type:"result", success:false, error:{code, message}}. Server→Client Broadcast: {type:"beatsy/event", event_type, data}.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Modules - websocket_api.py</section>
+        <snippet>Module responsibilities: Command handlers for player/admin actions, broadcast infrastructure, connection management. Dependencies: HA websocket_api, voluptuous. Integration with Story 2.3 state accessors.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Workflows - WebSocket Connection Lifecycle</section>
+        <snippet>Client connects → BeatsyWebSocketView accepts → Assign connection_id → Store in websocket_connections → Client sends command → Handle command, update state → broadcast_event() to all clients → Client disconnects → Cleanup handler removes connection.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epics Document</title>
+        <section>Story 2.6: WebSocket Command Registration</section>
+        <snippet>Register WebSocket commands for real-time communication. Commands: beatsy/join_game (player registration), beatsy/submit_guess (year guess), beatsy/place_bet (bet toggle), beatsy/start_game (admin), beatsy/next_song (admin). Use hass.components.websocket_api.async_register_command(). Implement broadcast mechanism.</snippet>
+      </doc>
+      <doc>
+        <path>docs/poc-decision.md</path>
+        <title>POC Decision Document</title>
+        <section>Unauthenticated WebSocket Access</section>
+        <snippet>Epic 1 POC validated unauthenticated WebSocket connections work in HA. All players can connect without individual authentication. Admin actions verified via game state, not WebSocket auth. Critical for zero-friction player experience.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Pattern 2 - Server-Authoritative Sync</section>
+        <snippet>WebSocket infrastructure for real-time state synchronization. Server maintains authoritative game state, broadcasts events to all clients. Clients send commands, server validates and updates state, then broadcasts changes.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/2-3-in-memory-game-state-management.md</path>
+        <title>Story 2.3: In-Memory Game State Management</title>
+        <section>State Accessor Functions</section>
+        <snippet>get_players(hass) returns list of players. add_player(hass, name, session_id, is_admin) adds new player. get_current_round(hass) returns active round or None. update_bet(hass, player_name, bet) updates bet status. State stored in hass.data[DOMAIN].</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/2-5-http-route-registration.md</path>
+        <title>Story 2.5: HTTP Route Registration</title>
+        <section>Integration with Story 2.6</section>
+        <snippet>HTTP routes serve UIs, WebSocket commands handle real-time events. Both register during async_setup() in __init__.py. Both access state via hass.data[DOMAIN]. HTTP uses web.Response, WebSocket uses connection.send_result()/send_error().</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>home-assistant-config/custom_components/beatsy/__init__.py</path>
+        <kind>component_init</kind>
+        <symbol>async_setup</symbol>
+        <lines>N/A</lines>
+        <reason>Component setup function where WebSocket commands must be registered. Story 2.6 will add websocket_api.async_register_command() calls here.</reason>
+      </file>
+      <file>
+        <path>home-assistant-config/custom_components/beatsy/__init__.py</path>
+        <kind>component_init</kind>
+        <symbol>async_unload</symbol>
+        <lines>N/A</lines>
+        <reason>Component cleanup function where WebSocket connections must be closed and tracking cleared.</reason>
+      </file>
+      <file>
+        <path>home-assistant-config/custom_components/beatsy/const.py</path>
+        <kind>constants</kind>
+        <symbol>DOMAIN</symbol>
+        <lines>N/A</lines>
+        <reason>Domain constant needed for hass.data[DOMAIN] access in all WebSocket handlers.</reason>
+      </file>
+      <file>
+        <path>home-assistant-config/custom_components/beatsy/websocket_handler.py</path>
+        <kind>websocket_handler</kind>
+        <symbol>N/A</symbol>
+        <lines>N/A</lines>
+        <reason>Existing WebSocket handler from Epic 1 POC. May contain patterns or utilities to reference, but Story 2.6 creates new websocket_api.py module for command registration.</reason>
+      </file>
+      <file>
+        <path>home-assistant-config/custom_components/beatsy/http_view.py</path>
+        <kind>http_view</kind>
+        <symbol>N/A</symbol>
+        <lines>N/A</lines>
+        <reason>HTTP views from Story 2.5. Similar error handling and state access patterns apply to WebSocket handlers.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <python>
+        <package name="homeassistant.core" version="2024.1+" required="true">Core HA types: HomeAssistant, callback</package>
+        <package name="homeassistant.components.websocket_api" version="bundled" required="true">WebSocket API component for command registration</package>
+        <package name="voluptuous" version="bundled" required="true">Schema validation library used by HA for input validation</package>
+        <package name="logging" version="stdlib" required="true">Python standard logging</package>
+        <package name="time" version="stdlib" required="true">Timestamps for connection tracking</package>
+        <package name="uuid" version="stdlib" required="true">Generate connection and session IDs</package>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architectural">
+      <rule>Use @callback decorator for all WebSocket command handlers (synchronous execution, no async I/O)</rule>
+      <source>docs/tech-spec-epic-2.md - HA WebSocket API conventions</source>
+    </constraint>
+    <constraint type="architectural">
+      <rule>Register commands via websocket_api.async_register_command(hass, handler) in async_setup()</rule>
+      <source>docs/tech-spec-epic-2.md - Command Registration Pattern</source>
+    </constraint>
+    <constraint type="architectural">
+      <rule>All command handlers decorated with @websocket_api.websocket_command(SCHEMA)</rule>
+      <source>docs/tech-spec-epic-2.md - WebSocket Command Handler Pattern</source>
+    </constraint>
+    <constraint type="architectural">
+      <rule>Track connections in hass.data[DOMAIN]["websocket_connections"] with metadata dict</rule>
+      <source>docs/tech-spec-epic-2.md - Connection Management</source>
+    </constraint>
+    <constraint type="state_management">
+      <rule>Access state only via Story 2.3 accessor functions: get_players(), add_player(), get_current_round(), update_bet(), add_guess()</rule>
+      <source>docs/stories/2-3-in-memory-game-state-management.md - State Access Pattern</source>
+    </constraint>
+    <constraint type="validation">
+      <rule>Define voluptuous schemas for all commands extending websocket_api.BASE_COMMAND_MESSAGE_SCHEMA</rule>
+      <source>docs/tech-spec-epic-2.md - Input Validation (NFR-S2)</source>
+    </constraint>
+    <constraint type="validation">
+      <rule>Validate player_name: max 20 chars, alphanumeric + spaces, no HTML tags</rule>
+      <source>docs/tech-spec-epic-2.md - NFR-S2 Input Validation</source>
+    </constraint>
+    <constraint type="validation">
+      <rule>Validate year_guess: integer within configured year range (default 1950-2024)</rule>
+      <source>docs/tech-spec-epic-2.md - NFR-S2 Input Validation</source>
+    </constraint>
+    <constraint type="error_handling">
+      <rule>All handlers must use try/except blocks, log errors at ERROR level, send error responses via connection.send_error(msg_id, error_code, message)</rule>
+      <source>docs/tech-spec-epic-2.md - Error Handling Pattern</source>
+    </constraint>
+    <constraint type="error_handling">
+      <rule>Success responses via connection.send_result(msg_id, result_dict)</rule>
+      <source>docs/tech-spec-epic-2.md - WebSocket Command Handler Pattern</source>
+    </constraint>
+    <constraint type="performance">
+      <rule>broadcast_event() must deliver to all clients within 500ms (NFR-P2 target)</rule>
+      <source>docs/tech-spec-epic-2.md - NFR-P2: WebSocket Broadcast Latency</source>
+    </constraint>
+    <constraint type="authentication">
+      <rule>Follow Epic 1 POC decision: unauthenticated WebSocket access, admin actions validated via game state not WebSocket auth</rule>
+      <source>docs/poc-decision.md - Unauthenticated WebSocket Access</source>
+    </constraint>
+    <constraint type="broadcast">
+      <rule>Broadcast message format: {type: "beatsy/event", event_type: str, data: dict}</rule>
+      <source>docs/tech-spec-epic-2.md - WebSocket Message Schema</source>
+    </constraint>
+    <constraint type="broadcast">
+      <rule>Use hass.async_create_task() to call broadcast_event() from command handlers</rule>
+      <source>docs/tech-spec-epic-2.md - WebSocket Command Handler Pattern</source>
+    </constraint>
+    <constraint type="logging">
+      <rule>Log levels: INFO for player joins/game events, DEBUG for command details/broadcasts, WARNING for validation errors, ERROR for exceptions</rule>
+      <source>docs/tech-spec-epic-2.md - NFR-O1: Logging Standards</source>
+    </constraint>
+    <constraint type="module">
+      <rule>Create new module: custom_components/beatsy/websocket_api.py (do NOT modify existing websocket_handler.py from Epic 1)</rule>
+      <source>docs/tech-spec-epic-2.md - Modules Table</source>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>handle_join_game</name>
+      <kind>websocket_command_handler</kind>
+      <signature>@callback @websocket_api.websocket_command(SCHEMA_JOIN_GAME) def handle_join_game(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None</signature>
+      <path>custom_components/beatsy/websocket_api.py (NEW FILE)</path>
+      <description>Handler for beatsy/join_game command. Validates player name, adds to game state via add_player(), tracks connection, broadcasts player_joined event.</description>
+    </interface>
+    <interface>
+      <name>handle_submit_guess</name>
+      <kind>websocket_command_handler</kind>
+      <signature>@callback @websocket_api.websocket_command(SCHEMA_SUBMIT_GUESS) def handle_submit_guess(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None</signature>
+      <path>custom_components/beatsy/websocket_api.py (NEW FILE)</path>
+      <description>Handler for beatsy/submit_guess command. Validates year_guess and bet_placed, verifies active round, adds guess via add_guess(), broadcasts guess_submitted event.</description>
+    </interface>
+    <interface>
+      <name>handle_place_bet</name>
+      <kind>websocket_command_handler</kind>
+      <signature>@callback @websocket_api.websocket_command(SCHEMA_PLACE_BET) def handle_place_bet(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None</signature>
+      <path>custom_components/beatsy/websocket_api.py (NEW FILE)</path>
+      <description>Handler for beatsy/place_bet command. Validates bet boolean, verifies active round, updates bet via update_bet(), broadcasts bet_updated event.</description>
+    </interface>
+    <interface>
+      <name>handle_start_game</name>
+      <kind>websocket_command_handler</kind>
+      <signature>@callback @websocket_api.websocket_command(SCHEMA_START_GAME) def handle_start_game(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None</signature>
+      <path>custom_components/beatsy/websocket_api.py (NEW FILE)</path>
+      <description>Handler for beatsy/start_game command (admin only). Validates minimum 2 players, initializes game via initialize_game(), broadcasts game_started event. Admin validation placeholder for Epic 3.</description>
+    </interface>
+    <interface>
+      <name>handle_next_song</name>
+      <kind>websocket_command_handler</kind>
+      <signature>@callback @websocket_api.websocket_command(SCHEMA_NEXT_SONG) def handle_next_song(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None</signature>
+      <path>custom_components/beatsy/websocket_api.py (NEW FILE)</path>
+      <description>Handler for beatsy/next_song command (admin only). Placeholder for Epic 5 song selection logic. Broadcasts next_song_requested event. Admin validation placeholder for Epic 3.</description>
+    </interface>
+    <interface>
+      <name>broadcast_event</name>
+      <kind>async_function</kind>
+      <signature>async def broadcast_event(hass: HomeAssistant, event_type: str, data: dict) -> None</signature>
+      <path>custom_components/beatsy/websocket_api.py (NEW FILE)</path>
+      <description>Broadcast event to all connected WebSocket clients. Constructs message {type:"beatsy/event", event_type, data}, sends to all connections in hass.data[DOMAIN]["websocket_connections"], handles individual failures gracefully, cleans up stale connections.</description>
+    </interface>
+    <interface>
+      <name>SCHEMA_JOIN_GAME</name>
+      <kind>voluptuous_schema</kind>
+      <signature>SCHEMA_JOIN_GAME = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend({vol.Required("type"): "beatsy/join_game", vol.Required("player_name"): vol.All(str, vol.Length(min=1, max=20)), vol.Optional("game_id"): str})</signature>
+      <path>custom_components/beatsy/websocket_api.py (NEW FILE)</path>
+      <description>Validation schema for join_game command. Extends HA base schema, validates player_name length and type.</description>
+    </interface>
+    <interface>
+      <name>SCHEMA_SUBMIT_GUESS</name>
+      <kind>voluptuous_schema</kind>
+      <signature>SCHEMA_SUBMIT_GUESS = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend({vol.Required("type"): "beatsy/submit_guess", vol.Required("player_name"): vol.All(str, vol.Length(min=1, max=20)), vol.Required("year_guess"): vol.All(int, vol.Range(min=1950, max=2050)), vol.Required("bet_placed"): bool})</signature>
+      <path>custom_components/beatsy/websocket_api.py (NEW FILE)</path>
+      <description>Validation schema for submit_guess command. Validates player_name, year_guess range, and bet_placed boolean.</description>
+    </interface>
+    <interface>
+      <name>get_players</name>
+      <kind>state_accessor</kind>
+      <signature>def get_players(hass: HomeAssistant) -> List[dict]</signature>
+      <path>home-assistant-config/custom_components/beatsy/game_state.py (Story 2.3)</path>
+      <description>Returns list of all players from hass.data[DOMAIN]. Used to validate player existence and count.</description>
+    </interface>
+    <interface>
+      <name>add_player</name>
+      <kind>state_accessor</kind>
+      <signature>def add_player(hass: HomeAssistant, name: str, session_id: str, is_admin: bool) -> None</signature>
+      <path>home-assistant-config/custom_components/beatsy/game_state.py (Story 2.3)</path>
+      <description>Adds new player to game state. Used by handle_join_game to register new players.</description>
+    </interface>
+    <interface>
+      <name>get_current_round</name>
+      <kind>state_accessor</kind>
+      <signature>def get_current_round(hass: HomeAssistant) -> Optional[dict]</signature>
+      <path>home-assistant-config/custom_components/beatsy/game_state.py (Story 2.3)</path>
+      <description>Returns current round state or None. Used to validate round is active before accepting guesses/bets.</description>
+    </interface>
+    <interface>
+      <name>add_guess</name>
+      <kind>state_accessor</kind>
+      <signature>def add_guess(hass: HomeAssistant, player_name: str, year_guess: int, bet_placed: bool) -> None</signature>
+      <path>home-assistant-config/custom_components/beatsy/game_state.py (Story 2.3)</path>
+      <description>Adds player guess to current round. Used by handle_submit_guess.</description>
+    </interface>
+    <interface>
+      <name>update_bet</name>
+      <kind>state_accessor</kind>
+      <signature>def update_bet(hass: HomeAssistant, player_name: str, bet: bool) -> None</signature>
+      <path>home-assistant-config/custom_components/beatsy/game_state.py (Story 2.3)</path>
+      <description>Updates player bet status. Used by handle_place_bet.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows pytest + pytest-asyncio framework. Unit tests use mocking for HA components and state accessors. Integration tests use pytest-homeassistant-custom-component for full HA test instance. Tests located in tests/ directory with pattern test_*.py. All command handlers require unit tests with >80% coverage per Tech Spec requirements. WebSocket tests use aiohttp.test_utils for connection mocking.
+    </standards>
+
+    <locations>
+      - tests/test_websocket_api.py (NEW FILE - unit tests for command handlers and schemas)
+      - tests/test_init.py (MODIFIED - add WebSocket command registration tests)
+    </locations>
+
+    <ideas>
+      <test ac="AC-1" type="unit">
+        Test each command schema validates correctly with valid inputs. Test schemas reject invalid inputs (player_name too long, year_guess out of range, non-boolean bet).
+      </test>
+      <test ac="AC-1" type="unit">
+        Test each command handler (join_game, submit_guess, place_bet, start_game, next_song) processes valid commands and calls appropriate state accessors. Mock state functions and verify calls.
+      </test>
+      <test ac="AC-1" type="integration">
+        Test all 5 commands registered in HA websocket_api registry after component setup. Verify commands discoverable via introspection.
+      </test>
+      <test ac="AC-2" type="unit">
+        Test handle_join_game adds connection to hass.data[DOMAIN]["websocket_connections"] with correct metadata (connection_id, player_name, timestamps).
+      </test>
+      <test ac="AC-2" type="unit">
+        Test connection cleanup removes stale connections when broadcast fails or client disconnects.
+      </test>
+      <test ac="AC-3" type="unit">
+        Test broadcast_event() sends message to all tracked connections. Mock multiple connections and verify all receive message.
+      </test>
+      <test ac="AC-3" type="unit">
+        Test broadcast_event() handles individual connection failures gracefully without affecting other clients. Mock one connection to raise exception.
+      </test>
+      <test ac="AC-3" type="integration">
+        Test broadcast latency: measure time from broadcast_event() call to message receipt by all clients. Verify <500ms with 10 clients.
+      </test>
+      <test ac="AC-4" type="unit">
+        Test voluptuous schemas reject invalid player_name (>20 chars, HTML tags). Test year_guess validation (below 1950, above 2050). Test bet_placed requires boolean.
+      </test>
+      <test ac="AC-5" type="unit">
+        Test command handlers catch exceptions and send error responses via connection.send_error(). Mock state accessor to raise exception, verify error response format.
+      </test>
+      <test ac="AC-5" type="unit">
+        Test errors logged at ERROR level with full context (exc_info=True). Verify component stability after errors (no crashes).
+      </test>
+      <test ac="AC-6" type="unit">
+        Test handle_start_game validates minimum 2 players. Mock get_players() to return <2 players, verify error response.
+      </test>
+      <test ac="AC-6" type="unit">
+        Test admin command placeholders present in handle_start_game and handle_next_song (TODO comments for Epic 3 admin validation).
+      </test>
+      <test type="integration">
+        End-to-end test: Connect WebSocket client, send join_game, verify success response, verify broadcast received by other clients, send submit_guess, verify round validation works.
+      </test>
+      <test type="integration">
+        Test component unload closes all WebSocket connections and clears tracking dictionary. Verify no resource leaks.
+      </test>
+    </ideas>
+  </tests>
+</story-context>

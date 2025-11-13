@@ -1,4 +1,4 @@
-# generated: 2025-11-10
+# generated: 2025-11-11
 # project: HA_Dashboard
 # project_key: HA_Dashboard
 # tracking_system: file-system
@@ -8,27 +8,28 @@
 # ==================
 # Epic Status:
 #   - backlog: Epic exists in epic file but not contexted
-#   - contexted: Next epic tech context created by *epic-tech-context (required)
+#   - contexted: Epic tech context created (required before drafting stories)
 #
 # Story Status:
 #   - backlog: Story only exists in epic file
-#   - drafted: Story file created in stories folder by *create-story
-#   - ready-for-dev: Draft approved and story context created by *story-ready
-#   - in-progress: Developer actively working on implementation by *dev-story
-#   - review: Implementation complete, ready for review by *code-review
-#   - done: Story completed by *story-done
+#   - drafted: Story file created in stories folder
+#   - ready-for-dev: Draft approved and story context created
+#   - in-progress: Developer actively working on implementation
+#   - review: Under SM review (via code-review workflow)
+#   - done: Story completed
 #
 # Retrospective Status:
 #   - optional: Can be completed but not required
-#   - completed: Retrospective has been done by *retrospective
+#   - completed: Retrospective has been done
 #
 # WORKFLOW NOTES:
 # ===============
 # - Epics should be 'contexted' before stories can be 'drafted'
-# - SM typically drafts next story ONLY after previous one is 'done' to incorporate learnings
-# - Dev moves story to 'review', dev reviews, then Dev moves to 'done'
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically drafts next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', SM reviews, then Dev moves to 'done'
 
-generated: 2025-11-10
+generated: 2025-11-11
 project: HA_Dashboard
 project_key: HA_Dashboard
 tracking_system: file-system
@@ -38,21 +39,21 @@ development_status:
   epic-1: contexted
   1-1-minimal-component-structure-registration: done
   1-2-serve-static-html-without-authentication: done
-  1-3-websocket-connection-without-authentication: review
+  1-3-websocket-connection-without-authentication: done
   1-4-spotify-api-basic-integration-test: done
   1-5-data-registry-write-read-stress-test: done
-  1-6-load-test-10-concurrent-websocket-connections: obsolete
-  1-7-poc-decision-document-pivot-plan: ready-for-dev
-  epic-1-retrospective: optional
+  1-6-load-test-10-concurrent-websocket-connections: backlog
+  1-7-poc-decision-document-pivot-plan: drafted
+  epic-1-retrospective: completed
 
-  epic-2: backlog
-  2-1-hacs-compliant-manifest-repository-structure: backlog
-  2-2-component-lifecycle-management: backlog
-  2-3-in-memory-game-state-management: backlog
-  2-4-spotify-media-player-detection: backlog
-  2-5-http-route-registration: backlog
-  2-6-websocket-command-registration: backlog
-  2-7-configuration-entry-optional-setup-flow: backlog
+  epic-2: contexted
+  2-1-hacs-compliant-manifest-repository-structure: review
+  2-2-component-lifecycle-management: done
+  2-3-in-memory-game-state-management: done
+  2-4-spotify-media-player-detection: done
+  2-5-http-route-registration: done
+  2-6-websocket-command-registration: done
+  2-7-configuration-entry-setup-flow-2025-best-practice: in-progress
   epic-2-retrospective: optional
 
   epic-3: backlog

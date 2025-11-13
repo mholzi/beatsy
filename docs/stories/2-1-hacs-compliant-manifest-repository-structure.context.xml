@@ -1,0 +1,245 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>1</storyId>
+    <title>HACS-Compliant Manifest &amp; Repository Structure</title>
+    <status>drafted</status>
+    <generatedAt>2025-01-12</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-1-hacs-compliant-manifest-repository-structure.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Home Assistant user</asA>
+    <iWant>Beatsy to be installable via HACS</iWant>
+    <soThat>I can install and update it like any other custom component</soThat>
+    <tasks>
+      - Task 1: Create HACS Metadata File (AC: #1, #3)
+        - Create `hacs.json` at repository root
+        - Add required fields: name, domains, country, render_readme
+        - Validate JSON syntax
+
+      - Task 2: Update manifest.json for Production (AC: #1, #5)
+        - Update `custom_components/beatsy/manifest.json` from POC version
+        - Set version to "0.1.0" (Epic 2 initial release)
+        - Add all required HA fields per integration_manifest schema
+        - Include dependencies: ["http", "spotify"]
+        - Add documentation URL (GitHub README)
+        - Add issue_tracker URL (GitHub issues)
+
+      - Task 3: Create Component Constants File (AC: #5)
+        - Create `custom_components/beatsy/const.py`
+        - Define DOMAIN = "beatsy"
+        - Define default game constants (TIMER_DURATION, YEAR_RANGE, POINTS, BET_MULTIPLIER)
+
+      - Task 4: Create README.md Documentation (AC: #2, #3)
+        - Create `README.md` at repository root
+        - Write project description
+        - List features: Zero-friction player join, real-time gameplay, Spotify integration
+        - Document prerequisites and installation instructions
+
+      - Task 5: Create info.md for HACS Display (AC: #2, #3)
+        - Create `info.md` at repository root
+        - Write concise description for HACS listing
+        - Keep under 500 words
+
+      - Task 6: Create License File (AC: #2)
+        - Create `LICENSE` file at repository root
+        - Use MIT License
+
+      - Task 7: Validate HACS Compliance (AC: #3, #4)
+        - Verify all required files present
+        - Check JSON syntax validity
+
+      - Task 8: Manual HACS Installation Test (AC: #4, #5)
+        - Commit all files to GitHub repository
+        - Add repository to HACS via Settings
+        - Install via HACS interface
+
+      - Task 9: Verify Component Loads Successfully (AC: #5)
+        - Check logs for successful component load
+        - Verify no errors in HA startup logs
+
+      - Task 10: Document HACS Submission Process (AC: #3)
+        - Document steps for future HACS official submission
+        - Note: Official HACS submission deferred to post-MVP
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    **AC-1: HACS Metadata Files**
+    - Repository includes `hacs.json` at root with required fields: name, domains, country, render_readme
+    - `manifest.json` includes all required HA fields: domain, name, version "0.1.0", dependencies ["http", "spotify"], codeowners, requirements[], documentation URL, issue_tracker URL, iot_class "local_push"
+
+    **AC-2: Repository Documentation**
+    - `README.md` exists at root with sections: project description, features list, prerequisites (HA Core 2024.1+, Spotify integration), installation instructions (HACS + manual), basic usage guide, license information
+    - `info.md` exists with HACS-specific description and changelog
+
+    **AC-3: HACS Repository Recognition**
+    - HACS recognizes repository as valid custom integration
+    - Repository passes HACS validation checks
+    - Beatsy appears in HACS integrations list with correct metadata
+
+    **AC-4: Component Installation via HACS**
+    - HACS downloads component to `custom_components/beatsy/`
+    - All required files present after installation
+    - No errors in HACS logs
+
+    **AC-5: Component Registration in Home Assistant**
+    - HA discovers component via `manifest.json`
+    - Component appears in Settings → Integrations list
+    - Component status shows as loaded in HA logs
+    - No errors or warnings in HA startup logs
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Overview, Detailed Design</section>
+        <snippet>Epic 2 establishes production-ready foundation. Implements HACS-compliant structure with manifest.json, hacs.json, README, info.md. Version 0.1.0 for initial release.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/epics.md</path>
+        <title>Epics Document</title>
+        <section>Epic 2 Story 2.1</section>
+        <snippet>HACS integration requirements: hacs.json with name/domains/country/render_readme fields, manifest.json with all HA fields, README.md with installation instructions, semantic versioning.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Project Initialization, Integration Points</section>
+        <snippet>Beatsy follows ludeeus/integration_blueprint structure. HACS-compatible local network integration with manifest.json dependencies ["http", "spotify"].</snippet>
+      </artifact>
+    </docs>
+    <code>
+      <artifact>
+        <path>home-assistant-config/custom_components/beatsy/manifest.json</path>
+        <kind>config</kind>
+        <symbol>manifest.json</symbol>
+        <lines>1-10</lines>
+        <reason>POC manifest needs production upgrade: version "0.1.0-poc" → "0.1.0", add "spotify" to dependencies, add issue_tracker field</reason>
+      </artifact>
+      <artifact>
+        <path>home-assistant-config/custom_components/beatsy/const.py</path>
+        <kind>module</kind>
+        <symbol>DOMAIN</symbol>
+        <lines>1-3</lines>
+        <reason>Minimal POC constants file exists. Need to add production game constants: DEFAULT_TIMER_DURATION, DEFAULT_YEAR_RANGE_MIN/MAX, DEFAULT_POINTS constants, DEFAULT_BET_MULTIPLIER</reason>
+      </artifact>
+      <artifact>
+        <path>home-assistant-config/custom_components/beatsy/__init__.py</path>
+        <kind>module</kind>
+        <symbol>async_setup</symbol>
+        <lines>24-138</lines>
+        <reason>POC component initialization exists. No changes needed in this story (updated in Story 2.2)</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="homeassistant.core" version="2024.1+" />
+        <package name="aiohttp" version="bundled with HA" />
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Semantic versioning required: version must be "X.Y.Z" format (e.g., "0.1.0")
+    - HACS requires hacs.json at repository root (not in custom_components/)
+    - README.md and info.md must exist at repository root for HACS recognition
+    - manifest.json dependencies must include ["http", "spotify"] per tech spec
+    - MIT License recommended for HACS compatibility
+    - Documentation URL should point to GitHub README
+    - issue_tracker URL should point to GitHub issues page
+    - const.py must define DOMAIN = "beatsy" plus all game constants
+    - File structure must follow ludeeus/integration_blueprint pattern
+    - No external pip requirements (requirements: [] in manifest)
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>hacs.json</name>
+      <kind>HACS metadata</kind>
+      <signature>{
+  "name": "Beatsy",
+  "domains": ["beatsy"],
+  "country": ["US"],
+  "render_readme": true
+}</signature>
+      <path>hacs.json (repository root)</path>
+    </interface>
+    <interface>
+      <name>manifest.json (updated)</name>
+      <kind>HA integration metadata</kind>
+      <signature>{
+  "domain": "beatsy",
+  "name": "Beatsy",
+  "version": "0.1.0",
+  "documentation": "https://github.com/markusholzhaeuser/beatsy",
+  "issue_tracker": "https://github.com/markusholzhaeuser/beatsy/issues",
+  "dependencies": ["http", "spotify"],
+  "codeowners": ["@markusholzhaeuser"],
+  "iot_class": "local_push",
+  "requirements": []
+}</signature>
+      <path>custom_components/beatsy/manifest.json</path>
+    </interface>
+    <interface>
+      <name>const.py game constants</name>
+      <kind>Python module constants</kind>
+      <signature>DOMAIN = "beatsy"
+DEFAULT_TIMER_DURATION = 30
+DEFAULT_YEAR_RANGE_MIN = 1950
+DEFAULT_YEAR_RANGE_MAX = 2024
+DEFAULT_EXACT_POINTS = 10
+DEFAULT_CLOSE_POINTS = 5
+DEFAULT_NEAR_POINTS = 2
+DEFAULT_BET_MULTIPLIER = 2</signature>
+      <path>custom_components/beatsy/const.py</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      This story focuses on documentation and metadata files rather than code functionality. Testing approach:
+      - JSON syntax validation for hacs.json and manifest.json
+      - Manual HACS installation test per Task 8
+      - Component load verification in HA logs (AC-5)
+      - No automated unit tests required for this story (documentation/config only)
+      - Future Epic 2 stories will add pytest suite for component functionality
+    </standards>
+    <locations>
+      tests/ (directory exists from Epic 1 POC tests, no new tests for this story)
+    </locations>
+    <ideas>
+      **AC-1 Testing:**
+      - Validate hacs.json JSON syntax with python json.load()
+      - Validate manifest.json JSON syntax
+      - Verify manifest version format matches semantic versioning (X.Y.Z)
+      - Confirm all required HACS fields present in hacs.json
+      - Confirm all required HA fields present in manifest.json
+
+      **AC-2 Testing:**
+      - Verify README.md exists at repository root
+      - Verify info.md exists at repository root
+      - Check README has required sections (description, features, prerequisites, installation, usage, license)
+      - Check LICENSE file exists
+
+      **AC-3 Testing:**
+      - Manual: Add repository to HACS custom repositories
+      - Verify HACS recognizes repository (appears in integrations list)
+      - Check for HACS validation errors
+
+      **AC-4 Testing:**
+      - Manual: Install via HACS
+      - Verify files copied to custom_components/beatsy/
+      - Check HACS logs for errors
+
+      **AC-5 Testing:**
+      - Manual: Restart Home Assistant
+      - Check HA logs for "Beatsy custom component loaded"
+      - Verify component appears in Settings → Integrations
+      - Confirm no errors/warnings in startup logs
+    </ideas>
+  </tests>
+</story-context>
