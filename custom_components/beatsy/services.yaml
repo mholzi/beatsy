@@ -1,0 +1,18 @@
+# Beatsy Services
+# Services provided by the Beatsy integration
+
+test_fetch_playlist:
+  name: Test Fetch Playlist
+  description: >
+    Test service to fetch and analyze tracks from a Spotify playlist.
+    Logs detailed information about tracks including year metadata availability.
+  fields:
+    playlist_uri:
+      name: Playlist URI
+      description: >
+        The Spotify playlist URI (e.g., spotify:playlist:37i9dQZF1DXcBWIGoYBM5M)
+        or Spotify playlist URL.
+      required: true
+      example: "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M"
+      selector:
+        text:
