@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Beatsy Admin Interface - Mobile-First Game Configuration">
+    <title>Beatsy Admin - Game Configuration</title>
+
+    <!-- Tailwind CSS CDN for development -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom CSS for Beatsy branding and overrides -->
+    <link rel="stylesheet" href="/local/beatsy/css/custom.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header Section -->
+    <header class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <!-- Beatsy Logo placeholder -->
+                    <svg class="w-10 h-10" fill="currentColor" viewBox="0 0 24 24" aria-label="Beatsy Logo">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+                    </svg>
+                    <h1 class="text-2xl sm:text-3xl font-bold">Beatsy Admin</h1>
+                </div>
+            </div>
+            <p class="mt-2 text-sm sm:text-base text-purple-100">Music Year Guessing Game Configuration</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-6 space-y-6" role="main">
+
+        <!-- Game Configuration Section -->
+        <section id="game-config" class="bg-white rounded-lg shadow-md p-6" aria-labelledby="config-heading">
+            <h2 id="config-heading" class="text-xl sm:text-2xl font-semibold text-gray-800 mb-4">
+                Game Configuration
+            </h2>
+            <p class="text-sm text-gray-600 mb-6">Configure game settings here</p>
+
+            <!-- Story 3.2: Media Player Selector -->
+            <div class="mb-6">
+                <label for="media-player" class="block text-sm font-medium text-gray-700 mb-2">
+                    Media Player
+                    <span class="text-xs text-gray-500 ml-2">(Coming in Story 3.2)</span>
+                </label>
+                <select
+                    id="media-player"
+                    disabled
+                    class="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
+                    aria-disabled="true"
+                    aria-describedby="media-player-desc"
+                >
+                    <option>Select Spotify media player...</option>
+                </select>
+                <p id="media-player-desc" class="text-xs text-gray-500 mt-1">
+                    Select which Spotify-connected device will play music during the game
+                </p>
+            </div>
+
+            <!-- Story 3.3: Playlist Input -->
+            <div class="mb-6">
+                <label for="playlist-uri" class="block text-sm font-medium text-gray-700 mb-2">
+                    Playlist URI
+                    <span class="text-xs text-gray-500 ml-2">(Coming in Story 3.3)</span>
+                </label>
+                <input
+                    type="text"
+                    id="playlist-uri"
+                    disabled
+                    placeholder="spotify:playlist:..."
+                    class="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
+                    aria-disabled="true"
+                    aria-describedby="playlist-uri-desc"
+                >
+                <p id="playlist-uri-desc" class="text-xs text-gray-500 mt-1">
+                    Enter the Spotify playlist URI to use for the game
+                </p>
+            </div>
+
+            <!-- Story 3.4: Game Settings -->
+            <fieldset disabled class="mb-6 opacity-60">
+                <legend class="text-sm font-medium text-gray-700 mb-2">
+                    Game Settings
+                    <span class="text-xs text-gray-500 ml-2">(Coming in Story 3.4)</span>
+                </legend>
+
+                <div class="space-y-4 mt-3">
+                    <!-- Timer Duration -->
+                    <div>
+                        <label for="timer-duration" class="block text-sm text-gray-700 mb-1">
+                            Timer Duration (seconds)
+                        </label>
+                        <input
+                            type="number"
+                            id="timer-duration"
+                            value="30"
+                            min="10"
+                            max="120"
+                            class="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                        >
+                    </div>
+
+                    <!-- Year Range -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="year-min" class="block text-sm text-gray-700 mb-1">
+                                Year Min
+                            </label>
+                            <input
+                                type="number"
+                                id="year-min"
+                                value="1950"
+                                min="1900"
+                                max="2024"
+                                class="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                            >
+                        </div>
+                        <div>
+                            <label for="year-max" class="block text-sm text-gray-700 mb-1">
+                                Year Max
+                            </label>
+                            <input
+                                type="number"
+                                id="year-max"
+                                value="2024"
+                                min="1900"
+                                max="2024"
+                                class="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                            >
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+        </section>
+
+        <!-- Game Control Section -->
+        <section id="game-control" class="bg-white rounded-lg shadow-md p-6" aria-labelledby="control-heading">
+            <h2 id="control-heading" class="text-xl sm:text-2xl font-semibold text-gray-800 mb-4">
+                Game Control
+            </h2>
+            <p class="text-sm text-gray-600 mb-6">Start and manage the game session</p>
+
+            <!-- Story 3.5: Start Game Button -->
+            <button
+                id="start-game-btn"
+                disabled
+                class="w-full h-12 sm:h-14 bg-green-600 text-white font-semibold rounded-lg shadow-lg hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+                aria-disabled="true"
+                aria-describedby="start-game-desc"
+            >
+                <span class="flex items-center justify-center space-x-2">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    <span>Start Game</span>
+                </span>
+            </button>
+            <p id="start-game-desc" class="text-xs text-gray-500 mt-3 text-center">
+                Story 3.5 - Initialize game session and reset players
+            </p>
+        </section>
+
+        <!-- Game Status Section -->
+        <section id="game-status" class="bg-white rounded-lg shadow-md p-6" aria-labelledby="status-heading">
+            <h2 id="status-heading" class="text-xl sm:text-2xl font-semibold text-gray-800 mb-4">
+                Game Status
+            </h2>
+            <p class="text-sm text-gray-600 mb-6">Live game state updates</p>
+
+            <!-- Status Grid -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <p class="text-xs sm:text-sm text-gray-600 mb-1">Game State</p>
+                    <p class="text-lg sm:text-xl font-semibold text-gray-800">Setup</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <p class="text-xs sm:text-sm text-gray-600 mb-1">Player Count</p>
+                    <p class="text-lg sm:text-xl font-semibold text-gray-800">0</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <p class="text-xs sm:text-sm text-gray-600 mb-1">Songs Remaining</p>
+                    <p class="text-lg sm:text-xl font-semibold text-gray-800">-</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <p class="text-xs sm:text-sm text-gray-600 mb-1">Current Round</p>
+                    <p class="text-lg sm:text-xl font-semibold text-gray-800">-</p>
+                </div>
+            </div>
+
+            <p class="text-xs text-gray-500 mt-4 text-center">
+                Story 3.7 - Live status updates via WebSocket
+            </p>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="container mx-auto px-4 py-6 text-center text-sm text-gray-600">
+        <p>Beatsy &copy; 2025 - Music Year Guessing Game</p>
+    </footer>
+
+    <!-- JavaScript Module -->
+    <script type="module" src="/local/beatsy/js/ui-admin.js"></script>
+</body>
+</html>

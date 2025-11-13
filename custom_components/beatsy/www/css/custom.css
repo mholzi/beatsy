@@ -1,0 +1,169 @@
+/**
+ * Beatsy Custom Styles
+ * Mobile-first design overrides and brand styling
+ * Base: 320px (smallest phones) -> scales up with Tailwind responsive prefixes
+ */
+
+/* CSS Variables for Beatsy Brand */
+:root {
+    --beatsy-purple: #7c3aed;
+    --beatsy-indigo: #4f46e5;
+    --beatsy-green: #16a34a;
+    --beatsy-gray-50: #f9fafb;
+    --beatsy-gray-800: #1f2937;
+}
+
+/* Base body styling - mobile-first */
+body {
+    font-size: 16px; /* Prevents auto-zoom on iOS inputs */
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure no horizontal scroll on small screens */
+html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+/* Touch target minimum size enforcement (44x44px) */
+button,
+a,
+input,
+select,
+textarea {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+/* Button hover states for touch devices */
+@media (hover: hover) {
+    button:not(:disabled):hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+}
+
+/* Active state for touch feedback */
+button:not(:disabled):active {
+    transform: translateY(0);
+}
+
+/* Focus states for accessibility (keyboard navigation) */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible {
+    outline: 2px solid var(--beatsy-purple);
+    outline-offset: 2px;
+}
+
+/* Disabled state styling */
+button:disabled,
+input:disabled,
+select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Section spacing for mobile readability */
+section {
+    scroll-margin-top: 1rem;
+}
+
+/* Responsive container max-width adjustments */
+@media (min-width: 320px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+@media (min-width: 640px) {
+    .container {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+}
+
+/* Custom scrollbar styling (webkit browsers) */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--beatsy-gray-50);
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Loading state animation (for future use) */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.loading {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Status indicator colors */
+.status-setup {
+    color: var(--beatsy-gray-800);
+}
+
+.status-active {
+    color: var(--beatsy-green);
+}
+
+.status-error {
+    color: #dc2626;
+}
+
+/* Responsive typography scaling */
+@media (min-width: 375px) {
+    h1 {
+        font-size: 1.75rem; /* 28px */
+    }
+}
+
+@media (min-width: 428px) {
+    h1 {
+        font-size: 2rem; /* 32px */
+    }
+}
+
+/* Grid responsive adjustments for game status */
+@media (max-width: 374px) {
+    .grid-cols-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Safe area insets for notched devices (iPhone X+) */
+@supports (padding: env(safe-area-inset-bottom)) {
+    body {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+}
+
+/* Print styles (hidden for admin interface) */
+@media print {
+    header,
+    footer,
+    button {
+        display: none;
+    }
+}

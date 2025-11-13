@@ -84,8 +84,8 @@ class BeatsyTestView(HomeAssistantView):
 class BeatsyAdminView(HomeAssistantView):
     """View for admin interface.
 
-    Requires Home Assistant authentication. Returns placeholder HTML in Epic 2.
-    Real admin UI will be implemented in Epic 3.
+    Requires Home Assistant authentication. Serves mobile-first admin UI from www/admin.html.
+    Implemented in Epic 3 (Story 3.1).
     """
 
     url = "/api/beatsy/admin"
@@ -104,56 +104,29 @@ class BeatsyAdminView(HomeAssistantView):
         try:
             _LOGGER.debug("Admin interface accessed")
 
-            # Placeholder HTML for Epic 2 (real UI in Epic 3)
-            html = """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Beatsy Admin</title>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-                        max-width: 800px;
-                        margin: 50px auto;
-                        padding: 20px;
-                        background: #f5f5f5;
-                    }
-                    .container {
-                        background: white;
-                        padding: 40px;
-                        border-radius: 8px;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                    }
-                    h1 { color: #1DB954; margin-top: 0; }
-                    .status {
-                        background: #d4edda;
-                        color: #155724;
-                        padding: 12px;
-                        border-radius: 4px;
-                        margin: 20px 0;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>Beatsy Admin Interface</h1>
-                    <p>Welcome to the Beatsy administration panel.</p>
-                    <div class="status">
-                        <strong>Route registration: SUCCESS ✅</strong><br>
-                        <small>Admin UI will be implemented in Epic 3</small>
-                    </div>
-                    <p><strong>Authentication:</strong> Verified (HA token required)</p>
-                    <p><strong>Story:</strong> 2.5 - HTTP Route Registration</p>
-                </div>
-            </body>
-            </html>
-            """
+            # Get the path to the www directory relative to this module
+            module_dir = Path(__file__).parent
+            admin_html_path = module_dir / "www" / "admin.html"
 
+            # Read the HTML content
+            html_content = admin_html_path.read_text(encoding="utf-8")
+
+            _LOGGER.debug("Serving admin page from %s", admin_html_path)
+
+            # Return HTML response with proper content type
             return web.Response(
-                text=html,
+                text=html_content,
                 content_type="text/html",
+                charset="utf-8",
                 status=200,
+            )
+
+        except FileNotFoundError:
+            _LOGGER.error("Admin HTML file not found at %s", admin_html_path)
+            return web.Response(
+                text="<h1>Error: Admin page not found</h1>",
+                content_type="text/html",
+                status=404,
             )
 
         except Exception as e:
