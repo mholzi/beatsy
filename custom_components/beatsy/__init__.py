@@ -105,46 +105,59 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     else:
         _LOGGER.info("Spotify integration detected - Full Spotify features available")
 
-    # Register HTTP view for unauthenticated test page access
+    # Register HTTP views (only if not already registered - they're global)
+    # Note: HTTP views are shared across all config entries
     try:
-        hass.http.register_view(BeatsyTestView())
-        _LOGGER.info("Test HTTP view registered at /api/beatsy/test.html")
+        # Check if views are already registered by looking for existing routes
+        existing_routes = [route.path for route in hass.http.app.router.routes()]
+
+        if "/api/beatsy/test.html" not in existing_routes:
+            hass.http.register_view(BeatsyTestView())
+            _LOGGER.info("Test HTTP view registered at /api/beatsy/test.html")
+        else:
+            _LOGGER.debug("Test HTTP view already registered, skipping")
+
+        if "/api/beatsy/admin" not in existing_routes:
+            hass.http.register_view(BeatsyAdminView())
+            hass.http.register_view(BeatsyPlayerView())
+            hass.http.register_view(BeatsyAPIView())
+            _LOGGER.info(
+                "HTTP routes registered: /api/beatsy/admin, /api/beatsy/player, /api/beatsy/api/*"
+            )
+        else:
+            _LOGGER.debug("HTTP routes already registered, skipping")
+
+        if "/api/beatsy/ws" not in existing_routes:
+            hass.http.register_view(BeatsyWebSocketView(hass))
+            _LOGGER.info("Beatsy WebSocket endpoint registered at /api/beatsy/ws")
+        else:
+            _LOGGER.debug("WebSocket endpoint already registered, skipping")
     except Exception as e:
-        _LOGGER.error("Failed to register HTTP view: %s", str(e))
+        _LOGGER.error("Failed to register HTTP routes: %s", str(e), exc_info=True)
         return False
 
-    # Register HTTP views for admin and player interfaces (Story 2.5)
+    # Register WebSocket commands (only once - they're global)
+    # Check if commands are already registered
     try:
-        hass.http.register_view(BeatsyAdminView())
-        hass.http.register_view(BeatsyPlayerView())
-        hass.http.register_view(BeatsyAPIView())
-        _LOGGER.info(
-            "HTTP routes registered: /api/beatsy/admin, /api/beatsy/player, /api/beatsy/api/*"
-        )
-    except Exception as e:
-        _LOGGER.error("Failed to register HTTP routes: %s", str(e))
-        return False
+        if not hasattr(hass.data.get(DOMAIN, {}), "_ws_commands_registered"):
+            ha_websocket_api.async_register_command(hass, handle_join_game)
+            ha_websocket_api.async_register_command(hass, handle_submit_guess)
+            ha_websocket_api.async_register_command(hass, handle_place_bet)
+            ha_websocket_api.async_register_command(hass, handle_start_game)
+            ha_websocket_api.async_register_command(hass, handle_next_song)
 
-    # Register WebSocket endpoint for unauthenticated real-time communication
-    try:
-        hass.http.register_view(BeatsyWebSocketView(hass))
-        _LOGGER.info("Beatsy WebSocket endpoint registered at /api/beatsy/ws")
-    except Exception as e:
-        _LOGGER.error("Failed to register WebSocket endpoint: %s", str(e))
-        return False
+            # Mark commands as registered
+            if DOMAIN not in hass.data:
+                hass.data[DOMAIN] = {}
+            hass.data[DOMAIN]["_ws_commands_registered"] = True
 
-    # Register WebSocket commands for real-time game communication (Story 2.6)
-    try:
-        ha_websocket_api.async_register_command(hass, handle_join_game)
-        ha_websocket_api.async_register_command(hass, handle_submit_guess)
-        ha_websocket_api.async_register_command(hass, handle_place_bet)
-        ha_websocket_api.async_register_command(hass, handle_start_game)
-        ha_websocket_api.async_register_command(hass, handle_next_song)
-        _LOGGER.info(
-            "WebSocket commands registered: join_game, submit_guess, place_bet, start_game, next_song"
-        )
+            _LOGGER.info(
+                "WebSocket commands registered: join_game, submit_guess, place_bet, start_game, next_song"
+            )
+        else:
+            _LOGGER.debug("WebSocket commands already registered, skipping")
     except Exception as e:
-        _LOGGER.error("Failed to register WebSocket commands: %s", str(e))
+        _LOGGER.error("Failed to register WebSocket commands: %s", str(e), exc_info=True)
         return False
 
     # Register test service for Spotify playlist fetching (POC validation)
@@ -281,6 +294,20 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         hass: The Home Assistant instance.
         entry: The config entry being reloaded.
     """
-    await async_unload_entry(hass, entry)
-    await async_setup_entry(hass, entry)
-    _LOGGER.info("Beatsy integration reloaded")
+    _LOGGER.info("Starting reload for entry %s", entry.entry_id)
+    try:
+        unload_success = await async_unload_entry(hass, entry)
+        if not unload_success:
+            _LOGGER.error("Failed to unload entry during reload")
+            return
+
+        _LOGGER.info("Unload successful, setting up entry again")
+        setup_success = await async_setup_entry(hass, entry)
+        if not setup_success:
+            _LOGGER.error("Failed to setup entry during reload")
+            return
+
+        _LOGGER.info("Beatsy integration reloaded successfully")
+    except Exception as e:
+        _LOGGER.error("Error during reload: %s", str(e), exc_info=True)
+        raise
