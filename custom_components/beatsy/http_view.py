@@ -1,19 +1,19 @@
 """HTTP view handler for Beatsy component.
 
 This module provides HTTP routes for:
-- Admin interface (/api/beatsy/admin) - Authenticated
+- Admin interface (/api/beatsy/admin) - Authenticated (Story 3.1)
 - Player interface (/api/beatsy/player) - Unauthenticated (Epic 1 POC)
-- REST API endpoints (/api/beatsy/api/*) - Authenticated
+- REST API endpoints (/api/beatsy/api/*) - Unauthenticated (Epic 1 POC pattern)
 
 Authentication:
-- Admin and API routes require HA access token
-- Player route uses unauthenticated pattern from Epic 1 POC
+- Admin interface requires HA access token (protects game configuration)
+- Player and API routes use unauthenticated pattern from Epic 1 POC
 - CORS handled automatically by HA's HTTP component
 
-Epic 2 Implementation:
-- Routes return placeholder content
-- Real UIs implemented in Epic 3 (Admin) and Epic 4 (Player)
-- API endpoints have placeholders for future logic
+Implementation Status:
+- Admin UI: Epic 3 (Stories 3.1-3.7) - Complete mobile-first interface
+- Player UI: Epic 4 (placeholder in Epic 2)
+- API endpoints: Stories 3.2-3.5 - Fully functional
 """
 import logging
 from pathlib import Path
@@ -84,13 +84,15 @@ class BeatsyTestView(HomeAssistantView):
 class BeatsyAdminView(HomeAssistantView):
     """View for admin interface.
 
-    Serves mobile-first admin UI from www/admin.html without authentication.
+    Serves mobile-first admin UI from www/admin.html with authentication.
     Implemented in Epic 3 (Story 3.1).
+
+    Authentication required to protect admin-only game configuration and control.
     """
 
-    url = "/beatsy/admin"
-    name = "beatsy:admin"
-    requires_auth = False  # No authentication required (like player interface)
+    url = "/api/beatsy/admin"
+    name = "api:beatsy:admin"
+    requires_auth = True  # Authentication required for admin interface
 
     async def get(self, request: web.Request) -> web.Response:
         """Serve admin interface.
@@ -337,6 +339,88 @@ class BeatsyAPIView(HomeAssistantView):
                         status=500,
                     )
 
+            elif endpoint == "game_status":
+                # Story 3.7: Get current game status for admin status panel
+                from .game_state import get_game_state
+
+                _LOGGER.debug("GET /api/beatsy/api/game_status called")
+
+                try:
+                    # Attempt to retrieve game state
+                    try:
+                        game_state = get_game_state(hass)
+                    except ValueError as e:
+                        # No game state initialized - no active game
+                        _LOGGER.debug("No active game found: %s", str(e))
+                        return web.json_response(
+                            {
+                                "error": "no_game",
+                                "message": "No active game found",
+                            },
+                            status=404,
+                        )
+
+                    # Extract game status data (AC-6)
+                    # Game state structure from BeatsyGameState dataclass:
+                    # - players: list[Player]
+                    # - available_songs: list[dict]
+                    # - played_songs: list[str]
+                    # - current_round: Optional[RoundState]
+                    # - game_started: bool
+
+                    player_count = len(game_state.players) if game_state.players else 0
+                    songs_total = len(game_state.available_songs) if game_state.available_songs else 0
+                    songs_played = len(game_state.played_songs) if game_state.played_songs else 0
+                    songs_remaining = songs_total - songs_played
+
+                    # Determine game state based on context
+                    if not game_state.game_started:
+                        state = "setup"
+                    elif game_state.current_round and game_state.current_round.status == "active":
+                        state = "active"
+                    elif game_state.current_round and game_state.current_round.status == "ended":
+                        state = "results"
+                    elif songs_remaining == 0 and songs_played > 0:
+                        state = "ended"
+                    else:
+                        state = "lobby"
+
+                    # Current round number
+                    current_round = game_state.current_round.round_number if game_state.current_round else None
+
+                    # Generate game_id (use first 8 chars of hash for consistency)
+                    import hashlib
+                    game_id = hashlib.md5(str(game_state.game_started_at).encode()).hexdigest()[:8] if game_state.game_started_at else "unknown"
+
+                    response_data = {
+                        "game_id": game_id,
+                        "state": state,
+                        "player_count": player_count,
+                        "songs_total": songs_total,
+                        "songs_remaining": songs_remaining,
+                        "current_round": current_round,
+                    }
+
+                    _LOGGER.info(
+                        "Game status endpoint called: state=%s, players=%d, songs=%d/%d",
+                        state,
+                        player_count,
+                        songs_remaining,
+                        songs_total,
+                    )
+
+                    return web.json_response(response_data, status=200)
+
+                except Exception as e:
+                    _LOGGER.error("Error fetching game status: %s", str(e), exc_info=True)
+                    return web.json_response(
+                        {
+                            "error": "internal_error",
+                            "message": "Failed to retrieve game status",
+                        },
+                        status=500,
+                    )
+
             else:
                 _LOGGER.warning("Unknown GET endpoint: %s", endpoint)
                 return web.json_response(
@@ -578,14 +662,77 @@ class BeatsyAPIView(HomeAssistantView):
                     )
 
             elif endpoint == "next_song":
-                # Placeholder for next song logic (Epic 5)
-                _LOGGER.debug("POST /api/beatsy/api/next_song called")
-                return web.json_response(
-                    {
+                # Story 3.6 Task 10: Admin initiates next song/round
+                _LOGGER.info("POST /api/beatsy/api/next_song called")
+
+                try:
+                    # Validate game session exists
+                    if DOMAIN not in hass.data:
+                        _LOGGER.warning("next_song failed: No active game session")
+                        return web.json_response(
+                            {
+                                "error": "no_active_game",
+                                "message": "No active game session found"
+                            },
+                            status=400
+                        )
+
+                    session_data = hass.data[DOMAIN]
+
+                    # Story 3.6 AC-6: Validate admin permission
+                    # Check admin_key from request (Story 4.1 will provide session_id)
+                    admin_key = data.get("admin_key")
+                    if not admin_key:
+                        _LOGGER.warning("next_song failed: No admin_key provided")
+                        return web.json_response(
+                            {
+                                "error": "unauthorized",
+                                "message": "Admin key required to advance rounds"
+                            },
+                            status=403
+                        )
+
+                    # Validate admin key using Story 3.6 Task 5 function
+                    from . import game_initializer
+
+                    is_valid_admin = game_initializer.validate_admin_key(hass, admin_key)
+                    if not is_valid_admin:
+                        _LOGGER.warning("next_song failed: Invalid or expired admin key")
+                        return web.json_response(
+                            {
+                                "error": "unauthorized",
+                                "message": "Only admin can advance rounds"
+                            },
+                            status=403
+                        )
+
+                    # TODO: Story 5.2 - Check game state (must be lobby or results, not active round)
+                    # For now, allow next_song in any state
+                    _LOGGER.info("Admin validated successfully, proceeding with next_song")
+
+                    # TODO: Story 5.1 - select_random_song()
+                    # TODO: Story 5.2 - initialize_new_round()
+                    # TODO: Story 6.4 - broadcast round_started WebSocket event
+
+                    # Placeholder response until Epic 5 stories are implemented
+                    response_data = {
                         "success": True,
-                        "message": "Next song not yet implemented (Epic 5)",
+                        "round_number": 1,  # TODO: Get from game state
+                        "message": "TODO: Story 5.2 - Round initialization logic"
                     }
-                )
+
+                    _LOGGER.info("next_song successful: admin_key=%s...", admin_key[:8])
+                    return web.json_response(response_data, status=200)
+
+                except Exception as e:
+                    _LOGGER.error("Unexpected error in next_song endpoint: %s", e, exc_info=True)
+                    return web.json_response(
+                        {
+                            "error": "internal_server_error",
+                            "message": "An unexpected error occurred"
+                        },
+                        status=500
+                    )
 
             elif endpoint == "reset_game":
                 # Placeholder for game reset logic (Epic 3)

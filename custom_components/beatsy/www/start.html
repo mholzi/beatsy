@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Beatsy Player Registration - Join the Game">
+    <title>Beatsy - Join Game</title>
+
+    <!-- Tailwind CSS CDN for development -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom CSS for Beatsy branding and mobile-first overrides -->
+    <link rel="stylesheet" href="/local/beatsy/css/custom.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header Section -->
+    <header class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex items-center justify-center space-x-3">
+                <!-- Beatsy Logo -->
+                <svg class="w-10 h-10" fill="currentColor" viewBox="0 0 24 24" aria-label="Beatsy Logo">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+                </svg>
+                <h1 class="text-2xl sm:text-3xl font-bold">Beatsy Player</h1>
+            </div>
+            <p class="mt-2 text-sm sm:text-base text-purple-100 text-center">Join the Music Year Guessing Game</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-6" role="main">
+
+        <!-- TODO: Story 4.1 - Full player registration implementation -->
+        <!-- Story 3.6 STUB: Placeholder for player registration -->
+        <section class="bg-white rounded-lg shadow-md p-6 max-w-md mx-auto">
+            <h2 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-4">
+                Register as Player
+            </h2>
+            <p class="text-sm text-gray-600 mb-6">Enter your name to join the game</p>
+
+            <!-- Story 4.1: Player Registration Form -->
+            <form id="player-registration-form" class="space-y-4">
+                <div class="form-group">
+                    <label for="player-name" class="block text-sm font-medium text-gray-700 mb-1">
+                        Your Name
+                    </label>
+                    <input
+                        type="text"
+                        id="player-name"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg min-h-[44px] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                        placeholder="Enter your name"
+                        required
+                        maxlength="30"
+                        aria-label="Player name"
+                    />
+                    <p id="player-name-error" class="text-sm text-red-600 mt-1 hidden" role="alert">
+                        <!-- Error message populated by JavaScript -->
+                    </p>
+                </div>
+
+                <!-- Story 3.6 Task 7: "Next Song" Button (Admin Only - Initially Hidden) -->
+                <button
+                    type="button"
+                    id="next-song-btn"
+                    class="hidden w-full bg-purple-600 text-white px-4 py-3 rounded-lg min-h-[44px] font-semibold shadow-lg hover:bg-purple-700 transition-colors"
+                    aria-label="Start next song (admin only)"
+                >
+                    Next Song ▶
+                </button>
+
+                <button
+                    type="submit"
+                    id="join-game-btn"
+                    class="w-full bg-green-600 text-white px-6 py-3 rounded-lg min-h-[44px] font-semibold shadow-lg hover:bg-green-700 transition-colors"
+                    aria-label="Join game"
+                >
+                    <span class="flex items-center justify-center space-x-2">
+                        <!-- Loading spinner (hidden by default) -->
+                        <svg id="join-spinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span id="join-text">Join Game</span>
+                    </span>
+                </button>
+            </form>
+
+            <p class="text-xs text-gray-500 mt-4 text-center">
+                TODO: Story 4.1 - Full player registration logic
+            </p>
+        </section>
+
+        <!-- Status Messages -->
+        <div id="status-section" class="hidden mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200 max-w-md mx-auto">
+            <p id="status-message" class="text-sm text-gray-700"></p>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="container mx-auto px-4 py-6 text-center text-sm text-gray-600">
+        <p>Beatsy © 2025 - Music Year Guessing Game</p>
+    </footer>
+
+    <!-- External JavaScript Module -->
+    <script type="module" src="/local/beatsy/js/ui-player.js"></script>
+</body>
+</html>

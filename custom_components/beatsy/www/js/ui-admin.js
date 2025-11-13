@@ -36,6 +36,9 @@ function initAdminUI() {
     // Story 3.5: Initialize Start Game button state
     updateStartGameButton();
 
+    // Story 3.7: Initialize game status display
+    initGameStatus();
+
     // Log successful initialization
     console.log('DOM ready - All sections loaded successfully');
 }
@@ -533,6 +536,14 @@ function setupPlaceholderListeners() {
         });
     }
 
+    // Story 3.6 Task 2: Join as Player button (click handler will be implemented in Task 3)
+    const joinAsPlayerBtn = document.getElementById('join-as-player-btn');
+    if (joinAsPlayerBtn) {
+        joinAsPlayerBtn.addEventListener('click', async (e) => {
+            await joinAsPlayer();
+        });
+    }
+
     console.log('✓ Placeholder event listeners registered');
 }
 
@@ -944,14 +955,25 @@ async function startGame() {
             // Success! Handle 200 response
             console.log('Game started successfully:', data);
 
-            // Save admin_key and game_id to localStorage
+            // Story 3.6 Task 1: Save admin_key and game_id to localStorage with 24-hour expiry
             localStorage.setItem('beatsy_admin_key', data.admin_key);
+            localStorage.setItem('beatsy_admin_key_expiry', Date.now() + (24 * 60 * 60 * 1000)); // 24 hours
             localStorage.setItem('beatsy_game_id', data.game_id);
+
+            // Log admin key storage (security: first 8 chars only)
+            console.log('Admin key stored:', data.admin_key.substring(0, 8) + '... (expires in 24 hours)');
 
             // Update button state to "Game Active"
             buttonTextElement.textContent = 'Game Active';
             spinnerElement.classList.add('hidden');
             startGameBtn.disabled = true;  // Keep disabled
+
+            // Story 3.6 Task 2: Show "Join as Player" button after successful game start
+            const joinAsPlayerBtn = document.getElementById('join-as-player-btn');
+            if (joinAsPlayerBtn) {
+                joinAsPlayerBtn.classList.remove('hidden');
+                console.log('✓ "Join as Player" button now visible');
+            }
 
             // Display player URL (Task 7-8 will handle this)
             if (typeof displayPlayerUrl === 'function') {
@@ -959,6 +981,9 @@ async function startGame() {
             } else {
                 console.log('Player URL:', data.player_url);
             }
+
+            // Story 3.7 Task 9: Refresh game status after successful game start
+            loadGameStatus();
 
             // Show success toast
             showToast(`Game started! ${data.playlist_tracks} tracks loaded.`, 'success');
@@ -1014,6 +1039,33 @@ async function startGame() {
         spinnerElement.classList.add('hidden');
         buttonTextElement.textContent = 'Start Game';
     }
+}
+
+/**
+ * Join game as player (admin redirect to player registration)
+ * Story 3.6 Task 3: Redirect admin to player registration page
+ */
+async function joinAsPlayer() {
+    console.log('Join as Player clicked');
+
+    // Get game_id from localStorage (stored after game start)
+    const gameId = localStorage.getItem('beatsy_game_id');
+
+    if (!gameId) {
+        console.error('No game_id found in localStorage');
+        showToast('Error: Game not started. Please start a game first.', 'error');
+        return;
+    }
+
+    // Construct player URL with game_id query parameter
+    // Admin key is already in localStorage from Task 1, will be detected by player registration
+    const playerUrl = `/local/beatsy/start.html?game_id=${gameId}`;
+
+    console.log('Redirecting to player registration:', playerUrl);
+    console.log('Admin key in localStorage:', !!localStorage.getItem('beatsy_admin_key'));
+
+    // Navigate to player registration page
+    window.location.href = playerUrl;
 }
 
 /**
@@ -1116,6 +1168,265 @@ function showToast(message, type = 'info') {
     }, 5000);
 }
 
+// ============================================================================
+// Story 3.7: Game Status Functions
+// ============================================================================
+
+/**
+ * Load game status from API
+ * Story 3.7 Task 3: AC-2 (Initial Status Load)
+ */
+async function loadGameStatus() {
+    try {
+        console.log('Loading game status from API...');
+
+        const response = await fetch('/api/beatsy/api/game_status');
+        const data = await response.json();
+
+        if (response.ok) {
+            // Game exists, update status panel
+            console.log('Game status loaded successfully:', data);
+            updateStatusPanel(data);
+        } else if (response.status === 404) {
+            // No game active
+            console.log('No active game found');
+            showNoGameStatus();
+        } else {
+            // Other error
+            console.error('Failed to load game status:', response.status, data);
+            showStatusError(data.message || 'Failed to load game status');
+        }
+    } catch (error) {
+        console.error('Error loading game status:', error);
+        showStatusError('Connection error loading game status');
+    }
+}
+
+/**
+ * Update status panel with game data
+ * Story 3.7 Task 4: AC-1, AC-3, AC-4, AC-5
+ */
+function updateStatusPanel(status) {
+    // Update game state with formatted text
+    const stateElement = document.getElementById('status-state');
+    if (stateElement) {
+        stateElement.textContent = formatGameState(status.state);
+
+        // Add color based on state (AC-4 visual indicators)
+        stateElement.className = 'text-lg sm:text-xl font-semibold';
+        switch(status.state) {
+            case 'lobby':
+                stateElement.classList.add('text-blue-600');
+                break;
+            case 'active':
+                stateElement.classList.add('text-green-600');
+                break;
+            case 'results':
+                stateElement.classList.add('text-yellow-600');
+                break;
+            case 'ended':
+                stateElement.classList.add('text-gray-600');
+                break;
+            default:
+                stateElement.classList.add('text-gray-800');
+        }
+    }
+
+    // Update player count
+    const playersElement = document.getElementById('status-players');
+    if (playersElement) {
+        playersElement.textContent = status.player_count || 0;
+    }
+
+    // Update songs remaining
+    const songsElement = document.getElementById('status-songs');
+    if (songsElement) {
+        songsElement.textContent = status.songs_remaining >= 0 ? status.songs_remaining : '-';
+    }
+
+    // Update current round
+    const roundElement = document.getElementById('status-round');
+    if (roundElement) {
+        roundElement.textContent = status.current_round || '-';
+    }
+
+    console.log('Status panel updated:', status);
+}
+
+/**
+ * Format game state for display
+ * Story 3.7 Task 4: State formatting helper
+ */
+function formatGameState(state) {
+    const stateMap = {
+        'setup': 'Setup',
+        'lobby': 'Lobby',
+        'active': 'Round Active',
+        'results': 'Results',
+        'ended': 'Game Ended'
+    };
+    return stateMap[state] || state;
+}
+
+/**
+ * Show "No active game" status
+ * Story 3.7 Task 7: AC-2, AC-9
+ */
+function showNoGameStatus() {
+    const stateElement = document.getElementById('status-state');
+    if (stateElement) {
+        stateElement.textContent = 'No active game';
+        stateElement.className = 'text-lg sm:text-xl font-semibold text-gray-500';
+    }
+
+    document.getElementById('status-players').textContent = '0';
+    document.getElementById('status-songs').textContent = '-';
+    document.getElementById('status-round').textContent = '-';
+
+    console.log('No active game status displayed');
+}
+
+/**
+ * Show status error message
+ * Story 3.7 Task 8: AC-9 (Error handling)
+ */
+function showStatusError(message) {
+    console.error('Status error:', message);
+    showToast(message, 'error');
+}
+
+/**
+ * Update connection status indicator
+ * Story 3.7 Task 6: AC-8 (Connection indicator)
+ */
+function updateConnectionStatus(connected) {
+    const indicator = document.getElementById('connection-indicator');
+    const text = document.getElementById('connection-text');
+
+    if (!indicator || !text) return;
+
+    if (connected) {
+        // Green indicator + "Connected" text
+        indicator.classList.remove('bg-gray-400', 'bg-red-500');
+        indicator.classList.add('bg-green-500');
+        text.textContent = 'Connected';
+        text.classList.remove('text-gray-600', 'text-red-600');
+        text.classList.add('text-green-600');
+        console.log('Connection status: Connected');
+    } else {
+        // Red indicator + "Reconnecting..." text
+        indicator.classList.remove('bg-gray-400', 'bg-green-500');
+        indicator.classList.add('bg-red-500');
+        text.textContent = 'Reconnecting...';
+        text.classList.remove('text-gray-600', 'text-green-600');
+        text.classList.add('text-red-600');
+        console.log('Connection status: Disconnected');
+    }
+}
+
+/**
+ * Load game status with retry logic
+ * Story 3.7 Task 8: AC-9 (Exponential backoff retry)
+ */
+let retryCount = 0;
+const maxRetries = 3;
+const retryDelays = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
+
+async function loadGameStatusWithRetry() {
+    try {
+        await loadGameStatus();
+        retryCount = 0; // Reset on success
+    } catch (error) {
+        if (retryCount < maxRetries) {
+            const delay = retryDelays[retryCount];
+            console.warn(`Failed to load status. Retrying in ${delay / 1000}s... (attempt ${retryCount + 1}/${maxRetries})`);
+            showToast(`Failed to load status. Retrying in ${delay / 1000}s...`, 'error');
+
+            setTimeout(loadGameStatusWithRetry, delay);
+            retryCount++;
+        } else {
+            console.error('Failed to load game status after max retries');
+            showToast('Failed to load game status. Please refresh the page.', 'error');
+            retryCount = 0; // Reset for next attempt
+        }
+    }
+}
+
+/**
+ * Setup WebSocket event listeners for game status updates
+ * Story 3.7 Task 5: AC-3, AC-4, AC-5 (WebSocket listeners)
+ *
+ * Note: This is a placeholder for WebSocket integration.
+ * Full WebSocket client will be implemented in future stories.
+ * For now, we demonstrate the event handling pattern.
+ */
+function setupGameStatusWebSocketListeners() {
+    console.log('Game status WebSocket listeners ready (placeholder)');
+
+    // TODO: Story 3.7 - Integrate with WebSocket client when available
+    // Expected WebSocket events:
+    // 1. player_joined - Update player count
+    // 2. round_started - Update game state, round number, songs remaining
+    // 3. round_ended - Update game state to "Results"
+
+    // Example handler structure (to be connected to real WebSocket):
+    /*
+    websocket.addEventListener('beatsy:player_joined', (event) => {
+        console.log('Player joined event received:', event.detail);
+        const currentCount = parseInt(document.getElementById('status-players').textContent);
+        document.getElementById('status-players').textContent = currentCount + 1;
+    });
+
+    websocket.addEventListener('beatsy:round_started', (event) => {
+        console.log('Round started event received:', event.detail);
+        document.getElementById('status-state').textContent = 'Round Active';
+        const roundNum = event.detail.round_number;
+        document.getElementById('status-round').textContent = roundNum;
+
+        // Decrement songs remaining
+        const remaining = parseInt(document.getElementById('status-songs').textContent);
+        if (!isNaN(remaining) && remaining > 0) {
+            document.getElementById('status-songs').textContent = remaining - 1;
+        }
+    });
+
+    websocket.addEventListener('beatsy:round_ended', (event) => {
+        console.log('Round ended event received:', event.detail);
+        document.getElementById('status-state').textContent = 'Results';
+    });
+
+    websocket.addEventListener('open', () => {
+        updateConnectionStatus(true);
+        loadGameStatus(); // Sync status on connection
+    });
+
+    websocket.addEventListener('close', () => {
+        updateConnectionStatus(false);
+    });
+
+    websocket.addEventListener('error', () => {
+        updateConnectionStatus(false);
+    });
+    */
+}
+
+// Initialize game status on page load (called from initAdminUI)
+// Story 3.7: Load status when admin page opens
+function initGameStatus() {
+    console.log('Initializing game status display...');
+
+    // Set initial connection status to "Connecting..."
+    updateConnectionStatus(false);
+
+    // Load initial game status
+    loadGameStatusWithRetry();
+
+    // Setup WebSocket listeners (placeholder)
+    setupGameStatusWebSocketListeners();
+
+    console.log('✓ Game status initialization complete');
+}
+
 /**
  * Export functions for testing (optional - for future test suite)
  */
@@ -1134,5 +1445,13 @@ export {
     startGame,
     showToast,
     displayPlayerUrl,
-    setupCopyButton
+    setupCopyButton,
+    // Story 3.7 exports
+    loadGameStatus,
+    updateStatusPanel,
+    formatGameState,
+    showNoGameStatus,
+    updateConnectionStatus,
+    loadGameStatusWithRetry,
+    initGameStatus
 };
