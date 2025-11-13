@@ -1,7 +1,7 @@
 {
   "domain": "beatsy",
   "name": "Beatsy",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "config_flow": true,
   "documentation": "https://github.com/mholzi/beatsy",
   "issue_tracker": "https://github.com/mholzi/beatsy/issues",
