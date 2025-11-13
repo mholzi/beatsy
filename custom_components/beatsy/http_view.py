@@ -4,6 +4,7 @@ This module provides HTTP routes for:
 - Admin interface (/api/beatsy/admin) - Authenticated (Story 3.1)
 - Player interface (/api/beatsy/player) - Unauthenticated (Epic 1 POC)
 - REST API endpoints (/api/beatsy/api/*) - Unauthenticated (Epic 1 POC pattern)
+- Static files (/api/beatsy/static/*) - CSS, JS, and other assets
 
 Authentication:
 - Admin interface requires HA access token (protects game configuration)
@@ -14,8 +15,10 @@ Implementation Status:
 - Admin UI: Epic 3 (Stories 3.1-3.7) - Complete mobile-first interface
 - Player UI: Epic 4 (placeholder in Epic 2)
 - API endpoints: Stories 3.2-3.5 - Fully functional
+- Static files: Serves CSS/JS from www directory
 """
 import logging
+import mimetypes
 from pathlib import Path
 
 from aiohttp import web
@@ -755,3 +758,66 @@ class BeatsyAPIView(HomeAssistantView):
                 "Error in POST /api/beatsy/api/%s: %s", endpoint, str(e), exc_info=True
             )
             return web.json_response({"error": "Internal server error"}, status=500)
+
+
+class BeatsyStaticView(HomeAssistantView):
+    """View for serving static files (CSS, JS, images).
+
+    Serves files from www/ directory via /api/beatsy/static/* URLs.
+    No authentication required - consistent with admin/player pages.
+    """
+
+    url = "/api/beatsy/static/{filepath:.+}"
+    name = "api:beatsy:static"
+    requires_auth = False
+
+    async def get(self, request: web.Request, filepath: str) -> web.Response:
+        """Serve static file from www directory.
+
+        Args:
+            request: The aiohttp request object.
+            filepath: The relative path to the file (e.g., "css/custom.css", "js/ui-admin.js")
+
+        Returns:
+            File content with appropriate content type or 404 error.
+        """
+        try:
+            # Get the www directory path
+            module_dir = Path(__file__).parent
+            www_dir = module_dir / "www"
+
+            # Construct full file path and normalize to prevent directory traversal
+            file_path = (www_dir / filepath).resolve()
+
+            # Security check: ensure file is within www directory
+            if not file_path.is_relative_to(www_dir):
+                _LOGGER.warning("Attempted directory traversal: %s", filepath)
+                return web.Response(text="Forbidden", status=403)
+
+            # Check if file exists
+            if not file_path.is_file():
+                _LOGGER.debug("Static file not found: %s", file_path)
+                return web.Response(text="File not found", status=404)
+
+            # Read file content
+            content = file_path.read_bytes()
+
+            # Determine content type from file extension
+            content_type, _ = mimetypes.guess_type(str(file_path))
+            if content_type is None:
+                # Default to binary if unknown
+                content_type = "application/octet-stream"
+
+            _LOGGER.debug("Serving static file: %s (%s)", filepath, content_type)
+
+            return web.Response(
+                body=content,
+                content_type=content_type,
+                headers={
+                    "Cache-Control": "public, max-age=3600",  # Cache for 1 hour
+                },
+            )
+
+        except Exception as e:
+            _LOGGER.error("Error serving static file %s: %s", filepath, str(e), exc_info=True)
+            return web.Response(text="Internal server error", status=500)

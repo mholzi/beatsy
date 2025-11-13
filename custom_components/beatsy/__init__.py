@@ -19,6 +19,7 @@ from .http_view import (
     BeatsyAdminView,
     BeatsyPlayerView,
     BeatsyAPIView,
+    BeatsyStaticView,
 )
 from .websocket_handler import BeatsyWebSocketView, close_all_connections
 from .spotify_helper import (
@@ -116,11 +117,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass.http.register_view(BeatsyAdminView())
             hass.http.register_view(BeatsyPlayerView())
             hass.http.register_view(BeatsyAPIView())
+            hass.http.register_view(BeatsyStaticView())
             hass.http.register_view(BeatsyWebSocketView(hass))
             hass.data[DOMAIN]["_http_views_registered"] = True
             _LOGGER.info(
-                "HTTP routes registered: /api/beatsy/test.html, /beatsy/admin, "
-                "/api/beatsy/player, /api/beatsy/api/*, /api/beatsy/ws"
+                "HTTP routes registered: /api/beatsy/test.html, /api/beatsy/admin, "
+                "/api/beatsy/player, /api/beatsy/api/*, /api/beatsy/static/*, /api/beatsy/ws"
             )
         except Exception as e:
             _LOGGER.warning("Failed to register HTTP routes (may already exist): %s", str(e))
