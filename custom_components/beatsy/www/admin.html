@@ -9,8 +9,178 @@
     <!-- Tailwind CSS CDN for development -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Custom CSS for Beatsy branding and overrides -->
-    <link rel="stylesheet" href="/local/beatsy/css/custom.css">
+    <!-- Inline Custom CSS for Beatsy branding and overrides -->
+    <style>
+        /**
+         * Beatsy Custom Styles
+         * Mobile-first design overrides and brand styling
+         * Base: 320px (smallest phones) -> scales up with Tailwind responsive prefixes
+         */
+
+        /* CSS Variables for Beatsy Brand */
+        :root {
+            --beatsy-purple: #7c3aed;
+            --beatsy-indigo: #4f46e5;
+            --beatsy-green: #16a34a;
+            --beatsy-gray-50: #f9fafb;
+            --beatsy-gray-800: #1f2937;
+        }
+
+        /* Base body styling - mobile-first */
+        body {
+            font-size: 16px; /* Prevents auto-zoom on iOS inputs */
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Ensure no horizontal scroll on small screens */
+        html, body {
+            overflow-x: hidden;
+            max-width: 100vw;
+        }
+
+        /* Touch target minimum size enforcement (44x44px) */
+        button,
+        a,
+        input,
+        select,
+        textarea {
+            min-height: 44px;
+            min-width: 44px;
+        }
+
+        /* Button hover states for touch devices */
+        @media (hover: hover) {
+            button:not(:disabled):hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+        }
+
+        /* Active state for touch feedback */
+        button:not(:disabled):active {
+            transform: translateY(0);
+        }
+
+        /* Focus states for accessibility (keyboard navigation) */
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        a:focus-visible {
+            outline: 2px solid var(--beatsy-purple);
+            outline-offset: 2px;
+        }
+
+        /* Disabled state styling */
+        button:disabled,
+        input:disabled,
+        select:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Section spacing for mobile readability */
+        section {
+            scroll-margin-top: 1rem;
+        }
+
+        /* Responsive container max-width adjustments */
+        @media (min-width: 320px) {
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+        }
+
+        @media (min-width: 640px) {
+            .container {
+                padding-left: 1.5rem;
+                padding-right: 1.5rem;
+            }
+        }
+
+        /* Custom scrollbar styling (webkit browsers) */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--beatsy-gray-50);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Loading state animation (for future use) */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .loading {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Status indicator colors */
+        .status-setup {
+            color: var(--beatsy-gray-800);
+        }
+
+        .status-active {
+            color: var(--beatsy-green);
+        }
+
+        .status-error {
+            color: #dc2626;
+        }
+
+        /* Responsive typography scaling */
+        @media (min-width: 375px) {
+            h1 {
+                font-size: 1.75rem; /* 28px */
+            }
+        }
+
+        @media (min-width: 428px) {
+            h1 {
+                font-size: 2rem; /* 32px */
+            }
+        }
+
+        /* Grid responsive adjustments for game status */
+        @media (max-width: 374px) {
+            .grid-cols-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Safe area insets for notched devices (iPhone X+) */
+        @supports (padding: env(safe-area-inset-bottom)) {
+            body {
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+        }
+
+        /* Print styles (hidden for admin interface) */
+        @media print {
+            header,
+            footer,
+            button {
+                display: none;
+            }
+        }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Header Section -->
@@ -43,19 +213,29 @@
             <div class="mb-6">
                 <label for="media-player" class="block text-sm font-medium text-gray-700 mb-2">
                     Media Player
-                    <span class="text-xs text-gray-500 ml-2">(Coming in Story 3.2)</span>
                 </label>
-                <select
-                    id="media-player"
-                    disabled
-                    class="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
-                    aria-disabled="true"
-                    aria-describedby="media-player-desc"
-                >
-                    <option>Select Spotify media player...</option>
-                </select>
+                <div class="relative">
+                    <select
+                        id="media-player"
+                        disabled
+                        class="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                        aria-describedby="media-player-desc media-player-error"
+                    >
+                        <option value="">Loading players...</option>
+                    </select>
+                    <!-- Checkmark icon (hidden by default, shown when valid selection) -->
+                    <span id="media-player-check" class="hidden absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                    </span>
+                </div>
                 <p id="media-player-desc" class="text-xs text-gray-500 mt-1">
                     Select which Spotify-connected device will play music during the game
+                </p>
+                <!-- Error message (hidden by default) -->
+                <p id="media-player-error" class="hidden text-sm text-red-600 mt-1" role="alert">
+                    Error message will appear here
                 </p>
             </div>
 
@@ -201,7 +381,160 @@
         <p>Beatsy &copy; 2025 - Music Year Guessing Game</p>
     </footer>
 
-    <!-- JavaScript Module -->
-    <script type="module" src="/local/beatsy/js/ui-admin.js"></script>
+    <!-- Inline JavaScript Module -->
+    <script>
+        /**
+         * Beatsy Admin UI - JavaScript Initialization
+         * Mobile-first, vanilla JavaScript (no frameworks)
+         */
+
+        /**
+         * Initialize admin UI on DOM ready
+         */
+        function initAdminUI() {
+            console.log('Beatsy Admin UI initialized');
+            console.log('Version: 1.0.0');
+            console.log('Environment:', {
+                userAgent: navigator.userAgent,
+                viewportWidth: window.innerWidth,
+                viewportHeight: window.innerHeight,
+                devicePixelRatio: window.devicePixelRatio
+            });
+
+            // Verify all critical elements are present
+            verifyPageStructure();
+
+            // Setup placeholder event listeners (will be implemented in later stories)
+            setupPlaceholderListeners();
+
+            // Log successful initialization
+            console.log('DOM ready - All sections loaded successfully');
+        }
+
+        /**
+         * Verify that all required page sections exist
+         */
+        function verifyPageStructure() {
+            const requiredSections = [
+                'game-config',
+                'game-control',
+                'game-status'
+            ];
+
+            const missingElements = [];
+
+            requiredSections.forEach(sectionId => {
+                const element = document.getElementById(sectionId);
+                if (!element) {
+                    missingElements.push(sectionId);
+                    console.error(`Missing required section: ${sectionId}`);
+                } else {
+                    console.log(`✓ Section loaded: ${sectionId}`);
+                }
+            });
+
+            if (missingElements.length > 0) {
+                console.error('Page structure validation failed:', missingElements);
+            } else {
+                console.log('✓ Page structure validation passed');
+            }
+        }
+
+        /**
+         * Setup placeholder event listeners for future functionality
+         * These will be implemented in Stories 3.2-3.7
+         */
+        function setupPlaceholderListeners() {
+            // Story 3.2: Media player selector
+            const mediaPlayerSelect = document.getElementById('media-player');
+            if (mediaPlayerSelect) {
+                mediaPlayerSelect.addEventListener('change', (e) => {
+                    console.log('Media player changed:', e.target.value);
+                    // TODO: Story 3.2 - Implement media player selection logic
+                });
+            }
+
+            // Story 3.3: Playlist URI input
+            const playlistInput = document.getElementById('playlist-uri');
+            if (playlistInput) {
+                playlistInput.addEventListener('input', (e) => {
+                    console.log('Playlist URI input (placeholder):', e.target.value);
+                    // TODO: Story 3.3 - Implement playlist validation logic
+                });
+            }
+
+            // Story 3.5: Start game button
+            const startGameBtn = document.getElementById('start-game-btn');
+            if (startGameBtn) {
+                startGameBtn.addEventListener('click', (e) => {
+                    console.log('Start game clicked (placeholder)');
+                    // TODO: Story 3.5 - Implement start game logic
+                });
+            }
+
+            console.log('✓ Placeholder event listeners registered');
+        }
+
+        /**
+         * Handle viewport resize events (for responsive testing)
+         */
+        function handleResize() {
+            console.log('Viewport resized:', {
+                width: window.innerWidth,
+                height: window.innerHeight
+            });
+        }
+
+        // Debounced resize handler
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(handleResize, 250);
+        });
+
+        /**
+         * Check for mobile device and log device info
+         */
+        function detectMobileDevice() {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+            console.log('Device detection:', {
+                isMobile,
+                isTouchDevice,
+                platform: navigator.platform,
+                screenWidth: window.screen.width,
+                screenHeight: window.screen.height
+            });
+
+            return { isMobile, isTouchDevice };
+        }
+
+        /**
+         * Main initialization - runs when DOM is fully loaded
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('=== Beatsy Admin UI Starting ===');
+
+            // Detect device type
+            detectMobileDevice();
+
+            // Initialize UI
+            initAdminUI();
+
+            console.log('=== Beatsy Admin UI Ready ===');
+        });
+
+        /**
+         * Handle page visibility changes (for future WebSocket connection management)
+         */
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                console.log('Page hidden - connection management will be handled in Story 3.7');
+            } else {
+                console.log('Page visible - connection management will be handled in Story 3.7');
+            }
+        });
+    </script>
 </body>
 </html>
