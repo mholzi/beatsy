@@ -119,7 +119,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass.http.register_view(BeatsyWebSocketView(hass))
             hass.data[DOMAIN]["_http_views_registered"] = True
             _LOGGER.info(
-                "HTTP routes registered: /api/beatsy/test.html, /api/beatsy/admin, "
+                "HTTP routes registered: /api/beatsy/test.html, /beatsy/admin, "
                 "/api/beatsy/player, /api/beatsy/api/*, /api/beatsy/ws"
             )
         except Exception as e:
