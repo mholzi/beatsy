@@ -109,7 +109,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Note: HTTP views are shared across all config entries
     try:
         # Check if views are already registered by looking for existing routes
-        existing_routes = [route.path for route in hass.http.app.router.routes()]
+        existing_routes = []
+        for route in hass.http.app.router.routes():
+            try:
+                # Try to get the path from the route resource
+                if hasattr(route, 'resource') and hasattr(route.resource, 'canonical'):
+                    existing_routes.append(route.resource.canonical)
+                elif hasattr(route, '_path'):
+                    existing_routes.append(route._path)
+            except Exception:
+                pass  # Skip routes we can't parse
 
         if "/api/beatsy/test.html" not in existing_routes:
             hass.http.register_view(BeatsyTestView())
