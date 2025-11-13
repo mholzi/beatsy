@@ -84,13 +84,13 @@ class BeatsyTestView(HomeAssistantView):
 class BeatsyAdminView(HomeAssistantView):
     """View for admin interface.
 
-    Requires Home Assistant authentication. Serves mobile-first admin UI from www/admin.html.
+    Serves mobile-first admin UI from www/admin.html without authentication.
     Implemented in Epic 3 (Story 3.1).
     """
 
-    url = "/api/beatsy/admin"
-    name = "api:beatsy:admin"
-    requires_auth = True  # HA authentication required
+    url = "/beatsy/admin"
+    name = "beatsy:admin"
+    requires_auth = False  # No authentication required (like player interface)
 
     async def get(self, request: web.Request) -> web.Response:
         """Serve admin interface.
