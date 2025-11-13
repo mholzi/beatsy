@@ -105,69 +105,45 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     else:
         _LOGGER.info("Spotify integration detected - Full Spotify features available")
 
-    # Register HTTP views (only if not already registered - they're global)
-    # Note: HTTP views are shared across all config entries
-    try:
-        # Check if views are already registered by looking for existing routes
-        existing_routes = []
-        for route in hass.http.app.router.routes():
-            try:
-                # Try to get the path from the route resource
-                if hasattr(route, 'resource') and hasattr(route.resource, 'canonical'):
-                    existing_routes.append(route.resource.canonical)
-                elif hasattr(route, '_path'):
-                    existing_routes.append(route._path)
-            except Exception:
-                pass  # Skip routes we can't parse
+    # Register HTTP views and WebSocket commands (global, one-time registration)
+    # Use a simple flag in hass.data to track if we've registered them
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
 
-        if "/api/beatsy/test.html" not in existing_routes:
+    if not hass.data[DOMAIN].get("_http_views_registered", False):
+        try:
             hass.http.register_view(BeatsyTestView())
-            _LOGGER.info("Test HTTP view registered at /api/beatsy/test.html")
-        else:
-            _LOGGER.debug("Test HTTP view already registered, skipping")
-
-        if "/api/beatsy/admin" not in existing_routes:
             hass.http.register_view(BeatsyAdminView())
             hass.http.register_view(BeatsyPlayerView())
             hass.http.register_view(BeatsyAPIView())
-            _LOGGER.info(
-                "HTTP routes registered: /api/beatsy/admin, /api/beatsy/player, /api/beatsy/api/*"
-            )
-        else:
-            _LOGGER.debug("HTTP routes already registered, skipping")
-
-        if "/api/beatsy/ws" not in existing_routes:
             hass.http.register_view(BeatsyWebSocketView(hass))
-            _LOGGER.info("Beatsy WebSocket endpoint registered at /api/beatsy/ws")
-        else:
-            _LOGGER.debug("WebSocket endpoint already registered, skipping")
-    except Exception as e:
-        _LOGGER.error("Failed to register HTTP routes: %s", str(e), exc_info=True)
-        return False
+            hass.data[DOMAIN]["_http_views_registered"] = True
+            _LOGGER.info(
+                "HTTP routes registered: /api/beatsy/test.html, /api/beatsy/admin, "
+                "/api/beatsy/player, /api/beatsy/api/*, /api/beatsy/ws"
+            )
+        except Exception as e:
+            _LOGGER.warning("Failed to register HTTP routes (may already exist): %s", str(e))
+            # Don't return False - let it continue even if views fail to register
+    else:
+        _LOGGER.debug("HTTP views already registered, skipping")
 
-    # Register WebSocket commands (only once - they're global)
-    # Check if commands are already registered
-    try:
-        if not hasattr(hass.data.get(DOMAIN, {}), "_ws_commands_registered"):
+    if not hass.data[DOMAIN].get("_ws_commands_registered", False):
+        try:
             ha_websocket_api.async_register_command(hass, handle_join_game)
             ha_websocket_api.async_register_command(hass, handle_submit_guess)
             ha_websocket_api.async_register_command(hass, handle_place_bet)
             ha_websocket_api.async_register_command(hass, handle_start_game)
             ha_websocket_api.async_register_command(hass, handle_next_song)
-
-            # Mark commands as registered
-            if DOMAIN not in hass.data:
-                hass.data[DOMAIN] = {}
             hass.data[DOMAIN]["_ws_commands_registered"] = True
-
             _LOGGER.info(
                 "WebSocket commands registered: join_game, submit_guess, place_bet, start_game, next_song"
             )
-        else:
-            _LOGGER.debug("WebSocket commands already registered, skipping")
-    except Exception as e:
-        _LOGGER.error("Failed to register WebSocket commands: %s", str(e), exc_info=True)
-        return False
+        except Exception as e:
+            _LOGGER.warning("Failed to register WebSocket commands (may already exist): %s", str(e))
+            # Don't return False - let it continue even if commands fail to register
+    else:
+        _LOGGER.debug("WebSocket commands already registered, skipping")
 
     # Register test service for Spotify playlist fetching (POC validation)
     async def test_fetch_playlist(call):
