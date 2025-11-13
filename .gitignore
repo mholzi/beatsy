@@ -1,42 +1,35 @@
-# DashView Build Artifacts
-home-assistant-config/dashview/frontend/node_modules/
-home-assistant-config/dashview/frontend/dist/
-home-assistant-config/dashview/frontend/.vite/
-home-assistant-config/dashview/backend/node_modules/
-home-assistant-config/dashview/backend/dist/
-home-assistant-config/dashview/backend/build/
+# Development and documentation files (not for HACS distribution)
+docs/
+tests/
+.claude/
+bmad/
 
-# Environment Variables
-home-assistant-config/dashview/**/.env
-home-assistant-config/dashview/**/.env.local
-home-assistant-config/dashview/**/.env.*.local
+# Environment and secrets
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Testing
+.pytest_cache/
+.tox/
+.coverage
+htmlcov/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Logs
-home-assistant-config/dashview/**/logs/
-home-assistant-config/dashview/**/*.log
-home-assistant-config/dashview/**/npm-debug.log*
-home-assistant-config/dashview/**/yarn-debug.log*
-home-assistant-config/dashview/**/yarn-error.log*
-
-# Testing
-home-assistant-config/dashview/**/coverage/
-
-# Database
-home-assistant-config/dashview/database/data/
-*.db
-*.sqlite
-
-# Temporary files
-home-assistant-config/dashview/**/tmp/
-home-assistant-config/dashview/**/.cache/
+# Submodule (keep local for development)
+home-assistant-config/

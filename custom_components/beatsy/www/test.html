@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beatsy POC - Unauthenticated Access Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1db954;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #333;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        .info {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border-left: 4px solid #4caf50;
+        }
+        .warning {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+        }
+        .error {
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border-left: 4px solid #dc3545;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+        .device-info {
+            color: #666;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .ws-status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .ws-status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .ws-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .ws-status.connecting {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .button-group {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            background: #1db954;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #1aa34a;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .message-log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .message-log .msg {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #6c757d;
+            padding-left: 10px;
+        }
+        .message-log .msg.sent {
+            border-left-color: #007bff;
+            background: #e7f1ff;
+        }
+        .message-log .msg.received {
+            border-left-color: #28a745;
+            background: #e8f5e9;
+        }
+        .message-log .msg.error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .message-log .msg-time {
+            color: #6c757d;
+            font-size: 11px;
+        }
+        .message-log .msg-content {
+            margin-top: 3px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Beatsy POC - WebSocket Test</h1>
+
+        <div class="info">
+            <strong>✓ Success!</strong> You have accessed this page without Home Assistant authentication.
+        </div>
+
+        <h2>WebSocket Connection</h2>
+        <div>
+            <strong>Status:</strong> <span id="wsStatus" class="ws-status disconnected">Disconnected</span>
+        </div>
+        <div style="margin-top: 10px;">
+            <strong>Connection ID:</strong> <span id="connId">-</span>
+        </div>
+
+        <div class="button-group">
+            <button id="btnConnect" onclick="connectWebSocket()">Connect</button>
+            <button id="btnDisconnect" onclick="disconnectWebSocket()" disabled>Disconnect</button>
+            <button id="btnPing" onclick="sendPing()" disabled>Send Ping</button>
+            <button id="btnBroadcast" onclick="triggerBroadcast()" disabled>Trigger Broadcast</button>
+        </div>
+
+        <h2>Message Log</h2>
+        <div class="message-log" id="messageLog">
+            <div style="color: #6c757d; text-align: center;">No messages yet</div>
+        </div>
+
+        <h2>Test Information</h2>
+        <p><strong>Test Objectives:</strong></p>
+        <ul>
+            <li>Verify WebSocket connection without authentication</li>
+            <li>Test bidirectional messaging (client ↔ server)</li>
+            <li>Test broadcast to multiple clients</li>
+            <li>Test connection lifecycle management</li>
+        </ul>
+
+        <div class="timestamp">
+            <strong>Page loaded at:</strong> <span id="timestamp"></span>
+        </div>
+
+        <div class="device-info">
+            <strong>User Agent:</strong> <span id="userAgent"></span>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let messageCounter = 0;
+
+        // Display timestamp and user agent
+        document.getElementById('timestamp').textContent = new Date().toLocaleString();
+        document.getElementById('userAgent').textContent = navigator.userAgent;
+
+        // Auto-connect on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            connectWebSocket();
+        });
+
+        function updateStatus(status, className) {
+            const statusEl = document.getElementById('wsStatus');
+            statusEl.textContent = status;
+            statusEl.className = 'ws-status ' + className;
+        }
+
+        function updateButtons(connected) {
+            document.getElementById('btnConnect').disabled = connected;
+            document.getElementById('btnDisconnect').disabled = !connected;
+            document.getElementById('btnPing').disabled = !connected;
+            document.getElementById('btnBroadcast').disabled = !connected;
+        }
+
+        function addMessage(direction, content, type = 'normal') {
+            const logEl = document.getElementById('messageLog');
+
+            // Clear "no messages" placeholder
+            if (messageCounter === 0) {
+                logEl.innerHTML = '';
+            }
+
+            messageCounter++;
+
+            const msgEl = document.createElement('div');
+            msgEl.className = 'msg ' + (direction === 'sent' ? 'sent' : direction === 'error' ? 'error' : 'received');
+
+            const timeEl = document.createElement('div');
+            timeEl.className = 'msg-time';
+            timeEl.textContent = `[${new Date().toLocaleTimeString()}] ${direction.toUpperCase()}`;
+
+            const contentEl = document.createElement('div');
+            contentEl.className = 'msg-content';
+            contentEl.textContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+
+            msgEl.appendChild(timeEl);
+            msgEl.appendChild(contentEl);
+            logEl.appendChild(msgEl);
+
+            // Auto-scroll to bottom
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function connectWebSocket() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                addMessage('error', 'Already connected');
+                return;
+            }
+
+            updateStatus('Connecting...', 'connecting');
+            addMessage('info', 'Attempting to connect to WebSocket...');
+
+            // Construct WebSocket URL from current page location
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/api/beatsy/ws`;
+
+            addMessage('info', `Connecting to: ${wsUrl}`);
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = function(event) {
+                    updateStatus('Connected', 'connected');
+                    updateButtons(true);
+                    addMessage('info', 'WebSocket connection established');
+                    console.log('WebSocket connected:', event);
+                };
+
+                ws.onmessage = function(event) {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        addMessage('received', msg);
+                        console.log('WebSocket message received:', msg);
+
+                        // Handle connection confirmation
+                        if (msg.type === 'connected' && msg.data && msg.data.connection_id) {
+                            document.getElementById('connId').textContent = msg.data.connection_id;
+                        }
+                    } catch (e) {
+                        addMessage('error', 'Failed to parse message: ' + event.data);
+                        console.error('Failed to parse WebSocket message:', e);
+                    }
+                };
+
+                ws.onerror = function(error) {
+                    updateStatus('Error', 'disconnected');
+                    addMessage('error', 'WebSocket error occurred');
+                    console.error('WebSocket error:', error);
+                };
+
+                ws.onclose = function(event) {
+                    updateStatus('Disconnected', 'disconnected');
+                    updateButtons(false);
+                    addMessage('info', `Connection closed (code: ${event.code}, reason: ${event.reason || 'none'})`);
+                    console.log('WebSocket closed:', event);
+                    document.getElementById('connId').textContent = '-';
+                };
+
+            } catch (error) {
+                updateStatus('Error', 'disconnected');
+                updateButtons(false);
+                addMessage('error', 'Failed to create WebSocket: ' + error.message);
+                console.error('WebSocket creation error:', error);
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                addMessage('info', 'Closing connection...');
+                ws.close();
+            } else {
+                addMessage('error', 'Not connected');
+            }
+        }
+
+        function sendPing() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('error', 'Not connected');
+                return;
+            }
+
+            const message = {
+                action: 'test_ping',
+                data: {
+                    client_id: 'test-client-' + Math.random().toString(36).substr(2, 9),
+                    timestamp: new Date().toISOString()
+                }
+            };
+
+            try {
+                ws.send(JSON.stringify(message));
+                addMessage('sent', message);
+                console.log('Sent ping:', message);
+            } catch (error) {
+                addMessage('error', 'Failed to send ping: ' + error.message);
+                console.error('Send error:', error);
+            }
+        }
+
+        function triggerBroadcast() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('error', 'Not connected');
+                return;
+            }
+
+            const message = {
+                action: 'test_broadcast',
+                data: {
+                    message: 'Test broadcast from client',
+                    timestamp: new Date().toISOString()
+                }
+            };
+
+            try {
+                ws.send(JSON.stringify(message));
+                addMessage('sent', message);
+                console.log('Triggered broadcast:', message);
+            } catch (error) {
+                addMessage('error', 'Failed to trigger broadcast: ' + error.message);
+                console.error('Send error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

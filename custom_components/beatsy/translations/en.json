@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure Beatsy",
+        "description": "Set up default game settings for Beatsy.",
+        "data": {
+          "timer_duration": "Timer Duration (seconds)",
+          "year_range_min": "Minimum Year",
+          "year_range_max": "Maximum Year"
+        },
+        "data_description": {
+          "timer_duration": "How long players have to guess (10-120 seconds)",
+          "year_range_min": "Earliest year for songs (1900-2024)",
+          "year_range_max": "Latest year for songs (1900-2024)"
+        }
+      }
+    },
+    "error": {
+      "min_greater_than_max": "Minimum year must be less than maximum year"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Update Beatsy Settings",
+        "description": "Update default game settings.",
+        "data": {
+          "timer_duration": "Timer Duration (seconds)",
+          "year_range_min": "Minimum Year",
+          "year_range_max": "Maximum Year"
+        }
+      }
+    },
+    "error": {
+      "min_greater_than_max": "Minimum year must be less than maximum year"
+    }
+  }
+}
