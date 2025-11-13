@@ -1,0 +1,271 @@
+"""
+Beatsy Game Initialization Module
+
+Handles game session creation, state reset, and ID generation for new games.
+Provides atomic initialization operations with rollback capability.
+
+Story 3.5: Task 4 - Game State Reset and Session Creation (AC-2, AC-4, AC-5, AC-6)
+"""
+
+import logging
+import uuid
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any
+
+from homeassistant.core import HomeAssistant
+
+from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
+
+
+@dataclass
+class GameConfigInput:
+    """
+    Admin-provided game configuration input.
+
+    Story 3.5: AC-4 (Game Configuration Storage)
+    Validates all game settings before initialization.
+    """
+
+    media_player: str  # Entity ID (e.g., "media_player.spotify_living_room")
+    playlist_id: str  # Playlist file ID (e.g., "80s_hits")
+    timer_duration: int = 30  # Round timer in seconds (10-120 range)
+    year_range_min: int = 1950  # Minimum year for filtering
+    year_range_max: int = 2024  # Maximum year for filtering
+    exact_points: int = 10  # Points for exact year match
+    close_points: int = 5  # Points for ±2 years
+    near_points: int = 2  # Points for ±5 years
+    bet_multiplier: int = 2  # Multiplier when betting (1-10x)
+
+    def validate(self) -> list[str]:
+        """
+        Validate configuration and return list of error messages.
+
+        Returns:
+            List of error messages (empty if valid)
+
+        Example:
+            >>> config = GameConfigInput(media_player="", playlist_id="test")
+            >>> errors = config.validate()
+            >>> print(errors)
+            ['Media player selection required']
+        """
+        errors = []
+
+        # Media player validation
+        if not self.media_player or self.media_player.strip() == "":
+            errors.append("Media player selection required")
+
+        # Playlist validation
+        if not self.playlist_id or self.playlist_id.strip() == "":
+            errors.append("Playlist selection required")
+
+        # Timer validation
+        if not (10 <= self.timer_duration <= 120):
+            errors.append("Timer must be between 10-120 seconds")
+
+        # Year range validation
+        if not (1900 <= self.year_range_min <= 2025):
+            errors.append("Year min must be between 1900-2025")
+
+        if not (1900 <= self.year_range_max <= 2025):
+            errors.append("Year max must be between 1900-2025")
+
+        if self.year_range_min >= self.year_range_max:
+            errors.append("Year min must be less than year max")
+
+        # Scoring validation
+        if not (0 <= self.exact_points <= 100):
+            errors.append("Exact points must be between 0-100")
+
+        if not (0 <= self.close_points <= 100):
+            errors.append("Close points must be between 0-100")
+
+        if not (0 <= self.near_points <= 100):
+            errors.append("Near points must be between 0-100")
+
+        # Bet multiplier validation
+        if not (1 <= self.bet_multiplier <= 10):
+            errors.append("Bet multiplier must be between 1-10")
+
+        return errors
+
+
+def reset_game_state(hass: HomeAssistant) -> None:
+    """
+    Clear all previous game state to prepare for new game session.
+
+    Story 3.5: AC-2 (Game State Reset on Start)
+    Clears all dynamic game state while preserving configuration.
+
+    Args:
+        hass: Home Assistant instance
+
+    Note:
+        This is an idempotent operation - safe to call multiple times.
+        Handles missing keys gracefully (no exceptions).
+
+    Example:
+        >>> reset_game_state(hass)
+        # All game state keys cleared
+    """
+    # Initialize domain data if not exists
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+
+    # Clear all dynamic game state
+    hass.data[DOMAIN]["players"] = []
+    hass.data[DOMAIN]["current_round"] = None
+    hass.data[DOMAIN]["played_songs"] = []
+    hass.data[DOMAIN]["round_history"] = []
+    hass.data[DOMAIN]["scores"] = {}
+
+    # Clear previous game session data
+    if "game_id" in hass.data[DOMAIN]:
+        old_game_id = hass.data[DOMAIN]["game_id"]
+        _LOGGER.info("Invalidating previous game session: %s", old_game_id)
+        hass.data[DOMAIN].pop("game_id", None)
+
+    _LOGGER.info("Game state reset completed")
+
+
+def generate_game_id() -> str:
+    """
+    Generate unique game session identifier using UUID v4.
+
+    Story 3.5: AC-2 (New game_id generation)
+
+    Returns:
+        UUID v4 string (e.g., "550e8400-e29b-41d4-a716-446655440000")
+
+    Example:
+        >>> game_id = generate_game_id()
+        >>> len(game_id)
+        36
+        >>> game_id.count('-')
+        4
+    """
+    game_id = str(uuid.uuid4())
+    _LOGGER.debug("Generated game_id: %s", game_id)
+    return game_id
+
+
+def generate_admin_key() -> tuple[str, datetime]:
+    """
+    Generate unique admin key with 24-hour expiry for device-specific admin privileges.
+
+    Story 3.5: AC-6 (Admin Key Generation)
+    Admin key allows the game creator to join as a player using their device.
+
+    Returns:
+        Tuple of (admin_key: str, expiry: datetime)
+        - admin_key: UUID v4 string
+        - expiry: Datetime exactly 24 hours from now
+
+    Example:
+        >>> admin_key, expiry = generate_admin_key()
+        >>> len(admin_key)
+        36
+        >>> expiry > datetime.now()
+        True
+    """
+    admin_key = str(uuid.uuid4())
+    expiry = datetime.now() + timedelta(hours=24)
+
+    # Log first 8 characters only for security
+    _LOGGER.info("Generated admin_key: %s... (expires in 24 hours)", admin_key[:8])
+
+    return admin_key, expiry
+
+
+def create_game_session(
+    hass: HomeAssistant, config: dict[str, Any], playlist_data: dict[str, Any]
+) -> dict[str, Any]:
+    """
+    Create a new game session with full state initialization.
+
+    Story 3.5: AC-2, AC-4, AC-5, AC-6
+    Atomic operation: Either fully succeeds or leaves state unchanged.
+
+    Args:
+        hass: Home Assistant instance
+        config: Validated game configuration dict matching GameConfigInput structure
+        playlist_data: Loaded playlist dict with 'songs' array (already year-filtered)
+
+    Returns:
+        Session data dict with structure:
+        {
+            "game_id": str,
+            "admin_key": str,
+            "admin_key_expiry": datetime,
+            "status": "lobby",
+            "player_count": 0,
+            "songs_total": int,
+            "songs_remaining": int
+        }
+
+    Raises:
+        ValueError: If config validation fails or playlist data invalid
+
+    Example:
+        >>> config = {"media_player": "media_player.spotify", ...}
+        >>> playlist = {"playlist_name": "80s Hits", "songs": [...]}
+        >>> session = create_game_session(hass, config, playlist)
+        >>> session['status']
+        'lobby'
+    """
+    # Step 1: Reset all previous game state
+    reset_game_state(hass)
+
+    # Step 2: Generate new game identifiers
+    game_id = generate_game_id()
+    admin_key, admin_key_expiry = generate_admin_key()
+
+    # Step 3: Store game configuration
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+
+    hass.data[DOMAIN]["game_id"] = game_id
+    hass.data[DOMAIN]["game_config"] = {
+        "media_player": config["media_player"],
+        "playlist_id": config["playlist_id"],
+        "timer_duration": config.get("timer_duration", 30),
+        "year_range_min": config.get("year_range_min", 1950),
+        "year_range_max": config.get("year_range_max", 2024),
+        "exact_points": config.get("exact_points", 10),
+        "close_points": config.get("close_points", 5),
+        "near_points": config.get("near_points", 2),
+        "bet_multiplier": config.get("bet_multiplier", 2),
+        "game_id": game_id,  # Include game_id for tracking
+    }
+
+    # Step 4: Store playlist songs
+    songs = playlist_data.get("songs", [])
+    hass.data[DOMAIN]["available_songs"] = songs.copy()  # Make a copy to avoid mutations
+
+    # Step 5: Set game status to lobby
+    hass.data[DOMAIN]["game_status"] = "lobby"
+    hass.data[DOMAIN]["lobby_timestamp"] = datetime.now()
+
+    # Step 6: Store admin key with expiry
+    hass.data[DOMAIN]["admin_key"] = admin_key
+    hass.data[DOMAIN]["admin_key_expiry"] = admin_key_expiry
+
+    _LOGGER.info(
+        "Game session created: game_id=%s, status=lobby, songs=%d",
+        game_id,
+        len(songs),
+    )
+
+    # Return session data for API response
+    return {
+        "game_id": game_id,
+        "admin_key": admin_key,
+        "admin_key_expiry": admin_key_expiry,
+        "status": "lobby",
+        "player_count": 0,
+        "songs_total": len(songs),
+        "songs_remaining": len(songs),
+    }

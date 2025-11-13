@@ -228,11 +228,13 @@ class BeatsyPlayerView(HomeAssistantView):
 class BeatsyAPIView(HomeAssistantView):
     """View for REST API endpoints.
 
-    Requires Home Assistant authentication for all API endpoints.
+    Does NOT require authentication to maintain consistency with admin/player interfaces.
+    Follows Epic 1 POC pattern for zero-friction access.
     Provides JSON responses for game control and data access.
 
     Endpoints:
     - GET /api/beatsy/api/media_players - Get available Spotify media players
+    - GET /api/beatsy/api/playlists - Get available playlist JSON files (Story 3.3)
     - POST /api/beatsy/api/validate_playlist - Validate Spotify playlist
     - POST /api/beatsy/api/start_game - Start a new game (Epic 3)
     - POST /api/beatsy/api/next_song - Advance to next song (Epic 5)
@@ -241,7 +243,7 @@ class BeatsyAPIView(HomeAssistantView):
 
     url = "/api/beatsy/api/{endpoint}"
     name = "api:beatsy:api"
-    requires_auth = True  # API endpoints require authentication
+    requires_auth = False  # No authentication required (consistent with admin/player pages)
 
     async def get(self, request: web.Request, endpoint: str) -> web.Response:
         """Handle GET API requests.
@@ -257,18 +259,84 @@ class BeatsyAPIView(HomeAssistantView):
 
         try:
             if endpoint == "media_players":
-                # Import spotify_helper from Story 2.4
-                # Future: get_spotify_media_players will be implemented
-                # For now, return placeholder response
+                # Story 3.2: Get Spotify-capable media players for admin dropdown
+                from .spotify_helper import get_spotify_media_players
 
-                # Placeholder for Story 2.4 integration
                 _LOGGER.debug("GET /api/beatsy/api/media_players called")
-                return web.json_response(
-                    {
-                        "players": [],
-                        "message": "Spotify helper not yet fully integrated (Story 2.4)",
-                    }
-                )
+
+                try:
+                    # Call Story 2.4's player detection function
+                    players = await get_spotify_media_players(hass)
+
+                    # Convert MediaPlayerInfo dataclass instances to JSON-serializable dicts
+                    players_data = [
+                        {
+                            "entity_id": player.entity_id,
+                            "friendly_name": player.friendly_name,
+                            "state": player.state,
+                            "supports_play_media": player.supports_play_media,
+                        }
+                        for player in players
+                    ]
+
+                    if not players_data:
+                        # No players found - return 404 with helpful message
+                        _LOGGER.warning("No Spotify-capable media players found")
+                        return web.json_response(
+                            {
+                                "error": "no_players",
+                                "message": "No Spotify media players detected. Please configure Spotify integration in Home Assistant.",
+                            },
+                            status=404,
+                        )
+
+                    _LOGGER.info("Media players endpoint called, found %d players", len(players_data))
+                    return web.json_response({"players": players_data}, status=200)
+
+                except Exception as e:
+                    _LOGGER.error("Error fetching media players: %s", str(e), exc_info=True)
+                    return web.json_response(
+                        {
+                            "error": "service_unavailable",
+                            "message": "Unable to fetch media players. Please check Spotify integration.",
+                        },
+                        status=503,
+                    )
+
+            elif endpoint == "playlists":
+                # Story 3.3: Get available playlist JSON files for admin dropdown
+                from .playlist_loader import list_playlists
+
+                _LOGGER.debug("GET /api/beatsy/api/playlists called")
+
+                try:
+                    # Call playlist loader to scan playlists/ directory
+                    playlists = await list_playlists(hass)
+
+                    if not playlists:
+                        # No playlists found - return 404 with helpful message
+                        _LOGGER.warning("No playlist files found in playlists/ directory")
+                        return web.json_response(
+                            {
+                                "error": "no_playlists",
+                                "message": "No playlist files found in playlists/ directory. Please add playlist JSON files.",
+                            },
+                            status=404,
+                        )
+
+                    _LOGGER.info("Playlists endpoint called, found %d valid playlists", len(playlists))
+                    return web.json_response({"playlists": playlists}, status=200)
+
+                except Exception as e:
+                    _LOGGER.error("Error fetching playlists: %s", str(e), exc_info=True)
+                    return web.json_response(
+                        {
+                            "error": "playlist_parse_error",
+                            "message": "Failed to load playlists. Check Home Assistant logs for details.",
+                        },
+                        status=500,
+                    )
+
             else:
                 _LOGGER.warning("Unknown GET endpoint: %s", endpoint)
                 return web.json_response(
@@ -320,15 +388,194 @@ class BeatsyAPIView(HomeAssistantView):
                 )
 
             elif endpoint == "start_game":
-                # Placeholder for game start logic (Epic 3)
-                _LOGGER.debug("POST /api/beatsy/api/start_game called")
-                return web.json_response(
-                    {
-                        "success": True,
-                        "message": "Game start not yet implemented (Epic 3)",
-                        "config": data,
+                # Story 3.5: Start game endpoint - initialize new game session
+                _LOGGER.info("POST /api/beatsy/api/start_game called")
+
+                from pathlib import Path
+
+                from . import game_initializer, playlist_loader
+
+                try:
+                    # Extract configuration from request
+                    config = data.get("config", {})
+
+                    if not config:
+                        return web.json_response(
+                            {
+                                "error": "validation_failed",
+                                "details": ["Missing 'config' field in request body"],
+                            },
+                            status=400,
+                        )
+
+                    # Create GameConfigInput instance
+                    try:
+                        game_config = game_initializer.GameConfigInput(
+                            media_player=config.get("media_player", ""),
+                            playlist_id=config.get("playlist_id", ""),
+                            timer_duration=int(config.get("timer_duration", 30)),
+                            year_range_min=int(config.get("year_range_min", 1950)),
+                            year_range_max=int(config.get("year_range_max", 2024)),
+                            exact_points=int(config.get("exact_points", 10)),
+                            close_points=int(config.get("close_points", 5)),
+                            near_points=int(config.get("near_points", 2)),
+                            bet_multiplier=int(config.get("bet_multiplier", 2)),
+                        )
+                    except (ValueError, TypeError) as e:
+                        _LOGGER.error("Invalid config values: %s", e)
+                        return web.json_response(
+                            {
+                                "error": "validation_failed",
+                                "details": [f"Invalid configuration values: {str(e)}"],
+                            },
+                            status=400,
+                        )
+
+                    # Validate configuration
+                    validation_errors = game_config.validate()
+                    if validation_errors:
+                        _LOGGER.warning(
+                            "Configuration validation failed: %s", validation_errors
+                        )
+                        return web.json_response(
+                            {"error": "validation_failed", "details": validation_errors},
+                            status=400,
+                        )
+
+                    # Load playlist file
+                    module_dir = Path(__file__).parent
+                    playlists_dir = module_dir / "playlists"
+
+                    try:
+                        playlist_data = playlist_loader.load_playlist_file(
+                            playlists_dir, game_config.playlist_id
+                        )
+                    except FileNotFoundError:
+                        _LOGGER.error(
+                            "Playlist file not found: %s", game_config.playlist_id
+                        )
+                        return web.json_response(
+                            {
+                                "error": "playlist_not_found",
+                                "message": f"Playlist '{game_config.playlist_id}' not found",
+                            },
+                            status=404,
+                        )
+                    except ValueError as e:
+                        _LOGGER.error(
+                            "Playlist validation failed for %s: %s",
+                            game_config.playlist_id,
+                            e,
+                        )
+                        return web.json_response(
+                            {"error": "playlist_parse_error", "message": str(e)},
+                            status=500,
+                        )
+
+                    # Filter songs by year range
+                    all_songs = playlist_data.get("songs", [])
+                    filtered_songs = playlist_loader.filter_songs_by_year(
+                        all_songs, game_config.year_range_min, game_config.year_range_max
+                    )
+
+                    # Verify minimum track count
+                    if len(filtered_songs) < 10:
+                        _LOGGER.warning(
+                            "Insufficient tracks after filtering: %d (minimum 10 required)",
+                            len(filtered_songs),
+                        )
+                        return web.json_response(
+                            {
+                                "error": "insufficient_tracks",
+                                "message": f"Only {len(filtered_songs)} tracks available after year range filtering (minimum 10 required)",
+                            },
+                            status=400,
+                        )
+
+                    # Create playlist data with filtered songs
+                    filtered_playlist = playlist_data.copy()
+                    filtered_playlist["songs"] = filtered_songs
+
+                    # Create game session (atomic operation)
+                    try:
+                        session_data = game_initializer.create_game_session(
+                            hass, config, filtered_playlist
+                        )
+                    except Exception as e:
+                        _LOGGER.error(
+                            "Failed to create game session: %s", e, exc_info=True
+                        )
+                        return web.json_response(
+                            {
+                                "error": "session_creation_failed",
+                                "message": "Failed to initialize game session",
+                            },
+                            status=500,
+                        )
+
+                    # Construct player URL using request host
+                    # Format: http://<HA_IP>:8123/local/beatsy/start.html?game_id=<uuid>
+                    host = request.headers.get("Host", "localhost:8123")
+                    scheme = request.scheme
+                    player_url = (
+                        f"{scheme}://{host}/local/beatsy/start.html"
+                        f"?game_id={session_data['game_id']}"
+                    )
+
+                    # Prepare response
+                    response_data = {
+                        "game_id": session_data["game_id"],
+                        "status": session_data["status"],
+                        "player_url": player_url,
+                        "admin_key": session_data["admin_key"],
+                        "playlist_tracks": session_data["songs_total"],
                     }
-                )
+
+                    # Story 3.5 Task 9: Broadcast WebSocket game_status_update event
+                    from .websocket_handler import broadcast_message
+
+                    # Prepare WebSocket broadcast payload (AC-5)
+                    ws_payload = {
+                        "game_id": session_data["game_id"],
+                        "status": session_data["status"],
+                        "player_count": session_data["player_count"],
+                        "songs_total": session_data["songs_total"],
+                        "songs_remaining": session_data["songs_remaining"],
+                        "current_round": None,
+                    }
+
+                    # Broadcast to all connected WebSocket clients
+                    try:
+                        await broadcast_message(hass, "game_status_update", ws_payload)
+                        _LOGGER.info(
+                            "WebSocket broadcast sent: game_status_update (game_id=%s)",
+                            session_data["game_id"],
+                        )
+                    except Exception as ws_error:
+                        # Don't fail the request if WebSocket broadcast fails
+                        _LOGGER.warning(
+                            "Failed to broadcast game_status_update: %s", ws_error
+                        )
+
+                    _LOGGER.info(
+                        "Game session created successfully: game_id=%s, tracks=%d",
+                        session_data["game_id"],
+                        session_data["songs_total"],
+                    )
+
+                    return web.json_response(response_data, status=200)
+
+                except Exception as e:
+                    _LOGGER.error(
+                        "Unexpected error in start_game endpoint: %s", e, exc_info=True
+                    )
+                    return web.json_response(
+                        {
+                            "error": "internal_server_error",
+                            "message": "An unexpected error occurred",
+                        },
+                        status=500,
+                    )
 
             elif endpoint == "next_song":
                 # Placeholder for next song logic (Epic 5)

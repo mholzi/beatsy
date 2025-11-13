@@ -1,0 +1,96 @@
+{
+  "playlist_name": "2000s Hits",
+  "playlist_id": "2000s_hits",
+  "songs": [
+    {
+      "spotify_uri": "spotify:track:3n3Ppam7vgaVa1iaRUc9Lp",
+      "year": 2000,
+      "fun_fact": "Bye Bye Bye - *NSYNC"
+    },
+    {
+      "spotify_uri": "spotify:track:0GONea6G2XdnHWjNZd6zt3",
+      "year": 2001,
+      "fun_fact": "In the End - Linkin Park"
+    },
+    {
+      "spotify_uri": "spotify:track:5O2P9iiztwhomNh8xkR9lJ",
+      "year": 2002,
+      "fun_fact": "Hot in Herre - Nelly"
+    },
+    {
+      "spotify_uri": "spotify:track:0WqIKmW4BTrj3eJFmnCKMv",
+      "year": 2003,
+      "fun_fact": "Crazy in Love - Beyoncé feat. Jay-Z"
+    },
+    {
+      "spotify_uri": "spotify:track:0YoDzqqIEC7xE68fB4c1LT",
+      "year": 2004,
+      "fun_fact": "Yeah! - Usher feat. Lil Jon & Ludacris"
+    },
+    {
+      "spotify_uri": "spotify:track:5rwC8kJV3TtHOwQcKWoFW2",
+      "year": 2005,
+      "fun_fact": "Gold Digger - Kanye West feat. Jamie Foxx"
+    },
+    {
+      "spotify_uri": "spotify:track:2up3OPMp9Tb4dAKM2erWXQ",
+      "year": 2006,
+      "fun_fact": "SexyBack - Justin Timberlake"
+    },
+    {
+      "spotify_uri": "spotify:track:4RCWB3V8V0dignt99LZ8vH",
+      "year": 2007,
+      "fun_fact": "Umbrella - Rihanna feat. Jay-Z"
+    },
+    {
+      "spotify_uri": "spotify:track:76hfruVvmfQbw0eYn1nmeC",
+      "year": 2008,
+      "fun_fact": "Viva la Vida - Coldplay"
+    },
+    {
+      "spotify_uri": "spotify:track:4QQaXN5i02JXbfPbUKA1RE",
+      "year": 2009,
+      "fun_fact": "I Gotta Feeling - The Black Eyed Peas"
+    },
+    {
+      "spotify_uri": "spotify:track:5GhKXf6IyRqE1TJaRJpVtl",
+      "year": 2000,
+      "fun_fact": "It's Gonna Be Me - *NSYNC"
+    },
+    {
+      "spotify_uri": "spotify:track:6QF6Gq2xL8Gh2V1N7IiZaz",
+      "year": 2002,
+      "fun_fact": "Lose Yourself - Eminem"
+    },
+    {
+      "spotify_uri": "spotify:track:3DamFFqW32WihKkTVlwTYQ",
+      "year": 2004,
+      "fun_fact": "Mr. Brightside - The Killers"
+    },
+    {
+      "spotify_uri": "spotify:track:42et6fnHCw1HIPSrdPprMl",
+      "year": 2005,
+      "fun_fact": "Boulevard of Broken Dreams - Green Day"
+    },
+    {
+      "spotify_uri": "spotify:track:7iL6o9tox1zgHpKUfh9vuC",
+      "year": 2006,
+      "fun_fact": "Promiscuous - Nelly Furtado feat. Timbaland"
+    },
+    {
+      "spotify_uri": "spotify:track:3BiJXFpSDbVYnHfTSDjJ0P",
+      "year": 2007,
+      "fun_fact": "Hey There Delilah - Plain White T's"
+    },
+    {
+      "spotify_uri": "spotify:track:3H7ihDc1dqLriiWXwsc2po",
+      "year": 2008,
+      "fun_fact": "I Kissed a Girl - Katy Perry"
+    },
+    {
+      "spotify_uri": "spotify:track:1mea3bSkSGXuIRvnydlB5b",
+      "year": 2009,
+      "fun_fact": "Poker Face - Lady Gaga"
+    }
+  ]
+}

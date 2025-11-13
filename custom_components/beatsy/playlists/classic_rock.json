@@ -1,0 +1,101 @@
+{
+  "playlist_name": "Classic Rock",
+  "playlist_id": "classic_rock",
+  "songs": [
+    {
+      "spotify_uri": "spotify:track:60a0Rd6pjrkxjPbaKzXjfq",
+      "year": 1968,
+      "fun_fact": "Hey Jude - The Beatles' longest single"
+    },
+    {
+      "spotify_uri": "spotify:track:2zYzyRzz6pRmhPzyfMEC8s",
+      "year": 1969,
+      "fun_fact": "Come Together - The Beatles"
+    },
+    {
+      "spotify_uri": "spotify:track:5KWGbxdbyWiJAWJ7EFrmjJ",
+      "year": 1970,
+      "fun_fact": "Bridge Over Troubled Water - Simon & Garfunkel"
+    },
+    {
+      "spotify_uri": "spotify:track:3MrWxJaD2AT0W9DjWF64Vm",
+      "year": 1971,
+      "fun_fact": "Imagine - John Lennon"
+    },
+    {
+      "spotify_uri": "spotify:track:2374M0fQpWi3dLnB54qaLX",
+      "year": 1972,
+      "fun_fact": "American Pie - Don McLean epic"
+    },
+    {
+      "spotify_uri": "spotify:track:7sDHMfSKY0qlLfk4zXD6LV",
+      "year": 1973,
+      "fun_fact": "Dream On - Aerosmith's first hit"
+    },
+    {
+      "spotify_uri": "spotify:track:60wwxj6Dd9NJlirf84wr2c",
+      "year": 1974,
+      "fun_fact": "Sweet Home Alabama - Lynyrd Skynyrd"
+    },
+    {
+      "spotify_uri": "spotify:track:3cfAM8b8KqJRoIzt3zLKqw",
+      "year": 1975,
+      "fun_fact": "Bohemian Rhapsody - Queen's masterpiece"
+    },
+    {
+      "spotify_uri": "spotify:track:2fuCquhmrzHpu5xcA1ci9x",
+      "year": 1976,
+      "fun_fact": "Hotel California - Eagles"
+    },
+    {
+      "spotify_uri": "spotify:track:4d1CG5ZXJCGzo2yLLWrgLj",
+      "year": 1977,
+      "fun_fact": "Go Your Own Way - Fleetwood Mac"
+    },
+    {
+      "spotify_uri": "spotify:track:2tpWsVSb9UEmDRxAl1zhX1",
+      "year": 1978,
+      "fun_fact": "Stayin' Alive - Bee Gees"
+    },
+    {
+      "spotify_uri": "spotify:track:3ZRLPFOokJCGWWAGy5Sjb3",
+      "year": 1979,
+      "fun_fact": "My Sharona - The Knack"
+    },
+    {
+      "spotify_uri": "spotify:track:6dGnYIeXmHdcikdzNNDMm2",
+      "year": 1967,
+      "fun_fact": "All You Need Is Love - The Beatles"
+    },
+    {
+      "spotify_uri": "spotify:track:1jDJFeK9x3OZboIAHsY9k2",
+      "year": 1971,
+      "fun_fact": "Stairway to Heaven - Led Zeppelin's epic"
+    },
+    {
+      "spotify_uri": "spotify:track:2Sf7gaZ97fYPqCoxDfYKEt",
+      "year": 1975,
+      "fun_fact": "Born to Run - Bruce Springsteen"
+    },
+    {
+      "spotify_uri": "spotify:track:4qiyLwQ3u6B1vbAeVPPbNT",
+      "year": 1977,
+      "fun_fact": "Dreams - Fleetwood Mac"
+    },
+    {
+      "spotify_uri": "spotify:track:4bHsxqR3GMrXTxEPLuK5ue",
+      "year": 1973,
+      "fun_fact": "Free Bird - Lynyrd Skynyrd"
+    },
+    {
+      "spotify_uri": "spotify:track:2nLtzopw4rPReszdYBJU6h",
+      "year": 1970,
+      "fun_fact": "Layla - Derek and the Dominos"
+    },
+    {
+      "spotify_uri": "spotify:track:4yJx2hzB8y04IFgPP5xSKY",
+      "year": 1976,
+      "fun_fact": "Don't Stop Believin' - Journey (early recording)"
+    }
+  ]
+}
