@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components import websocket_api
+from homeassistant.components import websocket_api as ha_websocket_api
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
@@ -95,15 +95,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     players = await get_spotify_media_players(hass)
     _LOGGER.info("Beatsy initialized with %d media player(s) available", len(players))
 
-    # Check if Spotify integration is configured (warn if not, but don't block)
+    # Check if Spotify integration is configured (optional dependency)
     spotify_entries = hass.config_entries.async_entries("spotify")
     if not spotify_entries:
-        _LOGGER.warning(
+        _LOGGER.info(
             "Spotify integration not configured. "
-            "Spotify features will not work until you configure Spotify in Home Assistant."
+            "Beatsy will work, but Spotify features require configuring the Spotify integration first."
         )
     else:
-        _LOGGER.info("Spotify integration detected - Spotify features available")
+        _LOGGER.info("Spotify integration detected - Full Spotify features available")
 
     # Register HTTP view for unauthenticated test page access
     try:
@@ -135,11 +135,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Register WebSocket commands for real-time game communication (Story 2.6)
     try:
-        websocket_api.async_register_command(hass, handle_join_game)
-        websocket_api.async_register_command(hass, handle_submit_guess)
-        websocket_api.async_register_command(hass, handle_place_bet)
-        websocket_api.async_register_command(hass, handle_start_game)
-        websocket_api.async_register_command(hass, handle_next_song)
+        ha_websocket_api.async_register_command(hass, handle_join_game)
+        ha_websocket_api.async_register_command(hass, handle_submit_guess)
+        ha_websocket_api.async_register_command(hass, handle_place_bet)
+        ha_websocket_api.async_register_command(hass, handle_start_game)
+        ha_websocket_api.async_register_command(hass, handle_next_song)
         _LOGGER.info(
             "WebSocket commands registered: join_game, submit_guess, place_bet, start_game, next_song"
         )
