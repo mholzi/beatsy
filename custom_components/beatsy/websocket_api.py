@@ -56,44 +56,34 @@ WS_TYPE_PLACE_BET = "beatsy/place_bet"
 WS_TYPE_START_GAME = "beatsy/start_game"
 WS_TYPE_NEXT_SONG = "beatsy/next_song"
 
-# Command schemas with voluptuous validation
-SCHEMA_JOIN_GAME = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
-    {
-        vol.Required("type"): WS_TYPE_JOIN_GAME,
-        vol.Required("player_name"): vol.All(str, vol.Length(min=1, max=20)),
-        vol.Optional("game_id"): str,  # Future multi-game support
-    }
-)
+# Command schemas with voluptuous validation (HA 2025 format)
+SCHEMA_JOIN_GAME = {
+    vol.Required("type"): WS_TYPE_JOIN_GAME,
+    vol.Required("player_name"): vol.All(str, vol.Length(min=1, max=20)),
+    vol.Optional("game_id"): str,  # Future multi-game support
+}
 
-SCHEMA_SUBMIT_GUESS = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
-    {
-        vol.Required("type"): WS_TYPE_SUBMIT_GUESS,
-        vol.Required("player_name"): vol.All(str, vol.Length(min=1, max=20)),
-        vol.Required("year_guess"): vol.All(int, vol.Range(min=1950, max=2050)),
-        vol.Required("bet_placed"): bool,
-    }
-)
+SCHEMA_SUBMIT_GUESS = {
+    vol.Required("type"): WS_TYPE_SUBMIT_GUESS,
+    vol.Required("player_name"): vol.All(str, vol.Length(min=1, max=20)),
+    vol.Required("year_guess"): vol.All(int, vol.Range(min=1950, max=2050)),
+    vol.Required("bet_placed"): bool,
+}
 
-SCHEMA_PLACE_BET = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
-    {
-        vol.Required("type"): WS_TYPE_PLACE_BET,
-        vol.Required("player_name"): vol.All(str, vol.Length(min=1, max=20)),
-        vol.Required("bet"): bool,
-    }
-)
+SCHEMA_PLACE_BET = {
+    vol.Required("type"): WS_TYPE_PLACE_BET,
+    vol.Required("player_name"): vol.All(str, vol.Length(min=1, max=20)),
+    vol.Required("bet"): bool,
+}
 
-SCHEMA_START_GAME = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
-    {
-        vol.Required("type"): WS_TYPE_START_GAME,
-        vol.Required("config"): dict,  # Game configuration
-    }
-)
+SCHEMA_START_GAME = {
+    vol.Required("type"): WS_TYPE_START_GAME,
+    vol.Required("config"): dict,  # Game configuration
+}
 
-SCHEMA_NEXT_SONG = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
-    {
-        vol.Required("type"): WS_TYPE_NEXT_SONG,
-    }
-)
+SCHEMA_NEXT_SONG = {
+    vol.Required("type"): WS_TYPE_NEXT_SONG,
+}
 
 
 @callback
