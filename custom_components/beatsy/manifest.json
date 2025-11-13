@@ -3,10 +3,10 @@
   "name": "Beatsy",
   "version": "0.1.0",
   "config_flow": true,
-  "documentation": "https://github.com/markusholzhaeuser/beatsy",
-  "issue_tracker": "https://github.com/markusholzhaeuser/beatsy/issues",
+  "documentation": "https://github.com/mholzi/beatsy",
+  "issue_tracker": "https://github.com/mholzi/beatsy/issues",
   "dependencies": ["http", "spotify"],
-  "codeowners": ["@markusholzhaeuser"],
+  "codeowners": ["@mholzi"],
   "iot_class": "local_push",
   "requirements": []
 }
