@@ -676,19 +676,53 @@ class BeatsyAPIView(HomeAssistantView):
                     # For now, allow next_song in any state
                     _LOGGER.info("Admin validated successfully, proceeding with next_song")
 
-                    # TODO: Story 5.1 - select_random_song()
-                    # TODO: Story 5.2 - initialize_new_round()
-                    # TODO: Story 6.4 - broadcast round_started WebSocket event
+                    # Story 5.1: Select random song from available playlist
+                    from .game_state import select_random_song, PlaylistExhaustedError, get_game_state
 
-                    # Placeholder response until Epic 5 stories are implemented
-                    response_data = {
-                        "success": True,
-                        "round_number": 1,  # TODO: Get from game state
-                        "message": "TODO: Story 5.2 - Round initialization logic"
-                    }
+                    try:
+                        # Call async song selection function
+                        selected_song = await select_random_song(hass)
 
-                    _LOGGER.info("next_song successful: admin_key=%s...", admin_key[:8])
-                    return web.json_response(response_data, status=200)
+                        # Get round number from played_songs count
+                        state = get_game_state(hass)
+                        round_number = len(state.played_songs)
+
+                        # Story 5.1: Return success with song details
+                        response_data = {
+                            "success": True,
+                            "round_number": round_number,
+                            "song_selected": True,
+                            "title": selected_song.get("title"),
+                            "artist": selected_song.get("artist"),
+                            "message": f"Round {round_number} started"
+                        }
+
+                        _LOGGER.info("next_song successful: Round %d - %s by %s",
+                                   round_number, selected_song.get("title"), selected_song.get("artist"))
+                        return web.json_response(response_data, status=200)
+
+                    except PlaylistExhaustedError as e:
+                        # Story 5.1 AC-4: Handle empty playlist gracefully
+                        _LOGGER.warning("Playlist exhausted when admin requested next song")
+                        return web.json_response(
+                            {
+                                "success": False,
+                                "error": e.code,  # "playlist_exhausted"
+                                "message": e.message
+                            },
+                            status=400
+                        )
+                    except ValueError as e:
+                        # Song validation error
+                        _LOGGER.error("Song validation error in next_song: %s", e, exc_info=True)
+                        return web.json_response(
+                            {
+                                "success": False,
+                                "error": "invalid_song_data",
+                                "message": f"Selected song has invalid structure: {str(e)}"
+                            },
+                            status=500
+                        )
 
                 except Exception as e:
                     _LOGGER.error("Unexpected error in next_song endpoint: %s", e, exc_info=True)

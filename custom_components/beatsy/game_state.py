@@ -104,18 +104,16 @@ class Player:
 class RoundState:
     """Current round state.
 
-    Represents the active round with track information and player guesses.
+    Story 5.2: Represents the active round with song metadata, timer, and player guesses.
+    Server-side authoritative state for timed gameplay window.
     """
 
     round_number: int
-    track_uri: str
-    track_name: str
-    track_artist: str
-    correct_year: int
-    guesses: dict[str, dict[str, Any]] = field(default_factory=dict)  # player_name -> {year, bet, submitted_at}
+    song: dict[str, Any]  # {uri, title, artist, album, year, cover_url}
+    started_at: float
+    timer_duration: int  # seconds (from config, default 30)
     status: str = "active"  # active, ended
-    timer_started_at: Optional[float] = None
-    started_at: float = field(default_factory=time.time)
+    guesses: list[dict[str, Any]] = field(default_factory=list)  # List of {player_name, year, bet, submitted_at}
 
 
 @dataclass
@@ -471,14 +469,10 @@ def set_current_round(
     # Set round (atomic operation - object assignment is thread-safe in async context)
     state.current_round = round_state
 
-    # Set timer start time if not already set
-    if round_state.timer_started_at is None:
-        round_state.timer_started_at = time.time()
-
     _LOGGER.debug(
         "Round %d started: %s",
         round_state.round_number,
-        round_state.track_name,
+        round_state.song.get("title", "Unknown"),
     )
 
 
@@ -506,6 +500,8 @@ def add_guess(
 ) -> None:
     """Add player guess to current round.
 
+    Story 5.2: Uses list-based guesses structure for round state.
+
     Args:
         hass: The Home Assistant instance.
         player_name: The name of the player making the guess.
@@ -524,12 +520,24 @@ def add_guess(
     if round_state.status != "active":
         raise ValueError("Round is not active")
 
-    # Add guess (atomic operation - dict assignment is thread-safe in async context)
-    round_state.guesses[player_name] = {
-        "year": year_guess,
-        "bet": bet_placed,
-        "submitted_at": time.time(),
-    }
+    # Check if player already has a guess (update if exists)
+    existing_guess = next(
+        (g for g in round_state.guesses if g.get("player_name") == player_name), None
+    )
+
+    if existing_guess:
+        # Update existing guess
+        existing_guess["year"] = year_guess
+        existing_guess["bet"] = bet_placed
+        existing_guess["submitted_at"] = time.time()
+    else:
+        # Add new guess (atomic operation - list.append is thread-safe in async context)
+        round_state.guesses.append({
+            "player_name": player_name,
+            "year": year_guess,
+            "bet": bet_placed,
+            "submitted_at": time.time(),
+        })
 
     _LOGGER.debug(
         "Guess recorded: %s -> %d (bet: %s)", player_name, year_guess, bet_placed
@@ -543,6 +551,8 @@ def update_bet(
     entry_id: Optional[str] = None,
 ) -> None:
     """Update player bet status for current round.
+
+    Story 5.2: Uses list-based guesses structure for round state.
 
     Args:
         hass: The Home Assistant instance.
@@ -561,16 +571,23 @@ def update_bet(
     if round_state.status != "active":
         raise ValueError("Round is not active")
 
-    # Update or create guess entry with bet status
-    if player_name in round_state.guesses:
-        round_state.guesses[player_name]["bet"] = bet
+    # Find existing guess for this player
+    existing_guess = next(
+        (g for g in round_state.guesses if g.get("player_name") == player_name), None
+    )
+
+    if existing_guess:
+        # Update bet in existing guess
+        existing_guess["bet"] = bet
+        existing_guess["updated_at"] = time.time()
     else:
         # Create placeholder guess with bet status
-        round_state.guesses[player_name] = {
+        round_state.guesses.append({
+            "player_name": player_name,
             "year": None,
             "bet": bet,
             "updated_at": time.time(),
-        }
+        })
 
     _LOGGER.debug("Bet updated: %s -> %s", player_name, bet)
 
@@ -731,6 +748,107 @@ async def select_random_song(
         assert selected_song in state.played_songs, "Song not in played_songs after selection"
 
         return selected_song
+
+
+async def initialize_round(
+    hass: HomeAssistant, selected_song: dict[str, Any], entry_id: Optional[str] = None
+) -> RoundState:
+    """Initialize a new round with song metadata, timer, and empty guesses.
+
+    Story 5.2: Creates authoritative server-side round state for timed gameplay window.
+    Increments round_number continuously (1, 2, 3...) based on played_songs history.
+
+    Args:
+        hass: The Home Assistant instance.
+        selected_song: Song dict from select_random_song() with all required fields:
+            {uri, title, artist, album, year, cover_url}
+        entry_id: The config entry ID. If None, uses first entry.
+
+    Returns:
+        Initialized RoundState object stored in game state.
+
+    Raises:
+        ValueError: If game config is missing timer settings.
+
+    AC-1: Creates RoundState with round_number, song, started_at, timer_duration, status, guesses
+    AC-2: Round number increments continuously (first round = 1, then 2, 3, 4...)
+    """
+    state = get_game_state(hass, entry_id)
+
+    # AC-2: Calculate round number from played songs count
+    # Round 1 is first song played, round 2 is second, etc.
+    new_round_number = len(state.played_songs)
+    if new_round_number == 0:
+        new_round_number = 1  # First round starts at 1
+
+    # AC-1: Load timer_duration from game config (default 30 seconds)
+    timer_duration = state.game_config.get("round_timer_seconds", 30)
+
+    # AC-1: Create RoundState with all required fields
+    round_state = RoundState(
+        round_number=new_round_number,
+        song=selected_song,  # Full song dict with uri, title, artist, album, year, cover_url
+        started_at=time.time(),  # UTC timestamp
+        timer_duration=timer_duration,
+        status="active",
+        guesses=[],  # Empty list, will be populated by Story 5.3
+    )
+
+    # AC-1: Store round state in game state (authoritative server state)
+    state.current_round = round_state
+
+    # Logging handled in separate task (Task 6)
+    _LOGGER.debug(
+        "Round %d initialized: '%s' by %s (%ds timer)",
+        round_state.round_number,
+        selected_song.get("title"),
+        selected_song.get("artist"),
+        timer_duration,
+    )
+
+    return round_state
+
+
+def prepare_round_started_payload(round_state: RoundState) -> dict[str, Any]:
+    """Prepare round_started WebSocket event payload, excluding year field.
+
+    Story 5.2: Builds broadcast payload for all connected clients. CRITICAL: year field
+    is explicitly removed to prevent cheating - players must guess the year, not see it.
+
+    Args:
+        round_state: The initialized RoundState object.
+
+    Returns:
+        Payload dict ready for WebSocket broadcast with structure:
+        {
+            "type": "round_started",
+            "song": {title, artist, album, cover_url},  # year EXCLUDED
+            "timer_duration": int,
+            "started_at": float,
+            "round_number": int
+        }
+
+    AC-3: Payload includes type, song (WITHOUT year), timer_duration, started_at, round_number
+    AC-3: Song.year field MUST be excluded (security requirement)
+    AC-7: Provides all data needed for Epic 8 active round UI
+    """
+    # AC-3: Copy song dict and explicitly remove year field (CRITICAL for game integrity)
+    payload_song = round_state.song.copy()
+    payload_song.pop("year", None)  # Remove year - players are guessing it!
+
+    # AC-3: Build payload with all required fields
+    payload = {
+        "type": "round_started",
+        "song": payload_song,  # title, artist, album, cover_url (NO year)
+        "timer_duration": round_state.timer_duration,
+        "started_at": round_state.started_at,
+        "round_number": round_state.round_number,
+    }
+
+    # Verification: Ensure year is not in payload (double-check for security)
+    assert "year" not in payload["song"], "SECURITY VIOLATION: year field found in round_started payload"
+
+    return payload
 
 
 # ============================================================================

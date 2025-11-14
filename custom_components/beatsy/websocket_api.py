@@ -43,6 +43,8 @@ from .game_state import (
     get_current_round,
     get_players,
     initialize_game,
+    initialize_round,
+    prepare_round_started_payload,
     select_random_song,
     update_bet,
 )
@@ -613,42 +615,45 @@ async def handle_next_song(
         # This function handles AC-1 through AC-7 (selection, validation, logging, etc.)
         selected_song = await select_random_song(hass)
 
-        # Calculate round number (number of played songs = current round)
-        # Story 5.2 will create full RoundState, but we need round number for response
-        current_round_number = len(selected_song) if isinstance(selected_song, list) else 1
+        # Story 5.2, AC-4: Initialize round with selected song
+        # Creates RoundState with round_number, song, started_at, timer_duration, status, guesses
+        round_state = await initialize_round(hass, selected_song)
 
-        # Get actual round number from played_songs count
+        # Story 5.2, AC-3: Prepare round_started payload (excludes year field)
+        payload = prepare_round_started_payload(round_state)
+
+        # Story 5.2, AC-3: Broadcast round_started event to ALL connected clients
+        # This includes admin AND all players - triggers Epic 8 active round UI
+        await broadcast_event(hass, "round_started", payload)
+
+        # Story 5.2, AC-6: Log round start with player count
         from .game_state import get_game_state
         state = get_game_state(hass)
-        round_number = len(state.played_songs)
+        players_count = len(state.players)
 
+        _LOGGER.info(
+            "Round %d started: '%s' by %s (%d players connected)",
+            round_state.round_number,
+            selected_song.get("title"),
+            selected_song.get("artist"),
+            players_count,
+        )
         _LOGGER.debug(
-            "Song selected for round %d: %s by %s",
-            round_number,
-            selected_song.get("title", "Unknown"),
-            selected_song.get("artist", "Unknown"),
+            "Round state: started_at=%f, timer_duration=%ds",
+            round_state.started_at,
+            round_state.timer_duration,
         )
 
-        # Story 5.1: Return success to admin with round number
-        # Story 5.2 will handle round initialization and broadcasting round_started
+        # Story 5.2, AC-4: Return success to admin with round_number
         connection.send_result(
             msg["id"],
             {
                 "success": True,
                 "result": {
-                    "round_number": round_number,
-                    "song_selected": True,
-                    "title": selected_song.get("title"),
-                    "artist": selected_song.get("artist"),
+                    "round_number": round_state.round_number,
                 },
             },
         )
-
-        # Story 5.2 TODO: After implementing initialize_round():
-        # 1. Call initialize_round(hass, selected_song) to create RoundState
-        # 2. Broadcast round_started event with song metadata (WITHOUT year)
-        # For now, just log that song selection is complete
-        _LOGGER.info("Song selection complete. Story 5.2 will add round initialization.")
 
     except PlaylistExhaustedError as e:
         # AC-4: Handle empty playlist gracefully
