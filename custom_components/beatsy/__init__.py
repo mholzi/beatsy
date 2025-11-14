@@ -111,6 +111,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
 
+    # Initialize WebSocket connections registry (Story 4.5)
+    if "ws_connections" not in hass.data[DOMAIN]:
+        hass.data[DOMAIN]["ws_connections"] = {}
+        _LOGGER.debug("Initialized WebSocket connections registry")
+
     if not hass.data[DOMAIN].get("_http_views_registered", False):
         try:
             hass.http.register_view(BeatsyTestView())
