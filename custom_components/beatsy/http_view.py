@@ -167,55 +167,20 @@ class BeatsyPlayerView(HomeAssistantView):
         try:
             _LOGGER.debug("Player interface accessed (unauthenticated)")
 
-            # Placeholder HTML for Epic 2 (real UI in Epic 4)
-            html = """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Beatsy Player</title>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-                        max-width: 800px;
-                        margin: 50px auto;
-                        padding: 20px;
-                        background: #f5f5f5;
-                    }
-                    .container {
-                        background: white;
-                        padding: 40px;
-                        border-radius: 8px;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                    }
-                    h1 { color: #1DB954; margin-top: 0; }
-                    .status {
-                        background: #d4edda;
-                        color: #155724;
-                        padding: 12px;
-                        border-radius: 4px;
-                        margin: 20px 0;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>Beatsy Player Interface</h1>
-                    <p>Welcome to Beatsy! Get ready to guess that song.</p>
-                    <div class="status">
-                        <strong>Unauthenticated access: SUCCESS ✅</strong><br>
-                        <small>Player UI will be implemented in Epic 4</small>
-                    </div>
-                    <p><strong>Authentication:</strong> None required (zero-friction access)</p>
-                    <p><strong>Story:</strong> 2.5 - HTTP Route Registration</p>
-                </div>
-            </body>
-            </html>
-            """
+            # Get the path to the www directory relative to this module
+            module_dir = Path(__file__).parent
+            player_html_path = module_dir / "www" / "start.html"
 
+            # Read the HTML content
+            html_content = player_html_path.read_text(encoding="utf-8")
+
+            _LOGGER.debug("Serving player page from %s", player_html_path)
+
+            # Return HTML response with proper content type
             return web.Response(
-                text=html,
+                text=html_content,
                 content_type="text/html",
+                charset="utf-8",
                 status=200,
             )
 

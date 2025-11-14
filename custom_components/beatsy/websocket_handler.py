@@ -76,24 +76,38 @@ class BeatsyWebSocketView(HomeAssistantView):
                         data = json.loads(msg.data)
                         _LOGGER.debug("Received from %s: %s", conn_id, data)
 
-                        # Validate message format
-                        if not isinstance(data, dict) or "action" not in data:
-                            _LOGGER.warning(
-                                "Invalid message format from %s: missing 'action' field",
-                                conn_id,
-                            )
+                        # Validate message format (support both "action" and "type" fields)
+                        if not isinstance(data, dict):
+                            _LOGGER.warning("Invalid message format from %s: not a dict", conn_id)
                             await ws.send_json(
                                 {
                                     "type": "error",
                                     "data": {
-                                        "message": "Invalid message format: 'action' field required"
+                                        "message": "Invalid message format: must be JSON object"
                                     },
                                     "timestamp": datetime.now(timezone.utc).isoformat(),
                                 }
                             )
                             continue
 
-                        # Process message based on action
+                        # Support both "action" (legacy) and "type" (Story 4.1) fields
+                        if "type" not in data and "action" not in data:
+                            _LOGGER.warning(
+                                "Invalid message format from %s: missing 'type' or 'action' field",
+                                conn_id,
+                            )
+                            await ws.send_json(
+                                {
+                                    "type": "error",
+                                    "data": {
+                                        "message": "Invalid message format: 'type' or 'action' field required"
+                                    },
+                                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                                }
+                            )
+                            continue
+
+                        # Process message based on action or type
                         await self._handle_message(conn_id, ws, data)
 
                     except json.JSONDecodeError as e:
@@ -145,7 +159,8 @@ class BeatsyWebSocketView(HomeAssistantView):
             ws: The WebSocket response object.
             data: The message data.
         """
-        action = data.get("action")
+        # Support both "action" (legacy) and "type" (Story 4.1) fields
+        action = data.get("action") or data.get("type")
 
         if action == "test_ping":
             # Acknowledge ping
@@ -167,6 +182,10 @@ class BeatsyWebSocketView(HomeAssistantView):
             )
             _LOGGER.debug("Triggered test broadcast from %s", conn_id)
 
+        elif action == "join_game":
+            # Story 4.1 Task 8: Handle player registration
+            await self._handle_join_game(conn_id, ws, data)
+
         else:
             _LOGGER.debug("Unknown action '%s' from %s", action, conn_id)
             await ws.send_json(
@@ -174,6 +193,128 @@ class BeatsyWebSocketView(HomeAssistantView):
                     "type": "ack",
                     "data": {"action": action, "status": "received"},
                     "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+
+    async def _handle_join_game(
+        self, conn_id: str, ws: web.WebSocketResponse, data: dict[str, Any]
+    ) -> None:
+        """Handle player registration (Story 4.1 Task 8).
+
+        Args:
+            conn_id: The connection ID.
+            ws: The WebSocket response object.
+            data: The message data containing player name.
+        """
+        try:
+            name = data.get("name", "").strip()
+
+            # Validate name (AC-4, AC-6)
+            if not name or len(name) > 20:
+                _LOGGER.warning("Invalid name from %s: '%s'", conn_id, name)
+                await ws.send_json(
+                    {
+                        "type": "join_game_response",
+                        "success": False,
+                        "error": "invalid_name"
+                    }
+                )
+                return
+
+            # Check if game started (game must be in "lobby" status)
+            if DOMAIN not in self.hass.data:
+                _LOGGER.warning("No game session found for join_game")
+                await ws.send_json(
+                    {
+                        "type": "join_game_response",
+                        "success": False,
+                        "error": "game_not_started"
+                    }
+                )
+                return
+
+            game_data = self.hass.data[DOMAIN]
+
+            # Get game state
+            from .game_state import get_game_state
+
+            try:
+                game_state = get_game_state(self.hass)
+            except ValueError:
+                # No game state initialized
+                _LOGGER.warning("Game not started (no game state)")
+                await ws.send_json(
+                    {
+                        "type": "join_game_response",
+                        "success": False,
+                        "error": "game_not_started"
+                    }
+                )
+                return
+
+            # Check if game has started (must be in lobby or later)
+            if not game_state.game_started:
+                _LOGGER.warning("Game not started (game_started=False)")
+                await ws.send_json(
+                    {
+                        "type": "join_game_response",
+                        "success": False,
+                        "error": "game_not_started"
+                    }
+                )
+                return
+
+            # Generate UUID session_id (AC-5)
+            session_id = str(uuid.uuid4())
+
+            # Create player object (Story 4.2 will handle duplicate names)
+            from .game_state import Player
+
+            player = Player(
+                name=name,
+                session_id=session_id,
+                score=0,
+                is_admin=False,
+                guesses=[],
+                bets_placed=[],
+                joined_at=datetime.now(timezone.utc).timestamp()
+            )
+
+            # Add player to game state
+            game_state.players.append(player)
+
+            _LOGGER.info(
+                "Player joined: name=%s, session_id=%s, total_players=%d",
+                name,
+                session_id[:8] + "...",
+                len(game_state.players)
+            )
+
+            # Send success response (AC-5)
+            await ws.send_json(
+                {
+                    "type": "join_game_response",
+                    "success": True,
+                    "player_name": name,
+                    "session_id": session_id
+                }
+            )
+
+            # Story 4.3: Broadcast player_joined event to all clients
+            # TODO: Implement in Story 4.3
+            # await broadcast_message(
+            #     self.hass,
+            #     "player_joined",
+            #     {"name": name, "player_count": len(game_state.players)}
+            # )
+
+        except Exception as e:
+            _LOGGER.error("Error in handle_join_game: %s", str(e), exc_info=True)
+            await ws.send_json(
+                {
+                    "type": "join_game_response",
+                    "success": False,
+                    "error": "server_error"
                 }
             )
 

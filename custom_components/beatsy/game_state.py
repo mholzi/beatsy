@@ -59,12 +59,15 @@ class Player:
     """
 
     name: str
+    original_name: str = ""  # Name as originally submitted by player
     session_id: str = ""
     score: int = 0
     is_admin: bool = False
     guesses: list[int] = field(default_factory=list)
     bets_placed: list[bool] = field(default_factory=list)
     joined_at: float = field(default_factory=time.time)
+    connected: bool = True  # Story 4.4: Track connection status
+    last_activity: float = field(default_factory=time.time)  # Story 4.4: For session expiration
 
 
 @dataclass
@@ -170,6 +173,7 @@ def get_game_state(hass: HomeAssistant, entry_id: Optional[str] = None) -> Beats
             players=[
                 Player(
                     name=p.get("name", ""),
+                    original_name=p.get("original_name", p.get("name", "")),
                     session_id=p.get("session_id", ""),
                     score=p.get("score", 0),
                     is_admin=p.get("is_admin", False),
@@ -280,15 +284,17 @@ def add_player(
     player_name: str,
     session_id: str = "",
     is_admin: bool = False,
+    original_name: str = "",
     entry_id: Optional[str] = None,
 ) -> None:
     """Add a new player.
 
     Args:
         hass: The Home Assistant instance.
-        player_name: The player's name.
+        player_name: The player's name (adjusted if duplicate).
         session_id: The player's session ID (optional).
         is_admin: Whether the player is an admin.
+        original_name: The name as originally submitted by player.
         entry_id: The config entry ID. If None, uses first entry.
 
     Raises:
@@ -303,6 +309,7 @@ def add_player(
     # Create player object
     player = Player(
         name=player_name,
+        original_name=original_name if original_name else player_name,
         session_id=session_id,
         is_admin=is_admin,
     )
@@ -328,6 +335,27 @@ def get_player(
     """
     state = get_game_state(hass, entry_id)
     return next((p for p in state.players if p.name == name), None)
+
+
+def find_player_by_session(
+    hass: HomeAssistant, session_id: str, entry_id: Optional[str] = None
+) -> Optional[Player]:
+    """Find player by session ID (Story 4.4).
+
+    Used for reconnection flow to look up player by their session_id
+    instead of name. Enables seamless reconnection without losing
+    player identity and score.
+
+    Args:
+        hass: The Home Assistant instance.
+        session_id: The player's session ID (UUID).
+        entry_id: The config entry ID. If None, uses first entry.
+
+    Returns:
+        The Player object if found, None otherwise.
+    """
+    state = get_game_state(hass, entry_id)
+    return next((p for p in state.players if p.session_id == session_id), None)
 
 
 def update_player_score(

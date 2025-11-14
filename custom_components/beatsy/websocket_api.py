@@ -38,6 +38,7 @@ from .const import DOMAIN
 from .game_state import (
     add_guess,
     add_player,
+    find_player_by_session,
     get_current_round,
     get_players,
     initialize_game,
@@ -51,6 +52,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Command type constants
 WS_TYPE_JOIN_GAME = "beatsy/join_game"
+WS_TYPE_RECONNECT = "beatsy/reconnect"  # Story 4.4
 WS_TYPE_SUBMIT_GUESS = "beatsy/submit_guess"
 WS_TYPE_PLACE_BET = "beatsy/place_bet"
 WS_TYPE_START_GAME = "beatsy/start_game"
@@ -61,6 +63,12 @@ SCHEMA_JOIN_GAME = {
     vol.Required("type"): WS_TYPE_JOIN_GAME,
     vol.Required("player_name"): vol.All(str, vol.Length(min=1, max=20)),
     vol.Optional("game_id"): str,  # Future multi-game support
+}
+
+SCHEMA_RECONNECT = {
+    vol.Required("type"): WS_TYPE_RECONNECT,
+    vol.Required("session_id"): str,
+    vol.Required("player_name"): vol.All(str, vol.Length(min=1, max=20)),
 }
 
 SCHEMA_SUBMIT_GUESS = {
@@ -86,6 +94,47 @@ SCHEMA_NEXT_SONG = {
 }
 
 
+def find_unique_name(hass: HomeAssistant, requested_name: str) -> str:
+    """Find unique player name, appending (N) if duplicate exists.
+
+    Implements case-insensitive, whitespace-normalized duplicate detection.
+    Preserves original capitalization in result.
+
+    Algorithm:
+    1. Normalize: strip whitespace, lowercase for comparison
+    2. Check if normalized name exists in players list (case-insensitive)
+    3. If unique: return original name (preserve capitalization)
+    4. If duplicate: try " (2)", " (3)", etc. until unique
+    5. Return adjusted name with original capitalization + suffix
+
+    Args:
+        hass: Home Assistant instance
+        requested_name: Name as submitted by player
+
+    Returns:
+        Unique player name (original or with " (N)" suffix)
+    """
+    # Normalize name: strip whitespace, lowercase for comparison
+    base_name = requested_name.strip()
+    normalized = base_name.lower()
+
+    # Get existing players
+    players = get_players(hass)
+    existing_names = {p.name.lower() for p in players}
+
+    # Check if name already exists
+    if normalized not in existing_names:
+        return base_name  # No duplicate, return as-is
+
+    # Find next available number
+    counter = 2
+    while True:
+        candidate = f"{base_name} ({counter})"
+        if candidate.lower() not in existing_names:
+            return candidate
+        counter += 1
+
+
 @callback
 @websocket_api.websocket_command(SCHEMA_JOIN_GAME)
 def handle_join_game(
@@ -103,22 +152,34 @@ def handle_join_game(
         msg: Command message with player_name
     """
     try:
-        player_name = msg["player_name"].strip()
+        requested_name = msg["player_name"].strip()
         game_id = msg.get("game_id")  # Optional, future use
 
-        _LOGGER.info(f"Player '{player_name}' joining game")
-
-        # Check if player already exists
-        players = get_players(hass)
-        if any(p["name"] == player_name for p in players):
+        # Validate non-empty name
+        if not requested_name or not requested_name.strip():
             connection.send_error(
-                msg["id"], "player_exists", f"Player '{player_name}' already exists"
+                msg["id"], "invalid_name", "Player name cannot be empty"
             )
             return
 
+        # Find unique name (handles duplicates automatically)
+        unique_name = find_unique_name(hass, requested_name)
+        name_adjusted = unique_name != requested_name
+
+        _LOGGER.info(
+            f"Player '{requested_name}' joining game"
+            + (f" as '{unique_name}'" if name_adjusted else "")
+        )
+
         # Add player to game state
         session_id = str(uuid.uuid4())
-        add_player(hass, player_name, session_id, is_admin=False)
+        add_player(
+            hass,
+            player_name=unique_name,
+            session_id=session_id,
+            is_admin=False,
+            original_name=requested_name,
+        )
 
         # Track WebSocket connection
         connection_id = str(uuid.uuid4())
@@ -131,32 +192,44 @@ def handle_join_game(
                 state["websocket_connections"] = {}
 
             state["websocket_connections"][connection_id] = {
-                "player_name": player_name,
+                "player_name": unique_name,
                 "connected_at": time.time(),
                 "last_ping": time.time(),
                 "connection": connection,
             }
+
+        # Get all players for lobby initialization (Story 4.3 Task 4)
+        all_players = get_players(hass)
+        players_list = [
+            {"name": p.name, "joined_at": p.joined_at}
+            for p in sorted(all_players, key=lambda x: x.joined_at)
+        ]
 
         # Send success response
         connection.send_result(
             msg["id"],
             {
                 "success": True,
-                "player_name": player_name,
+                "player_name": unique_name,
+                "original_name": requested_name,
+                "name_adjusted": name_adjusted,
                 "session_id": session_id,
                 "connection_id": connection_id,
+                "players": players_list,  # Story 4.3: Full player list for lobby
             },
         )
 
-        # Broadcast player_joined event to all clients
+        # Broadcast player_joined event to all clients (except joining player)
+        # Story 4.3: Exclude joining player since they already have full list
         hass.async_create_task(
             broadcast_event(
                 hass,
                 "player_joined",
                 {
-                    "player_name": player_name,
+                    "player_name": unique_name,
                     "total_players": len(get_players(hass)),
                 },
+                exclude_connection_id=connection_id,
             )
         )
 
@@ -166,6 +239,143 @@ def handle_join_game(
     except Exception as e:
         _LOGGER.error(f"Error in join_game: {e}", exc_info=True)
         connection.send_error(msg["id"], "internal_error", "Failed to join game")
+
+
+@callback
+@websocket_api.websocket_command(SCHEMA_RECONNECT)
+def handle_reconnect(
+    hass: HomeAssistant,
+    connection: ActiveConnection,
+    msg: dict,
+) -> None:
+    """Handle reconnect command (Story 4.4).
+
+    Reconnects a player using their session_id without losing their
+    identity, score, and game progress.
+
+    Args:
+        hass: Home Assistant instance
+        connection: WebSocket connection
+        msg: Command message with session_id and player_name
+    """
+    try:
+        session_id = msg["session_id"]
+        player_name = msg["player_name"]
+
+        _LOGGER.info(f"Player '{player_name}' attempting reconnection (session: {session_id})")
+
+        # Find player by session_id
+        player = find_player_by_session(hass, session_id)
+
+        if player is None:
+            _LOGGER.warning(f"Reconnection failed: session {session_id} not found")
+            connection.send_result(
+                msg["id"],
+                {
+                    "success": False,
+                    "reason": "session_not_found",
+                },
+            )
+            return
+
+        # Check session expiration (24 hours = 86400 seconds)
+        current_time = time.time()
+        session_age = current_time - player.joined_at
+
+        if session_age > 86400:  # 24 hours
+            _LOGGER.warning(
+                f"Reconnection failed: session {session_id} expired "
+                f"(age: {session_age/3600:.1f}h)"
+            )
+            connection.send_result(
+                msg["id"],
+                {
+                    "success": False,
+                    "reason": "session_expired",
+                },
+            )
+            return
+
+        # Update player connection status
+        player.connected = True
+        player.last_activity = current_time
+
+        _LOGGER.info(
+            f"Player '{player.name}' reconnected successfully "
+            f"(score: {player.score}, session age: {session_age/60:.1f}m)"
+        )
+
+        # Track WebSocket connection
+        connection_id = str(uuid.uuid4())
+
+        # Get the first entry's state for connection tracking
+        entries = list(hass.data[DOMAIN].values())
+        if entries:
+            state = entries[0]
+            if "websocket_connections" not in state:
+                state["websocket_connections"] = {}
+
+            state["websocket_connections"][connection_id] = {
+                "player_name": player.name,
+                "connected_at": current_time,
+                "last_ping": current_time,
+                "connection": connection,
+            }
+
+        # Determine current game status
+        current_round = get_current_round(hass)
+        all_players = get_players(hass)
+
+        game_status = "lobby"  # Default to lobby
+        if current_round and current_round.status == "active":
+            game_status = "active"
+        elif current_round and current_round.status == "ended":
+            game_status = "results"
+
+        # Build game state response
+        game_state = {
+            "status": game_status,
+            "players": [p.name for p in sorted(all_players, key=lambda x: x.joined_at)],
+        }
+
+        # Add current round info if active
+        if current_round:
+            game_state["current_round"] = {
+                "round_number": current_round.round_number,
+                "track_name": current_round.track_name,
+                "track_artist": current_round.track_artist,
+                "status": current_round.status,
+                "timer_started_at": current_round.timer_started_at,
+                "started_at": current_round.started_at,
+                "guesses": {
+                    name: {
+                        "submitted": True,
+                        "bet": guess_data.get("bet", False),
+                    }
+                    for name, guess_data in current_round.guesses.items()
+                },
+            }
+
+        # Send success response
+        connection.send_result(
+            msg["id"],
+            {
+                "success": True,
+                "player": {
+                    "name": player.name,
+                    "score": player.score,
+                    "session_id": player.session_id,
+                },
+                "game_state": game_state,
+            },
+        )
+
+    except ValueError as e:
+        _LOGGER.warning(f"Validation error in reconnect: {e}")
+        connection.send_error(msg["id"], "validation_error", str(e))
+    except Exception as e:
+        _LOGGER.error(f"Error in reconnect: {e}", exc_info=True)
+        connection.send_error(msg["id"], "internal_error", "Failed to reconnect")
 
 
 @callback
@@ -420,6 +630,7 @@ async def broadcast_event(
     hass: HomeAssistant,
     event_type: str,
     data: dict,
+    exclude_connection_id: str | None = None,
 ) -> None:
     """Broadcast event to all connected WebSocket clients.
 
@@ -427,6 +638,7 @@ async def broadcast_event(
         hass: Home Assistant instance
         event_type: Event identifier (e.g., "player_joined", "round_started")
         data: Event payload
+        exclude_connection_id: Optional connection ID to exclude from broadcast
     """
     try:
         message = {
@@ -450,9 +662,13 @@ async def broadcast_event(
 
         _LOGGER.debug(f"Broadcasting {event_type} to {len(connections)} clients")
 
-        # Send to all connected clients
+        # Send to all connected clients (excluding specified connection if provided)
         failed_connections = []
         for connection_id, conn_info in connections.items():
+            # Skip excluded connection (Story 4.3: joining player already has full list)
+            if exclude_connection_id and connection_id == exclude_connection_id:
+                continue
+
             try:
                 connection = conn_info["connection"]
                 # Send message using connection's send_message method

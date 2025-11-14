@@ -10,7 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Custom CSS for Beatsy branding and mobile-first overrides -->
-    <link rel="stylesheet" href="/local/beatsy/css/custom.css">
+    <link rel="stylesheet" href="/api/beatsy/static/css/custom.css">
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Header Section -->
@@ -27,72 +27,194 @@
         </div>
     </header>
 
+    <!-- Story 4.2: Name Adjusted Notification -->
+    <div id="name-notification" class="hidden fixed top-4 left-4 right-4 z-50 mx-auto max-w-md">
+        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 px-4 py-3 rounded shadow-lg" role="alert">
+            <p class="font-medium" id="notification-message">
+                <!-- Message inserted by JavaScript -->
+            </p>
+        </div>
+    </div>
+
+    <!-- Story 4.4: Reconnection Loader (AC-1) -->
+    <div id="reconnection-loader" class="hidden w-full max-w-md mx-auto mt-20 px-4">
+        <div class="bg-white rounded-lg shadow-md p-8 text-center">
+            <!-- Spinner -->
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600 mb-4"></div>
+            <h2 class="text-xl font-semibold text-gray-800 mb-2">Reconnecting to game...</h2>
+            <p class="text-sm text-gray-600">Please wait while we restore your session</p>
+        </div>
+    </div>
+
+    <!-- Story 4.4: Reconnection Error (AC-6) -->
+    <div id="reconnection-error" class="hidden w-full max-w-md mx-auto mt-20 px-4">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <!-- Error Icon -->
+            <div class="text-center mb-4">
+                <span class="text-6xl">⚠️</span>
+            </div>
+
+            <!-- Error Message -->
+            <p id="reconnection-error-message" class="text-center text-gray-800 mb-6 text-lg">
+                <!-- Error message inserted by JavaScript -->
+            </p>
+
+            <!-- Action Buttons -->
+            <div class="space-y-3">
+                <button
+                    id="reconnect-retry-btn"
+                    class="w-full bg-blue-600 text-white py-3 px-4 rounded-md text-lg font-semibold hover:bg-blue-700 min-h-[44px] transition-colors"
+                    aria-label="Try Again"
+                >
+                    Try Again
+                </button>
+                <button
+                    id="reconnect-reset-btn"
+                    class="w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-md text-lg font-semibold hover:bg-gray-300 min-h-[44px] transition-colors"
+                    aria-label="Join New Game"
+                >
+                    Join New Game
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Content -->
     <main class="container mx-auto px-4 py-6" role="main">
 
-        <!-- TODO: Story 4.1 - Full player registration implementation -->
-        <!-- Story 3.6 STUB: Placeholder for player registration -->
-        <section class="bg-white rounded-lg shadow-md p-6 max-w-md mx-auto">
-            <h2 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-4">
-                Register as Player
-            </h2>
-            <p class="text-sm text-gray-600 mb-6">Enter your name to join the game</p>
+        <!-- Story 4.1: Player Registration View -->
+        <!-- Story 4.4: Starts hidden - JavaScript will show if no reconnection needed -->
+        <div id="registration-view" class="hidden w-full max-w-md mx-auto">
+            <section class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-4 text-center">
+                    Join Beatsy Game
+                </h2>
 
-            <!-- Story 4.1: Player Registration Form -->
-            <form id="player-registration-form" class="space-y-4">
-                <div class="form-group">
-                    <label for="player-name" class="block text-sm font-medium text-gray-700 mb-1">
-                        Your Name
-                    </label>
-                    <input
-                        type="text"
-                        id="player-name"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg min-h-[44px] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
-                        placeholder="Enter your name"
-                        required
-                        maxlength="30"
-                        aria-label="Player name"
-                    />
-                    <p id="player-name-error" class="text-sm text-red-600 mt-1 hidden" role="alert">
+                <!-- Story 4.1: Player Registration Form -->
+                <form id="join-form" class="space-y-4">
+                    <div class="form-group">
+                        <label for="player-name" class="block text-sm font-medium text-gray-700 mb-2">
+                            Your Name
+                        </label>
+                        <input
+                            type="text"
+                            id="player-name"
+                            class="w-full px-4 py-3 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                            placeholder="Enter your name"
+                            required
+                            maxlength="20"
+                            autofocus
+                            inputmode="text"
+                            autocomplete="off"
+                            autocorrect="off"
+                            autocapitalize="words"
+                            aria-label="Player name"
+                        />
+                        <p class="text-xs text-gray-500 mt-1">Max 20 characters</p>
+                    </div>
+
+                    <button
+                        type="submit"
+                        id="join-button"
+                        class="w-full bg-blue-600 text-white py-3 px-4 rounded-md text-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed min-h-[44px] transition-colors"
+                        aria-label="Join game"
+                    >
+                        Join Game
+                    </button>
+
+                    <div id="error-message" class="hidden mt-4 p-3 bg-red-100 text-red-700 rounded-md text-sm" role="alert">
                         <!-- Error message populated by JavaScript -->
+                    </div>
+                </form>
+            </section>
+        </div>
+
+        <!-- Story 4.3: Lobby View with Player List -->
+        <div id="lobby-view" class="hidden min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 p-4">
+            <div class="max-w-md mx-auto mt-8">
+                <!-- Header -->
+                <div class="text-center mb-6">
+                    <h1 class="text-2xl font-bold text-gray-800">Waiting for game to start...</h1>
+                    <p id="lobby-player-count" class="text-lg text-gray-600 mt-2">1 player joined</p>
+                </div>
+
+                <!-- Player List -->
+                <div class="bg-white rounded-lg shadow-md p-4">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-3">Players in Lobby</h2>
+                    <ul id="lobby-player-list" class="space-y-2 max-h-96 overflow-y-auto">
+                        <!-- Player items will be inserted here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Story 4.5: Active Round View -->
+        <div id="active-round-view" class="hidden min-h-screen bg-gradient-to-b from-purple-50 to-purple-100 p-4">
+            <div class="max-w-md mx-auto mt-8">
+                <!-- Album Cover -->
+                <div class="flex justify-center mb-6">
+                    <img
+                        id="album-cover"
+                        src=""
+                        alt="Album Cover"
+                        class="w-72 h-72 rounded-lg shadow-2xl object-cover"
+                    />
+                </div>
+
+                <!-- Song Info -->
+                <div class="text-center mb-6">
+                    <h2 id="song-title" class="text-xl font-bold text-gray-800 mb-2">
+                        <!-- Song title inserted by JavaScript -->
+                    </h2>
+                    <p id="artist-name" class="text-lg text-gray-600">
+                        <!-- Artist name inserted by JavaScript -->
                     </p>
                 </div>
 
-                <!-- Story 3.6 Task 7: "Next Song" Button (Admin Only - Initially Hidden) -->
+                <!-- Timer Display -->
+                <div class="text-center mb-6">
+                    <div id="timer" class="text-5xl font-bold text-purple-600">
+                        --
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">seconds remaining</p>
+                </div>
+
+                <!-- Year Selector -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-4">
+                    <label for="year-selector" class="block text-sm font-medium text-gray-700 mb-2">
+                        What year was this released?
+                    </label>
+                    <select
+                        id="year-selector"
+                        class="w-full px-4 py-3 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none transition-colors min-h-[44px]"
+                        aria-label="Select year"
+                    >
+                        <!-- Options populated by JavaScript -->
+                    </select>
+                </div>
+
+                <!-- Bet Toggle Button -->
+                <div class="mb-4">
+                    <button
+                        id="bet-toggle"
+                        class="w-full bg-yellow-400 text-gray-800 py-3 px-4 rounded-md text-lg font-semibold hover:bg-yellow-500 min-h-[44px] transition-colors border-2 border-yellow-600"
+                        aria-label="Bet toggle"
+                        aria-pressed="false"
+                    >
+                        🎲 BET ON IT
+                    </button>
+                    <p class="text-xs text-gray-500 mt-1 text-center">Double your points if you're right!</p>
+                </div>
+
+                <!-- Submit Guess Button -->
                 <button
-                    type="button"
-                    id="next-song-btn"
-                    class="hidden w-full bg-purple-600 text-white px-4 py-3 rounded-lg min-h-[44px] font-semibold shadow-lg hover:bg-purple-700 transition-colors"
-                    aria-label="Start next song (admin only)"
+                    id="submit-guess"
+                    class="w-full bg-purple-600 text-white py-3 px-4 rounded-md text-lg font-semibold hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed min-h-[44px] transition-colors"
+                    aria-label="Submit guess"
                 >
-                    Next Song ▶
+                    Submit Guess
                 </button>
-
-                <button
-                    type="submit"
-                    id="join-game-btn"
-                    class="w-full bg-green-600 text-white px-6 py-3 rounded-lg min-h-[44px] font-semibold shadow-lg hover:bg-green-700 transition-colors"
-                    aria-label="Join game"
-                >
-                    <span class="flex items-center justify-center space-x-2">
-                        <!-- Loading spinner (hidden by default) -->
-                        <svg id="join-spinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span id="join-text">Join Game</span>
-                    </span>
-                </button>
-            </form>
-
-            <p class="text-xs text-gray-500 mt-4 text-center">
-                TODO: Story 4.1 - Full player registration logic
-            </p>
-        </section>
-
-        <!-- Status Messages -->
-        <div id="status-section" class="hidden mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200 max-w-md mx-auto">
-            <p id="status-message" class="text-sm text-gray-700"></p>
+            </div>
         </div>
 
     </main>
