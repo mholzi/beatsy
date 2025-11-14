@@ -587,8 +587,12 @@ function handleWebSocketMessage(event) {
             }
         }
 
-        // Handle legacy message types (backward compatibility)
-        if (data.type === 'join_game_response') {
+        // Handle message types
+        if (data.type === 'connected') {
+            // WebSocket connection confirmation (Story 4.5)
+            console.log('✅ WebSocket connection confirmed:', data.data.connection_id);
+        } else if (data.type === 'join_game_response') {
+            // Handle join game response (backward compatibility)
             handleJoinGameResponse(data);
         } else if (data.type === 'beatsy/event') {
             // Handle broadcast events (Story 4.3 Task 5, Story 4.5 Task 1)
