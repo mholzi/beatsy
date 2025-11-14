@@ -18,7 +18,9 @@ Performance:
 """
 from __future__ import annotations
 
+import asyncio
 import logging
+import random
 import time
 from dataclasses import dataclass, field
 from typing import Any, Optional, TypedDict
@@ -33,6 +35,34 @@ _LOGGER = logging.getLogger(__name__)
 # Storage configuration for config persistence
 STORAGE_VERSION = 1
 STORAGE_KEY = f"{DOMAIN}.config"
+
+# Song selection concurrency lock (Story 5.1, AC-6)
+_song_selection_lock = asyncio.Lock()
+
+
+# ============================================================================
+# Custom Exceptions
+# ============================================================================
+
+
+class PlaylistExhaustedError(Exception):
+    """Raised when all songs have been played and available_songs is empty.
+
+    This exception includes an error code for WebSocket error responses.
+    Attributes:
+        code: Error code "playlist_exhausted" for API responses.
+        message: Human-readable error message.
+    """
+
+    def __init__(self, message: str = "All songs have been played. Please reset the game or load a new playlist."):
+        self.code = "playlist_exhausted"
+        self.message = message
+        super().__init__(message)
+
+
+# ============================================================================
+# Type Definitions
+# ============================================================================
 
 
 class GameConfig(TypedDict, total=False):
@@ -99,7 +129,7 @@ class BeatsyGameState:
     game_config: GameConfig = field(default_factory=dict)
     players: list[Player] = field(default_factory=list)
     current_round: Optional[RoundState] = None
-    played_songs: list[str] = field(default_factory=list)
+    played_songs: list[dict[str, Any]] = field(default_factory=list)  # Story 5.1: Full song dicts, not just URIs
     available_songs: list[dict[str, Any]] = field(default_factory=list)
     websocket_connections: dict[str, Any] = field(default_factory=dict)
     game_started: bool = False
@@ -613,6 +643,94 @@ def clear_played_songs(hass: HomeAssistant, entry_id: Optional[str] = None) -> N
     state.played_songs.clear()
 
     _LOGGER.debug("Played songs cleared")
+
+
+async def select_random_song(
+    hass: HomeAssistant, entry_id: Optional[str] = None
+) -> dict[str, Any]:
+    """Select a random song from available songs without repeating.
+
+    Story 5.1: Implements Fisher-Yates random selection using Python's
+    random.choice() for O(1) selection. Moves selected song from available_songs
+    to played_songs atomically. Protected by asyncio.Lock for concurrency safety.
+
+    Args:
+        hass: The Home Assistant instance.
+        entry_id: The config entry ID. If None, uses first entry.
+
+    Returns:
+        Selected song dictionary with all required fields:
+        {uri, title, artist, album, year, cover_url}
+
+    Raises:
+        PlaylistExhaustedError: If available_songs list is empty (all songs played).
+        ValueError: If selected song is missing required fields.
+
+    AC-1: Random selection from available_songs using random.choice()
+    AC-2: Validates song structure has all required fields
+    AC-3: Atomically moves song from available to played
+    AC-4: Raises PlaylistExhaustedError when empty
+    AC-5: Prevents repeats by tracking played_songs
+    AC-6: Uses asyncio.Lock() for concurrent request protection
+    AC-7: Comprehensive logging (INFO, DEBUG, WARNING)
+    """
+    async with _song_selection_lock:
+        state = get_game_state(hass, entry_id)
+
+        # AC-4: Check if playlist is exhausted
+        if not state.available_songs or len(state.available_songs) == 0:
+            played_count = len(state.played_songs)
+            _LOGGER.warning(
+                "Playlist exhausted: %d songs played, no songs available",
+                played_count,
+            )
+            raise PlaylistExhaustedError()
+
+        # AC-1: Random selection using Fisher-Yates (via random.choice)
+        # O(1) selection time, proper distribution
+        selected_song = random.choice(state.available_songs)
+
+        # AC-2: Validate song structure has all required fields
+        required_fields = ["uri", "title", "artist", "album", "year", "cover_url"]
+        missing_fields = [field for field in required_fields if field not in selected_song or not selected_song[field]]
+
+        if missing_fields:
+            _LOGGER.error(
+                "Selected song missing required fields: %s. Song: %s",
+                missing_fields,
+                selected_song,
+            )
+            raise ValueError(f"Song missing required fields: {missing_fields}")
+
+        # Get current round number for logging (if available)
+        round_number = state.current_round.round_number if state.current_round else len(state.played_songs) + 1
+
+        # AC-3: Atomic move from available to played
+        # Remove from available (O(n) but acceptable for playlists <1000 songs)
+        state.available_songs.remove(selected_song)
+
+        # Add to played history
+        state.played_songs.append(selected_song)
+
+        # AC-7: Logging - INFO level with song details
+        _LOGGER.info(
+            "Selected song for round %d: '%s' by %s (%d)",
+            round_number,
+            selected_song["title"],
+            selected_song["artist"],
+            selected_song["year"],
+        )
+
+        # AC-7: Logging - DEBUG level with remaining count
+        remaining_count = len(state.available_songs)
+        _LOGGER.debug("Available songs remaining: %d", remaining_count)
+
+        # AC-5: Verification - no song should be in both lists
+        # This is guaranteed by the remove/append operations above
+        assert selected_song not in state.available_songs, "Song still in available_songs after selection"
+        assert selected_song in state.played_songs, "Song not in played_songs after selection"
+
+        return selected_song
 
 
 # ============================================================================

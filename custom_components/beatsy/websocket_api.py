@@ -36,12 +36,14 @@ from homeassistant.core import HomeAssistant, callback
 
 from .const import DOMAIN
 from .game_state import (
+    PlaylistExhaustedError,
     add_guess,
     add_player,
     find_player_by_session,
     get_current_round,
     get_players,
     initialize_game,
+    select_random_song,
     update_bet,
 )
 
@@ -574,55 +576,103 @@ def handle_start_game(
         connection.send_error(msg["id"], "internal_error", "Failed to start game")
 
 
-@callback
 @websocket_api.websocket_command(SCHEMA_NEXT_SONG)
-def handle_next_song(
+@websocket_api.async_response
+async def handle_next_song(
     hass: HomeAssistant,
     connection: ActiveConnection,
     msg: dict,
 ) -> None:
     """Handle next_song command (admin only).
 
-    Advances to next song/round.
-    Placeholder for Epic 5 song selection logic.
+    Story 5.1: Selects random song from available_songs without repeating.
+    Moves selected song to played_songs. Returns round information to admin.
+
+    Note: This handler selects the song. Story 5.2 will add round initialization
+    and broadcast round_started event to all clients.
 
     Args:
         hass: Home Assistant instance
         connection: WebSocket connection
-        msg: Command message
+        msg: Command message with type "beatsy/next_song"
+
+    Response:
+        Success: {"success": true, "result": {"round_number": int, "song_selected": true}}
+        Error: {"success": false, "error": {"code": "playlist_exhausted", "message": "..."}}
+
+    AC-1: Admin triggers command, song selected from available_songs
+    AC-4: Returns error if playlist exhausted
+    AC-5: Selected song won't repeat (moved to played_songs)
     """
     try:
         # TODO: Verify admin status (future enhancement - Epic 3)
 
-        _LOGGER.info("Advancing to next song")
+        _LOGGER.info("Admin requested next song")
 
-        # Placeholder for Epic 5 (song selection and playback)
-        # For Epic 2, just acknowledge command
+        # Story 5.1, AC-1: Select random song from available playlist
+        # This function handles AC-1 through AC-7 (selection, validation, logging, etc.)
+        selected_song = await select_random_song(hass)
 
-        # Send success response
+        # Calculate round number (number of played songs = current round)
+        # Story 5.2 will create full RoundState, but we need round number for response
+        current_round_number = len(selected_song) if isinstance(selected_song, list) else 1
+
+        # Get actual round number from played_songs count
+        from .game_state import get_game_state
+        state = get_game_state(hass)
+        round_number = len(state.played_songs)
+
+        _LOGGER.debug(
+            "Song selected for round %d: %s by %s",
+            round_number,
+            selected_song.get("title", "Unknown"),
+            selected_song.get("artist", "Unknown"),
+        )
+
+        # Story 5.1: Return success to admin with round number
+        # Story 5.2 will handle round initialization and broadcasting round_started
         connection.send_result(
             msg["id"],
             {
                 "success": True,
-                "message": "Next song logic not yet implemented (Epic 5)",
+                "result": {
+                    "round_number": round_number,
+                    "song_selected": True,
+                    "title": selected_song.get("title"),
+                    "artist": selected_song.get("artist"),
+                },
             },
         )
 
-        # Broadcast next_song event (placeholder)
-        hass.async_create_task(
-            broadcast_event(
-                hass,
-                "next_song_requested",
-                {
-                    "message": "Next song functionality coming in Epic 5",
-                },
-            )
+        # Story 5.2 TODO: After implementing initialize_round():
+        # 1. Call initialize_round(hass, selected_song) to create RoundState
+        # 2. Broadcast round_started event with song metadata (WITHOUT year)
+        # For now, just log that song selection is complete
+        _LOGGER.info("Song selection complete. Story 5.2 will add round initialization.")
+
+    except PlaylistExhaustedError as e:
+        # AC-4: Handle empty playlist gracefully
+        _LOGGER.warning("Playlist exhausted when admin requested next song")
+        connection.send_error(
+            msg["id"],
+            e.code,  # "playlist_exhausted"
+            e.message,  # "All songs have been played..."
+        )
+
+    except ValueError as e:
+        # Song validation error (missing required fields)
+        _LOGGER.error(f"Song validation error in next_song: {e}", exc_info=True)
+        connection.send_error(
+            msg["id"],
+            "invalid_song_data",
+            f"Selected song has invalid structure: {str(e)}",
         )
 
     except Exception as e:
-        _LOGGER.error(f"Error in next_song: {e}", exc_info=True)
+        # Unexpected error
+        _LOGGER.error(f"Unexpected error in next_song: {e}", exc_info=True)
         connection.send_error(
-            msg["id"], "internal_error", "Failed to advance to next song"
+            msg["id"], "internal_error", "Failed to select next song"
         )
 
 
