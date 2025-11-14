@@ -566,13 +566,11 @@ class BeatsyAPIView(HomeAssistantView):
                         )
 
                     # Construct player URL using request host
-                    # Format: http://<HA_IP>:8123/local/beatsy/start.html?game_id=<uuid>
+                    # Format: http://<HA_IP>:8123/api/beatsy/player
+                    # Story 4.1: Player interface served at /api/beatsy/player
                     host = request.headers.get("Host", "localhost:8123")
                     scheme = request.scheme
-                    player_url = (
-                        f"{scheme}://{host}/local/beatsy/start.html"
-                        f"?game_id={session_data['game_id']}"
-                    )
+                    player_url = f"{scheme}://{host}/api/beatsy/player"
 
                     # Prepare response
                     response_data = {
