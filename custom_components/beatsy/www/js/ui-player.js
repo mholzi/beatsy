@@ -989,7 +989,10 @@ export {
     connectWebSocket,
     joinGame,
     handleWebSocketMessage,
-    transitionToLobby,
+    handleRoundStarted,
+    hideLobbyView,
+    showActiveRoundView,
+    startTimer,
     showError,
     showNameNotification
 };
