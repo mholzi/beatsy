@@ -1474,92 +1474,177 @@ async function loadGameStatusWithRetry() {
 }
 
 /**
- * Setup WebSocket event listeners for game status updates
- * Story 3.7 Task 5: AC-3, AC-4, AC-5 (WebSocket listeners)
- *
- * Note: This is a placeholder for WebSocket integration.
- * Full WebSocket client will be implemented in future stories.
- * For now, we demonstrate the event handling pattern.
+ * WebSocket connection variables
  */
-function setupGameStatusWebSocketListeners() {
-    console.log('Game status WebSocket listeners ready (placeholder)');
+let connectionAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
 
-    // TODO: Story 3.7 - Integrate with WebSocket client when available
-    // Expected WebSocket events:
-    // 1. player_joined - Update player count
-    // 2. round_started - Update game state, round number, songs remaining
-    // 3. round_ended - Update game state to "Results"
-    // 4. game_reset - Return to setup state (Story 5.7)
+/**
+ * Connect to Beatsy WebSocket for real-time updates
+ * Story 3.7: WebSocket integration for admin UI
+ */
+function connectWebSocket() {
+    try {
+        // Connect to Beatsy WebSocket
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/api/beatsy/ws`;
+        console.log('Connecting to WebSocket:', wsUrl);
 
-    // Story 5.7: Listen for game_reset event to update admin UI
-    if (window.ws) {
-        const originalOnMessage = window.ws.onmessage;
+        window.ws = new WebSocket(wsUrl);
 
-        window.ws.onmessage = function(event) {
-            // Call original handler if exists
-            if (originalOnMessage) {
-                originalOnMessage.call(window.ws, event);
-            }
+        window.ws.onopen = () => {
+            console.log('✅ Connected to Beatsy WebSocket');
+            connectionAttempts = 0;
+            updateConnectionStatus(true);
 
-            // Handle game_reset event and playback_error event
-            try {
-                const data = JSON.parse(event.data);
-
-                if (data.type === 'beatsy/event' && data.event_type === 'game_reset') {
-                    console.log('🔄 Game reset event received in admin UI:', data.data);
-                    handleAdminGameReset(data.data);
-                }
-
-                // Story 7.5: Handle playback_error event
-                if (data.type === 'beatsy/event' && data.event_type === 'playback_error') {
-                    console.log('⚠️ Playback error event received in admin UI:', data.data);
-                    showPlaybackErrorNotification(data.data);
-                }
-            } catch (error) {
-                console.error('Error parsing WebSocket message:', error);
-            }
+            // Load game status when connected
+            loadGameStatus();
         };
+
+        window.ws.onmessage = (event) => {
+            handleWebSocketMessage(event);
+        };
+
+        window.ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            updateConnectionStatus(false);
+        };
+
+        window.ws.onclose = () => {
+            console.warn('WebSocket connection closed');
+            updateConnectionStatus(false);
+            attemptReconnect();
+        };
+
+    } catch (error) {
+        console.error('Failed to establish WebSocket connection:', error);
+        updateConnectionStatus(false);
+    }
+}
+
+/**
+ * Attempt to reconnect with exponential backoff
+ */
+function attemptReconnect() {
+    if (connectionAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        console.error('Max reconnection attempts reached');
+        updateConnectionStatus(false);
+        return;
     }
 
-    // Example handler structure (to be connected to real WebSocket):
-    /*
-    websocket.addEventListener('beatsy:player_joined', (event) => {
-        console.log('Player joined event received:', event.detail);
-        const currentCount = parseInt(document.getElementById('status-players').textContent);
-        document.getElementById('status-players').textContent = currentCount + 1;
-    });
+    connectionAttempts++;
+    const delay = Math.min(1000 * Math.pow(2, connectionAttempts - 1), 8000);
+    console.log(`Reconnecting in ${delay}ms (attempt ${connectionAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
 
-    websocket.addEventListener('beatsy:round_started', (event) => {
-        console.log('Round started event received:', event.detail);
-        document.getElementById('status-state').textContent = 'Round Active';
-        const roundNum = event.detail.round_number;
-        document.getElementById('status-round').textContent = roundNum;
+    setTimeout(() => {
+        connectWebSocket();
+    }, delay);
+}
 
-        // Decrement songs remaining
-        const remaining = parseInt(document.getElementById('status-songs').textContent);
-        if (!isNaN(remaining) && remaining > 0) {
-            document.getElementById('status-songs').textContent = remaining - 1;
+/**
+ * Send WebSocket command and wait for response
+ */
+let messageIdCounter = 1;
+const pendingMessages = new Map();
+
+function sendWebSocketCommand(type, payload = {}) {
+    return new Promise((resolve, reject) => {
+        if (!window.ws || window.ws.readyState !== WebSocket.OPEN) {
+            reject(new Error('WebSocket not connected'));
+            return;
         }
-    });
 
-    websocket.addEventListener('beatsy:round_ended', (event) => {
-        console.log('Round ended event received:', event.detail);
-        document.getElementById('status-state').textContent = 'Results';
-    });
+        const messageId = messageIdCounter++;
+        const message = {
+            id: messageId,
+            type: type,
+            ...payload
+        };
 
-    websocket.addEventListener('open', () => {
-        updateConnectionStatus(true);
-        loadGameStatus(); // Sync status on connection
-    });
+        // Store promise callbacks
+        pendingMessages.set(messageId, { resolve, reject });
 
-    websocket.addEventListener('close', () => {
-        updateConnectionStatus(false);
-    });
+        // Set timeout for response
+        setTimeout(() => {
+            if (pendingMessages.has(messageId)) {
+                pendingMessages.delete(messageId);
+                reject(new Error('WebSocket command timeout'));
+            }
+        }, 10000); // 10 second timeout
 
-    websocket.addEventListener('error', () => {
-        updateConnectionStatus(false);
+        // Send message
+        window.ws.send(JSON.stringify(message));
+        console.log('Sent WebSocket command:', message);
     });
-    */
+}
+
+/**
+ * Handle incoming WebSocket messages
+ */
+function handleWebSocketMessage(event) {
+    try {
+        const data = JSON.parse(event.data);
+        console.log('WebSocket message received:', data);
+
+        // Handle command responses
+        if (data.id && pendingMessages.has(data.id)) {
+            const { resolve, reject } = pendingMessages.get(data.id);
+            pendingMessages.delete(data.id);
+
+            if (data.success === false || data.error) {
+                reject(data);
+            } else {
+                resolve(data);
+            }
+            return;
+        }
+
+        // Handle different event types
+        if (data.type === 'beatsy/event') {
+            switch (data.event_type) {
+                case 'game_reset':
+                    console.log('🔄 Game reset event received');
+                    handleAdminGameReset(data.data);
+                    break;
+
+                case 'playback_error':
+                    console.log('⚠️ Playback error event received');
+                    showPlaybackErrorNotification(data.data);
+                    break;
+
+                case 'player_joined':
+                    console.log('👤 Player joined event received');
+                    // Reload game status to update player count
+                    loadGameStatus();
+                    break;
+
+                case 'round_started':
+                    console.log('🎵 Round started event received');
+                    loadGameStatus();
+                    break;
+
+                case 'round_ended':
+                    console.log('🏁 Round ended event received');
+                    loadGameStatus();
+                    break;
+
+                default:
+                    console.log('Unknown event type:', data.event_type);
+            }
+        }
+    } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+    }
+}
+
+/**
+ * Setup WebSocket event listeners for game status updates
+ * Story 3.7 Task 5: AC-3, AC-4, AC-5 (WebSocket listeners)
+ */
+function setupGameStatusWebSocketListeners() {
+    console.log('Setting up WebSocket connection...');
+    connectWebSocket();
+
 }
 
 // Initialize game status on page load (called from initAdminUI)
