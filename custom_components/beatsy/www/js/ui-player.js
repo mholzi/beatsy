@@ -11,6 +11,9 @@
  * - Mobile keyboard optimizations (Task 9)
  */
 
+
+// Story 9.1-9.3: Import results view rendering functions
+import { renderResultsView } from './ui-results.js';
 // Global WebSocket connection
 let ws = null;
 let connectionAttempts = 0;
@@ -18,6 +21,14 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 
 // Global timer interval for active round
 let timerInterval = null;
+
+// Story 8.6: Guess submission state
+const gameState = {
+    locked: false,
+    playerName: null,
+    yearGuess: null,
+    betActive: false
+};
 
 /**
  * Story 4.5 Task 10: Pre-load year dropdown during page load
@@ -231,7 +242,10 @@ function handleReconnectResponse(data) {
     // AC-2: Reconnection successful
     console.log('✅ Reconnection successful!', data);
 
-    const gameState = data.game_state;
+    // Story 8.6: Initialize global gameState with player name (before local variable shadows it)
+    gameState.playerName = data.player.name;
+
+    const reconnectGameState = data.game_state;
     const player = data.player;
 
     // Update localStorage with current session info
@@ -239,27 +253,27 @@ function handleReconnectResponse(data) {
     localStorage.setItem('beatsy_player_name', player.name);
 
     // Route to appropriate view based on game status
-    switch (gameState.status) {
+    switch (reconnectGameState.status) {
         case 'lobby':
             console.log('Restoring to lobby view');
-            showLobbyViewAfterReconnect(gameState);
+            showLobbyViewAfterReconnect(reconnectGameState);
             break;
 
         case 'active':
             console.log('Restoring to active round view');
             // TODO Story 4.5+: Implement active round view restoration
-            showLobbyViewAfterReconnect(gameState);  // Fallback to lobby for now
+            showLobbyViewAfterReconnect(reconnectGameState);  // Fallback to lobby for now
             break;
 
         case 'results':
             console.log('Restoring to results view');
             // TODO Story 4.5+: Implement results view restoration
-            showLobbyViewAfterReconnect(gameState);  // Fallback to lobby for now
+            showLobbyViewAfterReconnect(reconnectGameState);  // Fallback to lobby for now
             break;
 
         default:
-            console.error('Unknown game status:', gameState.status);
-            showLobbyViewAfterReconnect(gameState);
+            console.error('Unknown game status:', reconnectGameState.status);
+            showLobbyViewAfterReconnect(reconnectGameState);
     }
 
     // Setup form validation and event listeners
@@ -511,6 +525,16 @@ function setupEventListeners() {
         });
     }
 
+    // Story 8.3: Bet toggle click handler
+    const betToggle = document.getElementById('bet-toggle');
+    if (betToggle) {
+        betToggle.addEventListener('click', onBetToggle);
+        console.log('✓ Bet toggle listener registered');
+    }
+
+    // Story 8.2: Year selector change handler
+    setupYearSelectorListener();
+
     console.log('✓ Event listeners registered');
 }
 
@@ -585,6 +609,11 @@ function handleWebSocketMessage(event) {
                 handleJoinGameResponse(data.result);
                 return;
             }
+            // Story 8.6: Check if this is a submit_guess response
+            if (data.id && ('success' in data.result || 'error' in data.result)) {
+                handleSubmitGuessResponse(data.result);
+                return;
+            }
         }
 
         // Handle message types
@@ -595,12 +624,18 @@ function handleWebSocketMessage(event) {
             // Handle join game response (backward compatibility)
             handleJoinGameResponse(data);
         } else if (data.type === 'beatsy/event') {
-            // Handle broadcast events (Story 4.3 Task 5, Story 4.5 Task 1)
+            // Handle broadcast events (Story 4.3 Task 5, Story 4.5 Task 1, Story 8.5 Task 6)
             if (data.event_type === 'player_joined') {
                 handlePlayerJoined(data.data);
             } else if (data.event_type === 'round_started') {
                 // Story 4.5 Task 1: Handle round_started event
                 handleRoundStarted(data.data);
+            } else if (data.event_type === 'round_ended') {
+                // Story 8.7 & Story 9.1-9.3: Handle round_ended event
+                handleRoundEnded(data.data);
+            } else if (data.event_type === 'bet_placed') {
+                // Story 8.4: Handle bet_placed event
+                handleBetPlaced(data.data);
             } else {
                 console.log('Unhandled event type:', data.event_type);
             }
@@ -632,6 +667,9 @@ function handleJoinGameResponse(data) {
         // Store session_id and player_name in localStorage
         localStorage.setItem('beatsy_session_id', data.session_id);
         localStorage.setItem('beatsy_player_name', data.player_name);
+
+        // Story 8.6: Initialize gameState with player name
+        gameState.playerName = data.player_name;
 
         console.log('Session stored:', {
             session_id: data.session_id.substring(0, 8) + '...',
@@ -782,6 +820,373 @@ function showToast(message, duration = 3000) {
 }
 
 /**
+ * Story 8.1 Functions - To be added to ui-player.js
+ * Insert these after showToast() and before hideLobbyView()
+ */
+
+/**
+ * Story 8.1: Populate year dropdown selector
+ * AC-1: Year dropdown populated from year_range
+ * @param {number} minYear - Minimum year (e.g., 1950)
+ * @param {number} maxYear - Maximum year (e.g., 2024)
+ */
+function populateYearSelector(minYear, maxYear) {
+    const yearDropdown = document.getElementById('year-dropdown') || document.getElementById('year-selector');
+    if (!yearDropdown) {
+        console.warn('Year dropdown not found');
+        return;
+    }
+
+    // Clear existing options
+    yearDropdown.innerHTML = '';
+
+    // Use DocumentFragment for performance optimization (single DOM operation)
+    const fragment = document.createDocumentFragment();
+
+    // Add placeholder option
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Select Year...';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    fragment.appendChild(placeholder);
+
+    // Generate options in descending order (2024 → 1950)
+    for (let year = maxYear; year >= minYear; year--) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        fragment.appendChild(option);
+    }
+
+    // Single DOM append operation
+    yearDropdown.appendChild(fragment);
+
+    console.log(`✓ Year dropdown populated (${minYear}-${maxYear})`);
+}
+
+/**
+ * Story 8.2: Get the currently selected year from dropdown
+ * @returns {number|null} Selected year as integer, or null if not selected
+ */
+function getSelectedYear() {
+    const yearSelector = document.getElementById('year-dropdown') || document.getElementById('year-selector');
+    if (!yearSelector || !yearSelector.value) {
+        return null;
+    }
+    return parseInt(yearSelector.value);
+}
+
+/**
+ * Story 8.2: Reset year selector to placeholder (no selection)
+ */
+function resetYearSelector() {
+    const yearSelector = document.getElementById('year-dropdown') || document.getElementById('year-selector');
+    if (yearSelector) {
+        yearSelector.value = '';
+        console.log('✓ Year selector reset');
+    }
+}
+
+/**
+ * Story 8.2: Validate that a year has been selected
+ * @returns {boolean} True if year is selected, false otherwise
+ */
+function validateYearSelection() {
+    return getSelectedYear() !== null;
+}
+
+/**
+ * Story 8.2: Setup year selector change event listener
+ * Provides visual confirmation and updates game state when year is selected
+ */
+function setupYearSelectorListener() {
+    const yearSelector = document.getElementById('year-dropdown') || document.getElementById('year-selector');
+    if (!yearSelector) {
+        console.warn('Year selector not found for event listener setup');
+        return;
+    }
+
+    yearSelector.addEventListener('change', (e) => {
+        const selectedYear = parseInt(e.target.value);
+
+        // Update visual state - green border for confirmation
+        if (selectedYear) {
+            e.target.classList.remove('border-gray-300');
+            e.target.classList.add('border-green-500', 'border-2');
+
+            // Update game state
+            gameState.yearGuess = selectedYear;
+
+            console.log(`✓ Year selected: ${selectedYear}`);
+        } else {
+            // Reset visual state if cleared
+            e.target.classList.remove('border-green-500', 'border-2');
+            e.target.classList.add('border-gray-300');
+            gameState.yearGuess = null;
+        }
+    });
+
+    console.log('✓ Year selector listener registered');
+}
+
+/**
+ * Story 8.1: Display active round view with song metadata
+ * AC-1: Layout includes album cover, song title, artist, timer, year dropdown, bet toggle, submit button
+ * AC-4: Layout renders within 500ms of event receipt
+ * @param {Object} roundData - Round data from round_started event
+ */
+function showActiveRound(roundData) {
+    const startTime = performance.now();
+
+    // Hide lobby, show active round
+    document.getElementById('lobby-view').classList.add('hidden');
+    const activeView = document.getElementById('active-round-view');
+    activeView.classList.remove('hidden');
+
+    // Populate song metadata - try both ID patterns
+    const albumCover = document.getElementById('album-cover');
+    const songTitle = document.getElementById('song-title');
+    const songArtist = document.getElementById('song-artist') || document.getElementById('artist-name');
+
+    if (albumCover && roundData.song.cover_url) {
+        albumCover.src = roundData.song.cover_url;
+        albumCover.alt = `${roundData.song.title} by ${roundData.song.artist}`;
+    }
+
+    if (songTitle) {
+        songTitle.textContent = roundData.song.title || 'Unknown Title';
+    }
+
+    if (songArtist) {
+        songArtist.textContent = roundData.song.artist || 'Unknown Artist';
+    }
+
+    // Initialize timer - try both ID patterns
+    const timerDisplay = document.getElementById('timer-display') || document.getElementById('timer');
+    if (timerDisplay) {
+        timerDisplay.textContent = `${roundData.timer_duration}s`;
+    }
+
+    // Populate year dropdown
+    if (roundData.year_range) {
+        populateYearSelector(roundData.year_range.min, roundData.year_range.max);
+    }
+
+    // Reset bet toggle to OFF
+    const betToggle = document.getElementById('bet-toggle');
+    if (betToggle) {
+        betToggle.dataset.betActive = 'false';
+        betToggle.classList.remove('bg-red-600', 'bg-green-500', 'border-green-700', 'bg-yellow-400', 'border-yellow-600');
+        betToggle.classList.add('bg-gray-300');
+        betToggle.textContent = 'BET ON IT';
+        betToggle.setAttribute('aria-pressed', 'false');
+    }
+
+    // Hide submission confirmation
+    const submissionConf = document.getElementById('submission-confirmation');
+    if (submissionConf) {
+        submissionConf.classList.add('hidden');
+    }
+
+    // Unlock inputs
+    unlockInputs();
+
+    // Story 8.6: Setup submit button event listener
+    const submitButton = document.getElementById('submit-guess');
+    if (submitButton) {
+        // Remove any existing listener to avoid duplicates
+        submitButton.replaceWith(submitButton.cloneNode(true));
+        const newSubmitButton = document.getElementById('submit-guess');
+        newSubmitButton.addEventListener('click', onSubmitGuess);
+        console.log('✓ Submit button event listener registered');
+    }
+
+    // Measure render time
+    const renderTime = performance.now() - startTime;
+    console.log(`Active round rendered in ${renderTime.toFixed(2)}ms`);
+
+    if (renderTime > 500) {
+        console.warn(`Render time exceeded 500ms target: ${renderTime.toFixed(2)}ms`);
+    }
+}
+
+/**
+ * Story 8.7 Task 2: Stop and clear active round timer
+ * AC-4: Active round timer stops and clears
+ * Prevents memory leaks from lingering intervals
+ */
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        console.log('✓ Timer stopped and cleared');
+    }
+
+    // Clear timer display
+    const timerDisplay = document.getElementById('timer');
+    if (timerDisplay) {
+        timerDisplay.textContent = '';
+    }
+}
+
+/**
+ * Story 8.7 Task 3: Hide active round view
+ * AC-1, AC-2: Hide active round view with fade-out animation (<500ms)
+ * @returns {Promise<void>} Resolves when fade-out completes
+ */
+function hideActiveRound() {
+    return new Promise((resolve) => {
+        const activeRoundView = document.getElementById('active-round-view');
+        if (!activeRoundView) {
+            console.warn('Active round view not found');
+            resolve();
+            return;
+        }
+
+        // Add fade-out transition (200ms)
+        activeRoundView.classList.add('opacity-0', 'transition-opacity', 'duration-200');
+
+        // Wait for transition to complete before hiding
+        setTimeout(() => {
+            activeRoundView.classList.add('hidden');
+            console.log('✓ Active round view hidden');
+            resolve();
+        }, 200);
+    });
+}
+
+/**
+ * Story 8.7 Task 7: Cleanup active round state
+ * AC-4: Reset all active round state variables and UI elements
+ * Story 8.1 Task 5.3, 5.4: Clear album cover and reset form inputs
+ */
+function cleanupActiveRound() {
+    // Story 8.1 Task 5.3: Clear album cover src (prevent flash on next round)
+    const albumCover = document.getElementById('album-cover');
+    if (albumCover) {
+        albumCover.src = '';
+    }
+
+    // Reset year dropdown selection
+    const yearDropdown = document.getElementById('year-selector');
+    if (yearDropdown) {
+        yearDropdown.value = '';
+    }
+
+    // Reset bet toggle to unchecked state
+    const betToggle = document.getElementById('bet-toggle');
+    if (betToggle) {
+        betToggle.setAttribute('aria-pressed', 'false');
+        betToggle.classList.remove('bg-green-500', 'border-green-700');
+        betToggle.classList.add('bg-yellow-400', 'border-yellow-600');
+        betToggle.textContent = '🎲 BET ON IT';
+    }
+
+    // Clear any submission confirmation messages
+    const submissionConfirmation = document.getElementById('submission-confirmation');
+    if (submissionConfirmation) {
+        submissionConfirmation.classList.add('hidden');
+    }
+
+    // Clear any error messages from active round
+    const errorMessage = document.getElementById('error-message');
+    if (errorMessage) {
+        errorMessage.classList.add('hidden');
+    }
+
+    console.log('✓ Active round state cleaned up');
+}
+
+/**
+ * Story 8.7 Task 4: Placeholder for Epic 9 showResults function
+ * Epic 9 Story 9-1 will fully implement this function
+ * For now, just log the data and show a placeholder
+ * @param {Object} resultsData - Round results {correct_year, results, leaderboard}
+ */
+function showResults(resultsData) {
+    console.log('📊 Showing results view (Story 9.1-9.3):', resultsData);
+
+    // Story 9.1-9.3: Call renderResultsView from ui-results.js
+    renderResultsView(resultsData);
+}
+
+/**
+ * Story 8.7 Task 9: Transition orchestrator
+ * AC-2: Complete transition in <500ms
+ * Coordinates: Stop timer → Hide active round → Show results → Cleanup
+ * @param {Object} resultsData - Round results data from round_ended event
+ */
+async function transitionToResults(resultsData) {
+    console.log('Round ended, transitioning to results');
+    const transitionStart = performance.now();
+
+    try {
+        // Step 1: Stop timer (synchronous, <10ms)
+        stopTimer();
+
+        // Step 2: Hide active round view (async, 200ms fade-out)
+        await hideActiveRound();
+
+        // Step 3: Show results view (Epic 9 function)
+        showResults(resultsData);
+
+        // Step 4: Cleanup state
+        cleanupActiveRound();
+
+        // Measure transition time
+        const transitionEnd = performance.now();
+        const transitionTime = transitionEnd - transitionStart;
+        console.log(`✓ Active Round → Results transition completed in ${transitionTime.toFixed(2)}ms`);
+
+        if (transitionTime > 500) {
+            console.warn(`⚠️ Transition time exceeded 500ms target (${transitionTime.toFixed(2)}ms)`);
+        }
+
+    } catch (error) {
+        console.error('Error during transition to results:', error);
+        // Fallback: Show error to user
+        showError('Unable to display results. Please refresh.');
+    }
+}
+
+/**
+ * Story 8.7 Task 1: Handle round_ended WebSocket event
+ * AC-1: Receive round_ended event and trigger transition to results
+ * @param {Object} data - Event data {correct_year, results, leaderboard}
+ */
+function handleRoundEnded(data) {
+    console.log('Round ended event received:', data);
+
+    // Validate event payload structure (AC-1)
+    if (!data.correct_year || !data.results || !data.leaderboard) {
+        console.error('Round ended event missing required fields:', data);
+        showError('Results unavailable, please refresh');
+        return;
+    }
+
+    // Prevent duplicate transitions (edge case handling)
+    const activeRoundView = document.getElementById('active-round-view');
+    if (!activeRoundView || activeRoundView.classList.contains('hidden')) {
+        console.log('Already transitioned to results, ignoring duplicate event');
+        return;
+    }
+
+    // Clear betting indicators when round ends (Story 8.4)
+    clearBettingIndicators();
+
+    // Trigger transition to results
+    transitionToResults(data);
+}
+
+
+    console.log('✓ Active round view hidden');
+}
+
+// Story 8.1 lockInputs/unlockInputs moved to Story 8.6 section (lines 1563-1619) to consolidate implementation
+
+
+/**
  * Story 4.5 Task 2: Hide lobby view on round start
  * AC-2: Lobby view hidden immediately when round_started event received
  */
@@ -846,10 +1251,51 @@ function showActiveRoundView(songMetadata) {
 }
 
 /**
+ * Story 8.5 Task 1: Update timer display
+ * AC-2: Timer updates smoothly
+ * AC-3: Calculated from server timestamp
+ * AC-5: Changes color to red when < 10 seconds
+ * AC-6: Accuracy within ±1 second
+ * @param {number} startedAt - Server UTC timestamp (seconds)
+ * @param {number} timerDuration - Round duration in seconds
+ * @returns {number} Remaining seconds
+ */
+function updateTimer(startedAt, timerDuration) {
+    const timerDisplay = document.getElementById('timer');
+    if (!timerDisplay) {
+        console.warn('Timer display not found');
+        return 0;
+    }
+
+    // AC-3, AC-6: Use server timestamp for calculation (NOT client Date.now())
+    const now = Date.now() / 1000; // Convert to seconds
+    const elapsed = now - startedAt;
+    const remaining = Math.max(0, timerDuration - elapsed);
+
+    // AC-1: Display remaining seconds in "XXs" format
+    if (remaining > 0) {
+        timerDisplay.textContent = Math.ceil(remaining).toString();
+    } else {
+        timerDisplay.textContent = '0';
+    }
+
+    // AC-5: Change color to red when < 10 seconds for urgency
+    if (remaining < 10 && remaining > 0) {
+        timerDisplay.classList.remove('text-gray-800');
+        timerDisplay.classList.add('text-red-600');
+    } else {
+        timerDisplay.classList.remove('text-red-600');
+        timerDisplay.classList.add('text-gray-800');
+    }
+
+    return remaining;
+}
+
+/**
  * Story 4.5 Task 5 & 6: Initialize timer from server timestamp
- * AC-5: Remaining time calculated from started_at timestamp
- * AC-5: Timer updates every 100ms for smooth countdown
- * AC-5: Timer synchronized with server (resilient to client clock drift)
+ * Story 8.5 Task 3: Start countdown timer
+ * AC-2: Timer updates every second
+ * AC-4: Timer auto-locks inputs when reaching 0
  * @param {number} startedAt - Server UTC timestamp (seconds)
  * @param {number} timerDuration - Round duration in seconds
  */
@@ -866,23 +1312,16 @@ function startTimer(startedAt, timerDuration) {
         return;
     }
 
-    // Update timer display every 100ms
+    // Update timer display every 100ms for smooth countdown
     timerInterval = setInterval(() => {
-        // AC-6: Use server timestamp for calculation (NOT client Date.now())
-        const now = Date.now() / 1000; // Convert to seconds
-        const elapsed = now - startedAt;
-        const remaining = Math.max(0, timerDuration - elapsed);
+        const remaining = updateTimer(startedAt, timerDuration);
 
-        // Display remaining seconds
-        if (remaining > 0) {
-            timerDisplay.textContent = Math.ceil(remaining).toString();
-        } else {
-            // Timer expired
-            timerDisplay.textContent = '0';
+        // AC-4: Auto-lock inputs when timer expires
+        if (remaining <= 0) {
             clearInterval(timerInterval);
             timerInterval = null;
-            console.log('⏰ Timer expired');
-            // TODO Story 8.6: Trigger auto-lock inputs when timer expires
+            // Story 8.6: Trigger auto-lock inputs when timer expires
+            onTimerExpire();
         }
     }, 100);
 
@@ -890,16 +1329,59 @@ function startTimer(startedAt, timerDuration) {
 }
 
 /**
+ * Story 9.5 Task 5: Transition from results view to active round view
+ * AC-5: Auto-transition when round_started event received
+ * AC-5: Transition smooth and immediate (<500ms)
+ * @param {Object} roundData - Round data from round_started event
+ */
+function transitionToActiveRound(roundData) {
+    console.log('🎵 Transitioning from results to active round');
+    const transitionStart = performance.now();
+
+    // Hide results view (and waiting state automatically)
+    const resultsView = document.getElementById('results-view');
+    if (resultsView) {
+        resultsView.classList.add('hidden');
+    }
+
+    // Show active round view
+    const activeRoundView = document.getElementById('active-round-view');
+    if (activeRoundView) {
+        activeRoundView.classList.remove('hidden');
+    }
+
+    // Render active round (delegate to existing function)
+    showActiveRoundView(roundData.song);
+
+    // Initialize timer
+    if (roundData.started_at && roundData.timer_duration) {
+        startTimer(roundData.started_at, roundData.timer_duration);
+    }
+
+    // Populate year dropdown if year_range provided
+    if (roundData.year_range) {
+        populateYearSelector(roundData.year_range.min, roundData.year_range.max);
+    }
+
+    // Measure transition latency
+    const transitionEnd = performance.now();
+    const transitionTime = transitionEnd - transitionStart;
+    console.log(`✓ Results → Active Round transition completed in ${transitionTime.toFixed(2)}ms`);
+
+    if (transitionTime > 500) {
+        console.warn(`⚠️ Transition time exceeded 500ms target (${transitionTime.toFixed(2)}ms)`);
+    }
+}
+
+/**
  * Story 4.5 Task 1: Handle round_started WebSocket event
  * AC-1: Receive round_started event with song metadata and timer info
  * AC-4: Transition timing <500ms
+ * Story 9.5: Enhanced to handle transition from results view
  * @param {Object} data - Event data {song, timer_duration, started_at, round_number}
  */
 function handleRoundStarted(data) {
     console.log('🎵 Round started event received:', data);
-
-    // AC-4: Log timestamp for transition timing measurement
-    const transitionStart = performance.now();
 
     // Validate event structure
     if (!data.song || !data.timer_duration || !data.started_at) {
@@ -907,22 +1389,35 @@ function handleRoundStarted(data) {
         return;
     }
 
-    // Task 2: Hide lobby view immediately
-    hideLobbyView();
+    // Story 9.5: Check if we're transitioning from results view
+    const resultsView = document.getElementById('results-view');
+    const isFromResults = resultsView && !resultsView.classList.contains('hidden');
 
-    // Task 3: Show active round view with song metadata
-    showActiveRoundView(data.song);
+    if (isFromResults) {
+        // Story 9.5 Task 5: Transition from results to active round
+        transitionToActiveRound(data);
+    } else {
+        // Original Story 4.5: Transition from lobby to active round
+        // AC-4: Log timestamp for transition timing measurement
+        const transitionStart = performance.now();
 
-    // Task 5: Initialize timer from server timestamp
-    startTimer(data.started_at, data.timer_duration);
+        // Task 2: Hide lobby view immediately
+        hideLobbyView();
 
-    // AC-4: Log transition timing
-    const transitionEnd = performance.now();
-    const transitionTime = transitionEnd - transitionStart;
-    console.log(`✓ Lobby → Active Round transition completed in ${transitionTime.toFixed(2)}ms`);
+        // Task 3: Show active round view with song metadata
+        showActiveRoundView(data.song);
 
-    if (transitionTime > 500) {
-        console.warn(`⚠️ Transition time exceeded 500ms target (${transitionTime.toFixed(2)}ms)`);
+        // Task 5: Initialize timer from server timestamp
+        startTimer(data.started_at, data.timer_duration);
+
+        // AC-4: Log transition timing
+        const transitionEnd = performance.now();
+        const transitionTime = transitionEnd - transitionStart;
+        console.log(`✓ Lobby → Active Round transition completed in ${transitionTime.toFixed(2)}ms`);
+
+        if (transitionTime > 500) {
+            console.warn(`⚠️ Transition time exceeded 500ms target (${transitionTime.toFixed(2)}ms)`);
+        }
     }
 }
 
@@ -976,6 +1471,263 @@ function showNameNotification(message) {
     }
 }
 
+// ============================================================================
+// Story 8.6: Guess Submission & Input Locking Functions
+// ============================================================================
+
+/**
+ * Story 8.6 Task 1: Validate and submit guess
+ * AC-1: Validates year selected before submission
+ * AC-1: Sends WebSocket command with player_name, year_guess, bet_placed
+ * AC-2: Locks inputs immediately (optimistic locking)
+ * AC-3: Shows submission confirmation message
+ * AC-6: Executes within 200ms
+ */
+function onSubmitGuess() {
+    const startTime = performance.now();
+
+    // Task 1.2: Validate year is selected
+    const yearSelector = document.getElementById('year-selector');
+    if (!yearSelector || !yearSelector.value) {
+        // Task 1.3: Show error if no year selected
+        showError('Please select a year');
+        console.warn('Guess submission validation failed: No year selected');
+        return;
+    }
+
+    // Task 1.5: Get current bet state
+    const betToggle = document.getElementById('bet-toggle');
+    const betPlaced = betToggle ? betToggle.getAttribute('aria-pressed') === 'true' : false;
+
+    // Task 5.4: Check if already submitted (prevent duplicates)
+    if (gameState.locked) {
+        console.warn('Duplicate submission attempt prevented');
+        return;
+    }
+
+    // Task 3: Lock inputs immediately (optimistic locking)
+    lockInputs();
+    gameState.locked = true;
+
+    // Task 10.2: Show loading spinner briefly
+    const submitButton = document.getElementById('submit-guess');
+    if (submitButton) {
+        submitButton.innerHTML = '<span class="inline-block animate-spin mr-2">⏳</span> Submitting...';
+    }
+
+    // Task 2: Send WebSocket command
+    const playerName = localStorage.getItem('beatsy_player_name');
+    const yearGuess = parseInt(yearSelector.value);
+
+    const message = {
+        type: 'beatsy/submit_guess',
+        player_name: playerName,
+        year_guess: yearGuess,
+        bet_placed: betPlaced,
+        submitted_at: Date.now(),
+        id: Date.now()  // HA WebSocket API requires id field
+    };
+
+    console.log('Sending guess submission:', { player: playerName, year: yearGuess, bet: betPlaced });
+
+    // Task 2.4: Send via WebSocket
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        showError('Connection lost. Please refresh the page.');
+        unlockInputs();
+        gameState.locked = false;
+        return;
+    }
+
+    ws.send(JSON.stringify(message));
+
+    // Task 4: Show submission confirmation
+    showSubmissionConfirmation();
+
+    // AC-6: Log execution time
+    const executionTime = performance.now() - startTime;
+    console.log(`✓ Guess submission completed in ${executionTime.toFixed(2)}ms`);
+
+    if (executionTime > 200) {
+        console.warn(`⚠️ Submission exceeded 200ms target (${executionTime.toFixed(2)}ms)`);
+    }
+}
+
+/**
+ * Story 8.6 Task 3: Lock all input controls
+ * AC-2: Disables year dropdown, bet button, submit button
+ * AC-6: Executes within 200ms (synchronous DOM update)
+ * AC-2: Adds visual disabled state
+ */
+function lockInputs() {
+    // Update game state
+    gameState.locked = true;
+
+    // Task 3.2: Disable year dropdown
+    const yearSelector = document.getElementById('year-selector');
+    if (yearSelector) {
+        yearSelector.disabled = true;
+    }
+
+    // Task 3.3: Disable bet button
+    const betToggle = document.getElementById('bet-toggle');
+    if (betToggle) {
+        betToggle.disabled = true;
+        // Visual feedback for disabled bet toggle
+        betToggle.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+
+    // Task 3.4: Disable submit button
+    const submitButton = document.getElementById('submit-guess');
+    if (submitButton) {
+        submitButton.disabled = true;
+        // Task 3.5: Add visual disabled state
+        submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+
+    console.log('✓ Inputs locked');
+}
+
+/**
+ * Story 8.6 Task 7: Unlock input controls
+ * AC-4: Re-enables all inputs for error recovery
+ * Only called for recoverable errors (not late submissions)
+ */
+function unlockInputs() {
+    // Task 7.5: Reset submission flag
+    gameState.locked = false;
+
+    // Task 7.2: Enable all inputs
+    const yearSelector = document.getElementById('year-selector');
+    if (yearSelector) {
+        yearSelector.disabled = false;
+    }
+
+    const betToggle = document.getElementById('bet-toggle');
+    if (betToggle) {
+        betToggle.disabled = false;
+        // Remove disabled visual feedback
+        betToggle.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+
+    const submitButton = document.getElementById('submit-guess');
+    if (submitButton) {
+        submitButton.disabled = false;
+        // Task 7.3: Remove disabled styling
+        submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        submitButton.textContent = 'Submit Guess';
+    }
+
+    console.log('✓ Inputs unlocked');
+}
+
+/**
+ * Story 8.6 Task 4: Display submission confirmation
+ * AC-3: Shows "Guess submitted! Waiting for results..." message
+ * Task 4.3: Prominent green styling with checkmark
+ * Task 4.5: Mobile-friendly display
+ */
+function showSubmissionConfirmation() {
+    const confirmationDiv = document.getElementById('submission-confirmation');
+    if (confirmationDiv) {
+        // Task 4.2 & 4.3: Display confirmation message with styling
+        confirmationDiv.innerHTML = '✓ Guess submitted! Waiting for results...';
+        confirmationDiv.classList.remove('hidden');
+        confirmationDiv.classList.add('text-green-600', 'font-semibold', 'text-center', 'mt-4', 'p-3', 'bg-green-100', 'rounded-md');
+    }
+
+    // Hide submit button (replaced by confirmation)
+    const submitButton = document.getElementById('submit-guess');
+    if (submitButton) {
+        submitButton.classList.add('hidden');
+    }
+
+    console.log('✓ Submission confirmation displayed');
+}
+
+/**
+ * Story 8.6 Task 5 & 6: Handle submission response from server
+ * Processes both success and error responses
+ * @param {Object} data - Server response {success, error}
+ */
+function handleSubmitGuessResponse(data) {
+    if (data.success) {
+        // Task 5.2 & 5.3: Success - keep locked, log success
+        console.log('✓ Guess submitted successfully');
+        // Inputs already locked and confirmation shown optimistically
+    } else {
+        // Task 6: Handle errors
+        // Error format: {code: 'error_code', message: 'Error message'}
+        const errorCode = data.error?.code || '';
+        const errorMessage = data.error?.message || data.error || 'Submission failed';
+
+        if (errorCode === 'timer_expired' || errorMessage.includes('timer') || errorMessage.includes('expired') || errorMessage.includes('Too late')) {
+            // Task 6.2: Late submission error (AC-5)
+            showError('Too late! Timer expired.');
+            // Task 6.3: Keep inputs locked (don't allow retry)
+            console.log('Late submission rejected by server');
+        } else if (errorCode === 'already_submitted' || errorMessage.includes('already submitted')) {
+            // Duplicate submission
+            showError('You have already submitted a guess for this round');
+            console.log('Duplicate guess rejected by server');
+        } else {
+            // Other errors - allow retry
+            showError(typeof errorMessage === 'string' ? errorMessage : 'Submission failed');
+            unlockInputs();
+            const confirmationDiv = document.getElementById('submission-confirmation');
+            if (confirmationDiv) {
+                confirmationDiv.classList.add('hidden');
+            }
+            const submitButton = document.getElementById('submit-guess');
+            if (submitButton) {
+                submitButton.classList.remove('hidden');
+            }
+        }
+    }
+}
+
+/**
+ * Story 8.6 Task 8: Handle timer expiration auto-lock
+ * AC-4: Timer continues for other players
+ * AC-5: Prevents submission after timer expires
+ * Called from startTimer() when remaining time reaches 0
+ */
+function onTimerExpire() {
+    console.log('⏰ Timer expired');
+
+    // Task 8.1: Lock inputs automatically
+    lockInputs();
+
+    // Task 8.2: Show appropriate message
+    if (gameState.locked) {
+        // Task 8.3: Already submitted - keep confirmation visible
+        console.log('Timer expired - guess already submitted');
+    } else {
+        // Task 8.2: Not submitted - show time's up message
+        const confirmationDiv = document.getElementById('submission-confirmation');
+        if (confirmationDiv) {
+            confirmationDiv.innerHTML = '⏱️ Time\'s up! Waiting for results...';
+            confirmationDiv.classList.remove('hidden');
+            confirmationDiv.classList.add('text-orange-600', 'font-semibold', 'text-center', 'mt-4', 'p-3', 'bg-orange-100', 'rounded-md');
+        }
+
+        // Hide submit button
+        const submitButton = document.getElementById('submit-guess');
+        if (submitButton) {
+            submitButton.classList.add('hidden');
+        }
+
+        gameState.locked = true;
+        console.log('Timer expired - inputs locked, no guess submitted');
+    }
+}
+
+/**
+ * Story 8.5 Task 6: Handle round_ended event
+ * AC-2: Timer stops cleanly on round end
+ * Stops the timer when round ends and clears state
+ * @param {Object} data - Event data (results, leaderboard, etc.)
+ */
+
 /**
  * Main initialization - runs when DOM is fully loaded
  */
@@ -988,6 +1740,284 @@ document.addEventListener('DOMContentLoaded', () => {
 /**
  * Export functions for testing
  */
+
+// Story 8.3 lockInputs/unlockInputs consolidated into Story 8.6 implementation (lines 1563-1619)
+
+/**
+ * Story 8.3 Task 2: Handle bet toggle button click.
+ * Toggles bet state and sends WebSocket command.
+ * AC-1: Button changes state visually (gray → red, label changes)
+ * AC-3: Toggle bet on/off before submitting
+ * AC-4: Send WebSocket command beatsy/place_bet
+ * AC-5: Visual feedback instant (< 50ms perceived delay)
+ */
+function onBetToggle() {
+    const startTime = performance.now();
+
+    const button = document.getElementById('bet-toggle');
+    if (!button) {
+        console.error('Bet toggle button not found');
+        return;
+    }
+
+    // Check if inputs are locked
+    if (gameState.locked || button.disabled) {
+        console.log('Bet toggle disabled (inputs locked)');
+        return;
+    }
+
+    const currentState = button.dataset.betActive === 'true';
+    const newState = !currentState;
+
+    // Update button state
+    button.dataset.betActive = newState.toString();
+    button.setAttribute('aria-pressed', newState.toString());
+
+    // Update visual appearance
+    if (newState) {
+        // Bet ON: Red background, "BETTING ✓" text
+        button.classList.remove('bg-gray-300', 'hover:bg-gray-400');
+        button.classList.add('bg-red-600', 'hover:bg-red-700', 'text-white');
+        button.textContent = 'BETTING ✓';
+    } else {
+        // Bet OFF: Gray background, "BET ON IT" text
+        button.classList.remove('bg-red-600', 'hover:bg-red-700', 'text-white');
+        button.classList.add('bg-gray-300', 'hover:bg-gray-400');
+        button.textContent = 'BET ON IT';
+    }
+
+    // Update client-side state
+    gameState.betActive = newState;
+
+    // Send WebSocket command to broadcast to all players
+    placeBet(newState);
+
+    // Story 8.4: Update local player's bet status in betting indicators
+    updateLocalPlayerBetStatus(newState);
+
+    const duration = performance.now() - startTime;
+    console.log(`Bet toggled: ${newState ? 'ON' : 'OFF'} (${duration.toFixed(2)}ms)`);
+
+    if (duration > 50) {
+        console.warn(`⚠️ Bet toggle exceeded 50ms target: ${duration.toFixed(2)}ms`);
+    }
+}
+
+/**
+ * Story 8.3 Task 3: Send place_bet WebSocket command.
+ * AC-4: WebSocket command beatsy/place_bet is sent
+ * @param {boolean} betActive - True if betting, false if cancelled
+ */
+function placeBet(betActive) {
+    const playerName = gameState.playerName;
+
+    if (!playerName) {
+        console.error('Cannot place bet: Player name not set');
+        return;
+    }
+
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.error('Cannot place bet: WebSocket not connected');
+        return;
+    }
+
+    const message = {
+        type: 'beatsy/place_bet',
+        player_name: playerName,
+        bet_active: betActive
+    };
+
+    try {
+        ws.send(JSON.stringify(message));
+        console.log('Place bet command sent', message);
+    } catch (error) {
+        console.error('Failed to send place_bet command', error);
+        // Don't revert visual state - player will see their bet, broadcast will retry on reconnect
+    }
+}
+
+/**
+ * Story 8.3: Get current bet state.
+ * @returns {boolean} - True if betting, false otherwise
+ */
+function getBetState() {
+    const button = document.getElementById('bet-toggle');
+    if (!button) return false;
+    return button.dataset.betActive === 'true';
+}
+
+/**
+ * Story 8.3: Reset bet toggle to OFF state.
+ * Called when new round starts.
+ */
+function resetBetToggle() {
+    const button = document.getElementById('bet-toggle');
+    if (!button) {
+        console.warn('Bet toggle button not found for reset');
+        return;
+    }
+
+    button.dataset.betActive = 'false';
+    button.setAttribute('aria-pressed', 'false');
+    button.classList.remove('bg-red-600', 'hover:bg-red-700', 'text-white');
+    button.classList.add('bg-gray-300', 'hover:bg-gray-400');
+    button.textContent = 'BET ON IT';
+
+    // Update client-side state
+    gameState.betActive = false;
+
+    console.log('✓ Bet toggle reset to OFF');
+}
+
+// ============================================================================
+// Story 8.4: Live Bet Indicators (Who's Betting)
+// ============================================================================
+
+// Story 8.4: Client-side array to track betting players
+const bettingPlayers = [];
+
+/**
+ * Story 8.4: Add a player to the betting list
+ * AC-1: Player names appear in "Betting Now" list when they place bets
+ * @param {string} playerName - Name of player who placed bet
+ */
+function addBettingPlayer(playerName) {
+    if (!playerName) return;
+
+    // Prevent duplicates
+    if (!bettingPlayers.includes(playerName)) {
+        bettingPlayers.push(playerName);
+        console.log(`✓ Added ${playerName} to betting list`);
+        updateBettingIndicators();
+    }
+}
+
+/**
+ * Story 8.4: Remove a player from the betting list
+ * @param {string} playerName - Name of player who removed bet
+ */
+function removeBettingPlayer(playerName) {
+    const index = bettingPlayers.indexOf(playerName);
+    if (index !== -1) {
+        bettingPlayers.splice(index, 1);
+        console.log(`✓ Removed ${playerName} from betting list`);
+        updateBettingIndicators();
+    }
+}
+
+/**
+ * Story 8.4: Update the betting indicators UI
+ * AC-2: Updates appear within 500ms of bet placement
+ * AC-3: Own bet status included and highlighted
+ * AC-5: Shows first 10 players + "and N more" for overflow
+ */
+function updateBettingIndicators() {
+    const startTime = performance.now();
+
+    const listEl = document.getElementById('betting-players-list');
+    if (!listEl) {
+        console.warn('Betting players list element not found');
+        return;
+    }
+
+    // AC-1: Show "None" when no players betting
+    if (bettingPlayers.length === 0) {
+        listEl.innerHTML = '<span class="text-gray-500">None</span>';
+        return;
+    }
+
+    const currentPlayer = localStorage.getItem('beatsy_player_name');
+    const maxDisplay = 10;
+
+    // AC-5: Handle overflow (more than 10 players)
+    if (bettingPlayers.length > maxDisplay) {
+        const displayPlayers = bettingPlayers.slice(0, maxDisplay);
+        const overflow = bettingPlayers.length - maxDisplay;
+
+        let html = displayPlayers.map(name => {
+            // AC-3: Highlight current player in bold blue
+            if (name === currentPlayer) {
+                return `<strong class="text-blue-700">${name}</strong>`;
+            }
+            return `<span class="text-blue-600">${name}</span>`;
+        }).join(', ');
+
+        html += `, <span class="text-gray-600">and ${overflow} more</span>`;
+        listEl.innerHTML = html;
+    } else {
+        // Show all players
+        const html = bettingPlayers.map(name => {
+            // AC-3: Highlight current player in bold blue
+            if (name === currentPlayer) {
+                return `<strong class="text-blue-700">${name}</strong>`;
+            }
+            return `<span class="text-blue-600">${name}</span>`;
+        }).join(', ');
+
+        listEl.innerHTML = html;
+    }
+
+    // AC-2: Performance logging
+    const updateTime = performance.now() - startTime;
+    console.log(`✓ Betting indicators updated in ${updateTime.toFixed(2)}ms`);
+
+    if (updateTime > 500) {
+        console.warn(`⚠️ Betting indicators update exceeded 500ms: ${updateTime.toFixed(2)}ms`);
+    }
+}
+
+/**
+ * Story 8.4: Clear all betting indicators
+ * AC-4: List cleared on round end
+ */
+function clearBettingIndicators() {
+    bettingPlayers.length = 0; // Clear array
+    updateBettingIndicators(); // Update UI to show "None"
+    console.log('✓ Betting indicators cleared');
+}
+
+/**
+ * Story 8.4: Handle bet_placed WebSocket event
+ * Called from handleWebSocketMessage when bet_placed event received
+ * @param {Object} data - Event data {player_name, bet_active}
+ */
+function handleBetPlaced(data) {
+    const { player_name, bet_active } = data;
+
+    if (!player_name) {
+        console.warn('bet_placed event missing player_name');
+        return;
+    }
+
+    console.log(`Bet placed event: ${player_name} - ${bet_active ? 'ON' : 'OFF'}`);
+
+    if (bet_active) {
+        addBettingPlayer(player_name);
+    } else {
+        removeBettingPlayer(player_name);
+    }
+}
+
+/**
+ * Story 8.4: Update local player's bet status in indicators
+ * Called from Story 8.3 onBetToggle to update current player's status
+ * @param {boolean} betActive - True if bet is ON, false if OFF
+ */
+function updateLocalPlayerBetStatus(betActive) {
+    const playerName = localStorage.getItem('beatsy_player_name');
+    if (!playerName) {
+        console.warn('Cannot update local bet status: player name not found');
+        return;
+    }
+
+    if (betActive) {
+        addBettingPlayer(playerName);
+    } else {
+        removeBettingPlayer(playerName);
+    }
+}
+
+
 export {
     initPlayerUI,
     connectWebSocket,
@@ -998,5 +2028,37 @@ export {
     showActiveRoundView,
     startTimer,
     showError,
-    showNameNotification
+    showNameNotification,
+    // Story 8.2: Year dropdown selector
+    populateYearSelector,
+    getSelectedYear,
+    resetYearSelector,
+    validateYearSelection,
+    // Story 8.4: Betting indicators
+    addBettingPlayer,
+    removeBettingPlayer,
+    updateBettingIndicators,
+    clearBettingIndicators,
+    updateLocalPlayerBetStatus,
+    // Story 8.7: Results transition functions
+    stopTimer,
+    hideActiveRound,
+    cleanupActiveRound,
+    showResults,
+    transitionToResults,
+    handleRoundEnded,
+    // Story 8.3: Bet toggle functions
+    onBetToggle,
+    placeBet,
+    getBetState,
+    resetBetToggle,
+    lockInputs,
+    unlockInputs,
+    // Story 8.6: Guess submission functions
+    onSubmitGuess,
+    showSubmissionConfirmation,
+    handleSubmitGuessResponse,
+    onTimerExpire
 };
+
+// Duplicate updateLocalPlayerBetStatus() removed - using version from Story 8.4 (lines 2056-2068)

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Story 5.1 Test - Next Song (Standalone)</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #0f0;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 { color: #0ff; border-bottom: 2px solid #0f0; padding-bottom: 10px; }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+        button:hover { background: #0d0; }
+        button:disabled { background: #666; cursor: not-allowed; }
+        #output {
+            margin-top: 20px;
+            padding: 20px;
+            background: #000;
+            border: 2px solid #0f0;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-size: 14px;
+        }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+        .info { color: #0ff; }
+        .warning { color: #ff0; }
+        input {
+            background: #000;
+            color: #0f0;
+            border: 2px solid #0f0;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            width: 100%;
+            margin: 10px 0;
+        }
+        .config {
+            background: #333;
+            padding: 15px;
+            margin: 15px 0;
+            border: 1px solid #0f0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 Story 5.1: Random Song Selection Test</h1>
+
+    <div class="config">
+        <label for="haUrl">Home Assistant URL:</label>
+        <input type="text" id="haUrl" value="http://192.168.0.191:8123" placeholder="http://homeassistant.local:8123">
+
+        <label for="adminKey">Admin Key (from localStorage or manual):</label>
+        <input type="text" id="adminKey" placeholder="Paste your admin_key here">
+
+        <button onclick="loadFromLocalStorage()">Load from localStorage</button>
+    </div>
+
+    <div>
+        <button onclick="testSingle()" id="btnSingle">Test Single Song</button>
+        <button onclick="testMultiple()" id="btnMultiple">Test 5 Songs</button>
+        <button onclick="testUntilEmpty()" id="btnEmpty">Test Until Empty</button>
+        <button onclick="clearOutput()">Clear Output</button>
+    </div>
+
+    <div id="output">Ready. Configure settings above and click a button to test...
+
+💡 Quick Setup:
+1. Enter your Home Assistant URL (default: http://192.168.0.191:8123)
+2. Click "Load from localStorage" to auto-fill admin_key
+   OR manually paste your admin_key from the admin page console
+3. Click a test button!
+</div>
+
+    <script>
+        const output = document.getElementById('output');
+
+        function log(message, type = 'info') {
+            const line = document.createElement('div');
+            line.className = type;
+            line.textContent = message;
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            output.innerHTML = 'Ready. Click a button to test...\n';
+        }
+
+        function loadFromLocalStorage() {
+            // Try to read from localStorage if this page is served from same origin
+            try {
+                const adminKey = localStorage.getItem('beatsy_admin_key');
+                if (adminKey) {
+                    document.getElementById('adminKey').value = adminKey;
+                    log('✅ Admin key loaded from localStorage', 'success');
+                } else {
+                    log('⚠️  No admin_key in localStorage. Open admin page first or paste manually.', 'warning');
+                }
+            } catch (e) {
+                log('⚠️  Cannot access localStorage (CORS). Please paste admin_key manually.', 'warning');
+                log('   Get it from admin page console: localStorage.getItem("beatsy_admin_key")', 'info');
+            }
+        }
+
+        function getConfig() {
+            const haUrl = document.getElementById('haUrl').value.trim();
+            const adminKey = document.getElementById('adminKey').value.trim();
+
+            if (!haUrl) {
+                log('❌ Please enter Home Assistant URL', 'error');
+                return null;
+            }
+
+            if (!adminKey) {
+                log('❌ Please enter admin_key', 'error');
+                return null;
+            }
+
+            return { haUrl, adminKey };
+        }
+
+        async function testSingle() {
+            const config = getConfig();
+            if (!config) return;
+
+            log('🎵 Testing single song selection...', 'info');
+            log(`   Connecting to: ${config.haUrl}`, 'info');
+
+            try {
+                const response = await fetch(`${config.haUrl}/api/beatsy/api/next_song`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({admin_key: config.adminKey})
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    log(`✅ Round ${data.round_number}: "${data.title}" by ${data.artist}`, 'success');
+                } else {
+                    log(`❌ ${data.error}: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Request failed: ${error.message}`, 'error');
+                log(`   Check if HA URL is correct and HA is running`, 'warning');
+            }
+        }
+
+        async function testMultiple() {
+            const config = getConfig();
+            if (!config) return;
+
+            log('🎵 Testing 5 random song selections...', 'info');
+
+            const songs = [];
+
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const response = await fetch(`${config.haUrl}/api/beatsy/api/next_song`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({admin_key: config.adminKey})
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        log(`✅ Round ${data.round_number}: "${data.title}" by ${data.artist}`, 'success');
+                        songs.push(data.title);
+                    } else {
+                        log(`❌ ${data.error}: ${data.message}`, 'error');
+                        break;
+                    }
+
+                    await new Promise(r => setTimeout(r, 200));
+                } catch (error) {
+                    log(`❌ Request ${i+1} failed: ${error.message}`, 'error');
+                    break;
+                }
+            }
+
+            if (songs.length > 0) {
+                const unique = new Set(songs);
+                log(`\n📊 Selected ${songs.length} songs`, 'info');
+                log(unique.size === songs.length ?
+                    `✅ No duplicates!` :
+                    `❌ ${songs.length - unique.size} duplicate(s) detected!`,
+                    unique.size === songs.length ? 'success' : 'error'
+                );
+            }
+        }
+
+        async function testUntilEmpty() {
+            const config = getConfig();
+            if (!config) return;
+
+            log('🎵 Testing until playlist exhausted...', 'info');
+
+            let count = 0;
+
+            while (count < 100) { // Safety limit
+                try {
+                    const response = await fetch(`${config.haUrl}/api/beatsy/api/next_song`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({admin_key: config.adminKey})
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        count++;
+                        if (count % 5 === 0) {
+                            log(`✅ ${count} songs selected...`, 'info');
+                        }
+                    } else {
+                        log(`\n🛑 Playlist exhausted after ${count} songs`, 'info');
+                        log(`   ${data.error}: ${data.message}`, 'error');
+                        break;
+                    }
+
+                    await new Promise(r => setTimeout(r, 100));
+                } catch (error) {
+                    log(`❌ Request failed: ${error.message}`, 'error');
+                    break;
+                }
+            }
+        }
+
+        // Auto-load admin key on page load
+        window.addEventListener('load', () => {
+            loadFromLocalStorage();
+        });
+    </script>
+</body>
+</html>

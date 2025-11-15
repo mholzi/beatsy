@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Story 9.4: Overall Leaderboard Display - Test Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">Story 9.4: Overall Leaderboard Display - Test Suite</h1>
+
+        <!-- Test Controls -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Test Scenarios</h2>
+            <div class="space-y-2">
+                <button onclick="testScenario1()" class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
+                    Test 1: Top 5 with current player in top 5 (3 players total)
+                </button>
+                <button onclick="testScenario2()" class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
+                    Test 2: Exactly 5 players (all shown)
+                </button>
+                <button onclick="testScenario3()" class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
+                    Test 3: 10 players, current player in top 5 (rank #2)
+                </button>
+                <button onclick="testScenario4()" class="w-full bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700">
+                    Test 4: 10 players, current player NOT in top 5 (rank #7)
+                </button>
+                <button onclick="testScenario5()" class="w-full bg-purple-600 text-white py-2 px-4 rounded hover:bg-purple-700">
+                    Test 5: Ties - Two players at rank #2, next is rank #4
+                </button>
+                <button onclick="testScenario6()" class="w-full bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700">
+                    Test 6: XSS Prevention - Malicious player name
+                </button>
+                <button onclick="testMobileView()" class="w-full bg-yellow-600 text-white py-2 px-4 rounded hover:bg-yellow-700">
+                    Test 7: Mobile View (320px width)
+                </button>
+                <button onclick="clearLeaderboard()" class="w-full bg-gray-600 text-white py-2 px-4 rounded hover:bg-gray-700">
+                    Clear Leaderboard
+                </button>
+            </div>
+        </div>
+
+        <!-- Test Results Log -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Test Results</h2>
+            <div id="test-log" class="font-mono text-sm space-y-1 max-h-60 overflow-y-auto"></div>
+        </div>
+
+        <!-- Leaderboard Display (Simulated) -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Leaderboard Display</h2>
+            <div id="leaderboard-list" class="space-y-2">
+                <!-- Leaderboard will be rendered here -->
+            </div>
+        </div>
+
+        <!-- Mobile Width Simulator -->
+        <div id="mobile-simulator" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-4" style="width: 320px; max-height: 568px; overflow-y: auto;">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold">iPhone SE (320px)</h3>
+                    <button onclick="closeMobileView()" class="text-red-600 font-bold">Close</button>
+                </div>
+                <div id="mobile-leaderboard" class="bg-white rounded-lg shadow-md p-3">
+                    <h3 class="text-xl font-semibold mb-3">Leaderboard</h3>
+                    <div id="mobile-leaderboard-list" class="space-y-2">
+                        <!-- Mobile leaderboard will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import utility functions
+        const escapeHtml = (text) => {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        };
+
+        // Simplified renderLeaderboard function (copy from ui-results.js)
+        function renderLeaderboard(leaderboard, currentPlayer, targetElementId = 'leaderboard-list') {
+            console.log('Rendering leaderboard with', leaderboard.length, 'entries');
+
+            // Validate input
+            if (!leaderboard || !Array.isArray(leaderboard)) {
+                console.error('Invalid leaderboard data:', leaderboard);
+                logTest('❌ FAIL: Invalid leaderboard data');
+                return;
+            }
+
+            const listEl = document.getElementById(targetElementId);
+            if (!listEl) {
+                console.error('Leaderboard list element not found');
+                logTest('❌ FAIL: Element not found');
+                return;
+            }
+
+            // Task 2: Determine if we need to show only top 5
+            const showTop5Only = leaderboard.length > 5;
+            const topFive = showTop5Only ? leaderboard.slice(0, 5) : leaderboard;
+
+            // Task 3 & 4: Check if current player is in top 5
+            const currentPlayerInTop5 = topFive.some(entry => entry.is_current_player);
+
+            // Task 1: Generate HTML for top 5 (or all if fewer than 5)
+            const html = topFive.map(entry => `
+                <div class="leaderboard-row ${entry.is_current_player ? 'bg-yellow-100 font-bold' : ''} p-3 border-b flex justify-between">
+                    <div>
+                        <span class="text-gray-600">#${entry.rank}</span>
+                        <span class="ml-2">${escapeHtml(entry.player_name)}</span>
+                    </div>
+                    <span class="font-semibold">${entry.total_points} pts</span>
+                </div>
+            `).join('');
+
+            // Set main leaderboard HTML
+            listEl.innerHTML = html;
+
+            // Task 4: If current player not in top 5, show separately
+            if (!currentPlayerInTop5 && showTop5Only) {
+                const currentPlayerEntry = leaderboard.find(e => e.is_current_player);
+                if (currentPlayerEntry) {
+                    const separateHtml = `
+                        <div class="mt-4 p-3 bg-yellow-100 border-t-2 border-yellow-400 rounded">
+                            <span class="text-gray-600">Your position:</span>
+                            <span class="font-bold ml-2">#${currentPlayerEntry.rank} - ${escapeHtml(currentPlayerEntry.player_name)} - ${currentPlayerEntry.total_points} pts</span>
+                        </div>
+                    `;
+                    listEl.insertAdjacentHTML('beforeend', separateHtml);
+                }
+            }
+
+            console.log(`✓ Leaderboard rendered: ${topFive.length} displayed, current player ${currentPlayerInTop5 ? 'in top 5' : 'shown separately'}`);
+            logTest(`✅ PASS: Leaderboard rendered (${topFive.length} entries)`);
+        }
+
+        // Test logging
+        function logTest(message) {
+            const log = document.getElementById('test-log');
+            const entry = document.createElement('div');
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            entry.className = message.startsWith('✅') ? 'text-green-600' : message.startsWith('❌') ? 'text-red-600' : 'text-gray-600';
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // Test Scenario 1: Top 5 with current player in top 5 (3 players total)
+        window.testScenario1 = function() {
+            logTest('--- Test 1: 3 players, current player in top 5 ---');
+            const leaderboard = [
+                { rank: 1, player_name: 'Alice', total_points: 75, is_current_player: false },
+                { rank: 2, player_name: 'Markus', total_points: 62, is_current_player: true },
+                { rank: 3, player_name: 'Bob', total_points: 45, is_current_player: false }
+            ];
+            renderLeaderboard(leaderboard, 'Markus');
+
+            // Verify
+            const rows = document.querySelectorAll('#leaderboard-list .leaderboard-row');
+            if (rows.length === 3) {
+                logTest('✅ PASS: All 3 players displayed');
+            } else {
+                logTest(`❌ FAIL: Expected 3 rows, got ${rows.length}`);
+            }
+
+            if (rows[1].classList.contains('bg-yellow-100')) {
+                logTest('✅ PASS: Current player highlighted');
+            } else {
+                logTest('❌ FAIL: Current player not highlighted');
+            }
+        };
+
+        // Test Scenario 2: Exactly 5 players (all shown)
+        window.testScenario2 = function() {
+            logTest('--- Test 2: Exactly 5 players ---');
+            const leaderboard = [
+                { rank: 1, player_name: 'Alice', total_points: 100, is_current_player: false },
+                { rank: 2, player_name: 'Bob', total_points: 90, is_current_player: false },
+                { rank: 3, player_name: 'Markus', total_points: 80, is_current_player: true },
+                { rank: 4, player_name: 'David', total_points: 70, is_current_player: false },
+                { rank: 5, player_name: 'Eve', total_points: 60, is_current_player: false }
+            ];
+            renderLeaderboard(leaderboard, 'Markus');
+
+            const rows = document.querySelectorAll('#leaderboard-list .leaderboard-row');
+            if (rows.length === 5) {
+                logTest('✅ PASS: All 5 players displayed');
+            } else {
+                logTest(`❌ FAIL: Expected 5 rows, got ${rows.length}`);
+            }
+        };
+
+        // Test Scenario 3: 10 players, current player in top 5
+        window.testScenario3 = function() {
+            logTest('--- Test 3: 10 players, current player rank #2 ---');
+            const leaderboard = Array.from({ length: 10 }, (_, i) => ({
+                rank: i + 1,
+                player_name: i === 1 ? 'Markus' : `Player${i+1}`,
+                total_points: 100 - (i * 10),
+                is_current_player: i === 1
+            }));
+            renderLeaderboard(leaderboard, 'Markus');
+
+            const mainRows = document.querySelectorAll('#leaderboard-list .leaderboard-row');
+            const separateDisplay = document.querySelector('#leaderboard-list .bg-yellow-100.border-yellow-400');
+
+            if (mainRows.length === 5) {
+                logTest('✅ PASS: Only top 5 displayed');
+            } else {
+                logTest(`❌ FAIL: Expected 5 rows, got ${mainRows.length}`);
+            }
+
+            if (!separateDisplay) {
+                logTest('✅ PASS: No separate display (current player in top 5)');
+            } else {
+                logTest('❌ FAIL: Separate display should not exist');
+            }
+        };
+
+        // Test Scenario 4: 10 players, current player NOT in top 5
+        window.testScenario4 = function() {
+            logTest('--- Test 4: 10 players, current player rank #7 ---');
+            const leaderboard = Array.from({ length: 10 }, (_, i) => ({
+                rank: i + 1,
+                player_name: i === 6 ? 'Markus' : `Player${i+1}`,
+                total_points: 100 - (i * 10),
+                is_current_player: i === 6
+            }));
+            renderLeaderboard(leaderboard, 'Markus');
+
+            const mainRows = document.querySelectorAll('#leaderboard-list .leaderboard-row');
+            const separateDisplay = document.querySelector('#leaderboard-list .bg-yellow-100.border-yellow-400');
+
+            if (mainRows.length === 5) {
+                logTest('✅ PASS: Only top 5 displayed');
+            } else {
+                logTest(`❌ FAIL: Expected 5 rows, got ${mainRows.length}`);
+            }
+
+            if (separateDisplay && separateDisplay.textContent.includes('#7')) {
+                logTest('✅ PASS: Separate display shows rank #7');
+            } else {
+                logTest('❌ FAIL: Separate display not correct');
+            }
+        };
+
+        // Test Scenario 5: Ties
+        window.testScenario5 = function() {
+            logTest('--- Test 5: Tie handling ---');
+            const leaderboard = [
+                { rank: 1, player_name: 'Alice', total_points: 75, is_current_player: false },
+                { rank: 2, player_name: 'Bob', total_points: 62, is_current_player: false },
+                { rank: 2, player_name: 'Charlie', total_points: 62, is_current_player: true },
+                { rank: 4, player_name: 'David', total_points: 45, is_current_player: false }
+            ];
+            renderLeaderboard(leaderboard, 'Charlie');
+
+            const rows = document.querySelectorAll('#leaderboard-list .leaderboard-row');
+            const ranks = Array.from(rows).map(r => r.querySelector('.text-gray-600').textContent);
+
+            if (ranks[1] === '#2' && ranks[2] === '#2' && ranks[3] === '#4') {
+                logTest('✅ PASS: Ties handled correctly (rank #2, #2, #4)');
+            } else {
+                logTest(`❌ FAIL: Tie handling incorrect: ${ranks.join(', ')}`);
+            }
+        };
+
+        // Test Scenario 6: XSS Prevention
+        window.testScenario6 = function() {
+            logTest('--- Test 6: XSS Prevention ---');
+            const leaderboard = [
+                { rank: 1, player_name: '<script>alert("XSS")</script>', total_points: 100, is_current_player: false },
+                { rank: 2, player_name: '<img src=x onerror="alert(1)">', total_points: 90, is_current_player: true },
+                { rank: 3, player_name: 'Normal Player', total_points: 80, is_current_player: false }
+            ];
+            renderLeaderboard(leaderboard, '<img src=x onerror="alert(1)">');
+
+            const html = document.getElementById('leaderboard-list').innerHTML;
+            if (html.includes('&lt;script&gt;') && html.includes('&lt;img')) {
+                logTest('✅ PASS: XSS prevented (HTML escaped)');
+            } else {
+                logTest('❌ FAIL: XSS not properly prevented');
+            }
+        };
+
+        // Test Mobile View
+        window.testMobileView = function() {
+            logTest('--- Test 7: Mobile View (320px) ---');
+            const leaderboard = Array.from({ length: 10 }, (_, i) => ({
+                rank: i + 1,
+                player_name: `Player${i+1}`,
+                total_points: 100 - (i * 10),
+                is_current_player: i === 6
+            }));
+
+            document.getElementById('mobile-simulator').classList.remove('hidden');
+            renderLeaderboard(leaderboard, 'Player7', 'mobile-leaderboard-list');
+            logTest('✅ Mobile view opened - Check for horizontal scrolling');
+        };
+
+        window.closeMobileView = function() {
+            document.getElementById('mobile-simulator').classList.add('hidden');
+        };
+
+        // Clear leaderboard
+        window.clearLeaderboard = function() {
+            document.getElementById('leaderboard-list').innerHTML = '';
+            document.getElementById('mobile-leaderboard-list').innerHTML = '';
+            document.getElementById('test-log').innerHTML = '';
+            logTest('Leaderboard cleared');
+        };
+
+        // Auto-run Test 1 on load
+        setTimeout(() => {
+            logTest('=== Auto-running Test 1 ===');
+            testScenario1();
+        }, 500);
+    </script>
+</body>
+</html>

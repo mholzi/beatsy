@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Epic 8-9 Integration Test: Active Round → Results → Active Round</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/api/beatsy/static/css/custom.css">
+    <style>
+        /* Inline CSS animation for standalone test */
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        .waiting-pulse {
+            animation: pulse-subtle 2s ease-in-out infinite;
+        }
+        .test-section {
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .test-pass { background-color: #d1fae5; border-color: #10b981; }
+        .test-fail { background-color: #fee2e2; border-color: #ef4444; }
+        .test-pending { background-color: #fef3c7; border-color: #f59e0b; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-4">Epic 8-9 Integration Test</h1>
+        <p class="text-gray-600 mb-6">Testing: Active Round → Timer Expires → Results View → Next Round</p>
+
+        <!-- Test Controls -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Test Scenarios</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <button id="test-complete-round" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
+                    Test 1: Complete Round (Submit → Results)
+                </button>
+                <button id="test-no-submission" class="bg-purple-600 text-white py-2 px-4 rounded hover:bg-purple-700">
+                    Test 2: No Submission (Timer → Results)
+                </button>
+                <button id="test-early-submission" class="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700">
+                    Test 3: Early Submission → Results
+                </button>
+                <button id="test-return-flow" class="bg-orange-600 text-white py-2 px-4 rounded hover:bg-orange-700">
+                    Test 4: Results → Next Round
+                </button>
+                <button id="test-continuous-cycle" class="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700">
+                    Test 5: Continuous Round Cycle
+                </button>
+                <button id="test-state-cleanup" class="bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700">
+                    Test 6: State Cleanup Verification
+                </button>
+            </div>
+        </div>
+
+        <!-- Test Results -->
+        <div id="test-results" class="space-y-4">
+            <!-- Test results will be inserted here -->
+        </div>
+
+        <!-- Performance Metrics -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Performance Metrics</h2>
+            <div id="performance-metrics" class="space-y-2 text-sm font-mono">
+                <div>Active → Results Transition: <span id="metric-active-results">--</span></div>
+                <div>Results → Active Transition: <span id="metric-results-active">--</span></div>
+                <div>Timer Stop Latency: <span id="metric-timer-stop">--</span></div>
+                <div>State Cleanup Time: <span id="metric-cleanup">--</span></div>
+                <div>Memory Leaks Detected: <span id="metric-leaks">0</span></div>
+            </div>
+        </div>
+
+        <!-- Debug Log -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Debug Log</h2>
+            <div id="debug-log" class="bg-gray-100 rounded p-3 text-xs font-mono h-64 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <!-- Mock Game Views (same as start.html) -->
+    <div id="active-round-view" class="hidden">
+        <div id="timer"></div>
+        <select id="year-selector"></select>
+        <button id="bet-toggle" data-bet-active="false" aria-pressed="false"></button>
+        <button id="submit-guess"></button>
+        <div id="submission-confirmation" class="hidden"></div>
+    </div>
+
+    <div id="results-view" class="hidden">
+        <div id="correct-year"></div>
+        <div id="round-results-list"></div>
+        <div id="leaderboard-list"></div>
+        <div id="waiting-state" class="hidden"></div>
+    </div>
+
+    <script type="module">
+        // ============================================================================
+        // TEST FRAMEWORK
+        // ============================================================================
+
+        const testLog = [];
+        let timerInterval = null;
+        let testMetrics = {
+            activeToResults: [],
+            resultsToActive: [],
+            timerStop: [],
+            cleanup: [],
+            leaks: 0
+        };
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
+            const prefix = {
+                'info': 'ℹ️',
+                'success': '✓',
+                'error': '✗',
+                'warning': '⚠️'
+            }[type] || '';
+
+            const logEntry = `[${timestamp}] ${prefix} ${message}`;
+            testLog.push(logEntry);
+
+            const logEl = document.getElementById('debug-log');
+            logEl.innerHTML += logEntry + '\n';
+            logEl.scrollTop = logEl.scrollHeight;
+
+            console.log(logEntry);
+        }
+
+        function reportTest(testName, passed, details) {
+            const resultsEl = document.getElementById('test-results');
+            const testDiv = document.createElement('div');
+            testDiv.className = `test-section ${passed ? 'test-pass' : 'test-fail'}`;
+            testDiv.innerHTML = `
+                <h3 class="font-semibold mb-2">${passed ? '✓' : '✗'} ${testName}</h3>
+                <p class="text-sm">${details}</p>
+            `;
+            resultsEl.appendChild(testDiv);
+        }
+
+        function updateMetric(metricId, value) {
+            const el = document.getElementById(metricId);
+            if (el) {
+                el.textContent = value;
+                el.className = parseFloat(value) < 500 ? 'text-green-600 font-bold' : 'text-red-600 font-bold';
+            }
+        }
+
+        // ============================================================================
+        // MOCK GAME STATE AND FUNCTIONS
+        // ============================================================================
+
+        const gameState = {
+            locked: false,
+            playerName: 'TestPlayer',
+            yearGuess: null,
+            betActive: false
+        };
+
+        // Story 8.7: Stop timer
+        function stopTimer() {
+            const startTime = performance.now();
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                log('Timer stopped and cleared', 'success');
+            }
+            const timerDisplay = document.getElementById('timer');
+            if (timerDisplay) {
+                timerDisplay.textContent = '';
+            }
+            const duration = performance.now() - startTime;
+            testMetrics.timerStop.push(duration);
+            updateMetric('metric-timer-stop', duration.toFixed(2) + 'ms');
+            return duration;
+        }
+
+        // Story 8.7: Hide active round
+        async function hideActiveRound() {
+            return new Promise((resolve) => {
+                const activeRoundView = document.getElementById('active-round-view');
+                if (!activeRoundView) {
+                    log('Active round view not found', 'warning');
+                    resolve();
+                    return;
+                }
+
+                activeRoundView.classList.add('opacity-0', 'transition-opacity', 'duration-200');
+                setTimeout(() => {
+                    activeRoundView.classList.add('hidden');
+                    log('Active round view hidden', 'success');
+                    resolve();
+                }, 200);
+            });
+        }
+
+        // Story 8.7: Cleanup active round state
+        function cleanupActiveRound() {
+            const startTime = performance.now();
+
+            const yearDropdown = document.getElementById('year-selector');
+            if (yearDropdown) yearDropdown.value = '';
+
+            const betToggle = document.getElementById('bet-toggle');
+            if (betToggle) {
+                betToggle.setAttribute('aria-pressed', 'false');
+                betToggle.classList.remove('bg-green-500', 'border-green-700');
+                betToggle.classList.add('bg-yellow-400', 'border-yellow-600');
+                betToggle.textContent = '🎲 BET ON IT';
+            }
+
+            const submissionConfirmation = document.getElementById('submission-confirmation');
+            if (submissionConfirmation) {
+                submissionConfirmation.classList.add('hidden');
+            }
+
+            gameState.locked = false;
+            gameState.yearGuess = null;
+            gameState.betActive = false;
+
+            log('Active round state cleaned up', 'success');
+
+            const duration = performance.now() - startTime;
+            testMetrics.cleanup.push(duration);
+            updateMetric('metric-cleanup', duration.toFixed(2) + 'ms');
+            return duration;
+        }
+
+        // Story 9.1-9.3: Show results
+        function showResults(resultsData) {
+            log('Showing results view', 'info');
+
+            const resultsView = document.getElementById('results-view');
+            if (resultsView) {
+                resultsView.classList.remove('hidden');
+            }
+
+            // Render correct year
+            const correctYearEl = document.getElementById('correct-year');
+            if (correctYearEl) {
+                correctYearEl.textContent = resultsData.correct_year;
+            }
+
+            // Render round results
+            const resultsListEl = document.getElementById('round-results-list');
+            if (resultsListEl && resultsData.results) {
+                resultsListEl.innerHTML = resultsData.results.map(r => `
+                    <div class="p-2 border-b">
+                        <span class="font-semibold">${r.player_name}</span> guessed ${r.guess}
+                        <span class="text-green-600">+${r.points_earned}</span>
+                    </div>
+                `).join('');
+            }
+
+            // Render leaderboard
+            const leaderboardEl = document.getElementById('leaderboard-list');
+            if (leaderboardEl && resultsData.leaderboard) {
+                leaderboardEl.innerHTML = resultsData.leaderboard.map(l => `
+                    <div class="p-2">
+                        #${l.rank} ${l.player_name} - ${l.total_points} pts
+                    </div>
+                `).join('');
+            }
+
+            // Show waiting state
+            const waitingEl = document.getElementById('waiting-state');
+            if (waitingEl) {
+                waitingEl.classList.remove('hidden');
+            }
+        }
+
+        // Story 8.7: Transition to results (orchestrator)
+        async function transitionToResults(resultsData) {
+            log('Starting Active Round → Results transition', 'info');
+            const transitionStart = performance.now();
+
+            try {
+                // Step 1: Stop timer
+                const timerStopTime = stopTimer();
+
+                // Step 2: Hide active round view
+                await hideActiveRound();
+
+                // Step 3: Show results view
+                showResults(resultsData);
+
+                // Step 4: Cleanup state
+                const cleanupTime = cleanupActiveRound();
+
+                const transitionEnd = performance.now();
+                const transitionTime = transitionEnd - transitionStart;
+
+                testMetrics.activeToResults.push(transitionTime);
+                updateMetric('metric-active-results', transitionTime.toFixed(2) + 'ms');
+
+                log(`Active Round → Results transition completed in ${transitionTime.toFixed(2)}ms`, 'success');
+
+                if (transitionTime > 500) {
+                    log(`WARNING: Transition time exceeded 500ms target (${transitionTime.toFixed(2)}ms)`, 'warning');
+                    return false;
+                }
+                return true;
+
+            } catch (error) {
+                log(`ERROR during transition to results: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // Story 9.5: Transition to active round
+        function transitionToActiveRound(roundData) {
+            log('Starting Results → Active Round transition', 'info');
+            const transitionStart = performance.now();
+
+            // Hide results view
+            const resultsView = document.getElementById('results-view');
+            if (resultsView) {
+                resultsView.classList.add('hidden');
+            }
+
+            // Show active round view
+            const activeRoundView = document.getElementById('active-round-view');
+            if (activeRoundView) {
+                activeRoundView.classList.remove('hidden');
+                activeRoundView.classList.remove('opacity-0');
+            }
+
+            // Reset timer
+            const timerDisplay = document.getElementById('timer');
+            if (timerDisplay) {
+                timerDisplay.textContent = roundData.timer_duration;
+            }
+
+            const transitionEnd = performance.now();
+            const transitionTime = transitionEnd - transitionStart;
+
+            testMetrics.resultsToActive.push(transitionTime);
+            updateMetric('metric-results-active', transitionTime.toFixed(2) + 'ms');
+
+            log(`Results → Active Round transition completed in ${transitionTime.toFixed(2)}ms`, 'success');
+
+            if (transitionTime > 500) {
+                log(`WARNING: Transition time exceeded 500ms target (${transitionTime.toFixed(2)}ms)`, 'warning');
+                return false;
+            }
+            return true;
+        }
+
+        // ============================================================================
+        // TEST SCENARIOS
+        // ============================================================================
+
+        // Test 1: Complete Round (Submit → Results)
+        document.getElementById('test-complete-round').addEventListener('click', async () => {
+            log('===== Test 1: Complete Round (Submit → Results) =====', 'info');
+
+            // Setup: Show active round
+            const activeRoundView = document.getElementById('active-round-view');
+            activeRoundView.classList.remove('hidden');
+            document.getElementById('results-view').classList.add('hidden');
+
+            // Simulate player submission
+            gameState.locked = true;
+            gameState.yearGuess = 1985;
+            const submissionConf = document.getElementById('submission-confirmation');
+            submissionConf.classList.remove('hidden');
+            submissionConf.textContent = '✓ Guess submitted! Waiting for results...';
+
+            log('Player submitted guess: 1985', 'info');
+
+            // Wait a moment, then trigger round_ended
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const mockResults = {
+                correct_year: 1987,
+                results: [
+                    { player_name: 'TestPlayer', guess: 1985, points_earned: 8, bet_placed: false },
+                    { player_name: 'Player2', guess: 1987, points_earned: 10, bet_placed: false }
+                ],
+                leaderboard: [
+                    { rank: 1, player_name: 'Player2', total_points: 10, is_current_player: false },
+                    { rank: 2, player_name: 'TestPlayer', total_points: 8, is_current_player: true }
+                ]
+            };
+
+            const success = await transitionToResults(mockResults);
+
+            // Verify state cleanup
+            const yearSelector = document.getElementById('year-selector');
+            const betToggle = document.getElementById('bet-toggle');
+            const stateClean = yearSelector.value === '' &&
+                              betToggle.getAttribute('aria-pressed') === 'false' &&
+                              !gameState.locked;
+
+            const passed = success && stateClean;
+            reportTest('Test 1: Complete Round', passed,
+                `Transition: ${success ? 'PASS' : 'FAIL'}, State Cleanup: ${stateClean ? 'PASS' : 'FAIL'}`);
+        });
+
+        // Test 2: No Submission (Timer → Results)
+        document.getElementById('test-no-submission').addEventListener('click', async () => {
+            log('===== Test 2: No Submission (Timer Expires → Results) =====', 'info');
+
+            // Setup: Show active round
+            const activeRoundView = document.getElementById('active-round-view');
+            activeRoundView.classList.remove('hidden');
+            document.getElementById('results-view').classList.add('hidden');
+
+            // Simulate timer running
+            let countdown = 10;
+            timerInterval = setInterval(() => {
+                countdown--;
+                document.getElementById('timer').textContent = countdown;
+                if (countdown <= 0) {
+                    clearInterval(timerInterval);
+                    log('Timer expired, player did not submit', 'warning');
+                }
+            }, 100);
+
+            // Wait for timer to expire
+            await new Promise(resolve => setTimeout(resolve, 1100));
+
+            const mockResults = {
+                correct_year: 1990,
+                results: [
+                    { player_name: 'Player2', guess: 1989, points_earned: 9, bet_placed: false }
+                ],
+                leaderboard: [
+                    { rank: 1, player_name: 'Player2', total_points: 19, is_current_player: false },
+                    { rank: 2, player_name: 'TestPlayer', total_points: 8, is_current_player: true }
+                ]
+            };
+
+            const success = await transitionToResults(mockResults);
+
+            // Verify timer was stopped
+            const timerStopped = timerInterval === null;
+
+            const passed = success && timerStopped;
+            reportTest('Test 2: No Submission', passed,
+                `Transition: ${success ? 'PASS' : 'FAIL'}, Timer Stopped: ${timerStopped ? 'PASS' : 'FAIL'}`);
+        });
+
+        // Test 3: Early Submission → Results
+        document.getElementById('test-early-submission').addEventListener('click', async () => {
+            log('===== Test 3: Early Submission → Results =====', 'info');
+
+            // Setup: Show active round with timer still running
+            const activeRoundView = document.getElementById('active-round-view');
+            activeRoundView.classList.remove('hidden');
+            document.getElementById('results-view').classList.add('hidden');
+
+            // Start timer with lots of time remaining
+            let countdown = 25;
+            timerInterval = setInterval(() => {
+                countdown--;
+                document.getElementById('timer').textContent = countdown;
+            }, 100);
+
+            log('Timer started with 25s remaining', 'info');
+
+            // Player submits early
+            await new Promise(resolve => setTimeout(resolve, 200));
+            gameState.locked = true;
+            log('Player submitted early (23s remaining)', 'info');
+
+            // Wait for round to end
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            const mockResults = {
+                correct_year: 2000,
+                results: [
+                    { player_name: 'TestPlayer', guess: 2000, points_earned: 10, bet_placed: true }
+                ],
+                leaderboard: [
+                    { rank: 1, player_name: 'TestPlayer', total_points: 28, is_current_player: true }
+                ]
+            };
+
+            const success = await transitionToResults(mockResults);
+
+            // Verify timer was stopped even though time remained
+            const timerStopped = timerInterval === null;
+
+            const passed = success && timerStopped;
+            reportTest('Test 3: Early Submission', passed,
+                `Transition: ${success ? 'PASS' : 'FAIL'}, Timer Stopped: ${timerStopped ? 'PASS' : 'FAIL'}`);
+        });
+
+        // Test 4: Results → Next Round
+        document.getElementById('test-return-flow').addEventListener('click', async () => {
+            log('===== Test 4: Results → Next Round (Return Flow) =====', 'info');
+
+            // Setup: Show results view with waiting state
+            document.getElementById('active-round-view').classList.add('hidden');
+            const resultsView = document.getElementById('results-view');
+            resultsView.classList.remove('hidden');
+            document.getElementById('waiting-state').classList.remove('hidden');
+
+            log('Waiting state displayed', 'info');
+
+            // Wait a moment
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Simulate round_started event
+            log('round_started event received', 'info');
+
+            const mockRoundData = {
+                round_number: 2,
+                timer_duration: 30,
+                started_at: Date.now() / 1000,
+                song: {
+                    title: 'Test Song',
+                    artist: 'Test Artist'
+                }
+            };
+
+            const success = transitionToActiveRound(mockRoundData);
+
+            // Verify waiting state is hidden
+            const waitingHidden = document.getElementById('waiting-state').classList.contains('hidden') ||
+                                 resultsView.classList.contains('hidden');
+
+            const passed = success && waitingHidden;
+            reportTest('Test 4: Results → Next Round', passed,
+                `Transition: ${success ? 'PASS' : 'FAIL'}, Waiting State Hidden: ${waitingHidden ? 'PASS' : 'FAIL'}`);
+        });
+
+        // Test 5: Continuous Round Cycle
+        document.getElementById('test-continuous-cycle').addEventListener('click', async () => {
+            log('===== Test 5: Continuous Round Cycle (3 rounds) =====', 'info');
+
+            let allPassed = true;
+
+            for (let i = 1; i <= 3; i++) {
+                log(`--- Round ${i} ---`, 'info');
+
+                // Active round
+                document.getElementById('active-round-view').classList.remove('hidden');
+                document.getElementById('results-view').classList.add('hidden');
+                await new Promise(resolve => setTimeout(resolve, 200));
+
+                // Submit and transition to results
+                const mockResults = {
+                    correct_year: 1990 + i,
+                    results: [{ player_name: 'TestPlayer', guess: 1990 + i, points_earned: 10, bet_placed: false }],
+                    leaderboard: [{ rank: 1, player_name: 'TestPlayer', total_points: 10 * i, is_current_player: true }]
+                };
+
+                const transitionToResultsSuccess = await transitionToResults(mockResults);
+                if (!transitionToResultsSuccess) allPassed = false;
+
+                await new Promise(resolve => setTimeout(resolve, 200));
+
+                // Transition back to active round
+                const mockRoundData = {
+                    round_number: i + 1,
+                    timer_duration: 30,
+                    started_at: Date.now() / 1000
+                };
+
+                const transitionToActiveSuccess = transitionToActiveRound(mockRoundData);
+                if (!transitionToActiveSuccess) allPassed = false;
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            reportTest('Test 5: Continuous Round Cycle', allPassed,
+                `3 complete round cycles executed. All transitions: ${allPassed ? 'PASS' : 'FAIL'}`);
+        });
+
+        // Test 6: State Cleanup Verification
+        document.getElementById('test-state-cleanup').addEventListener('click', async () => {
+            log('===== Test 6: State Cleanup Verification =====', 'info');
+
+            // Setup dirty state
+            document.getElementById('active-round-view').classList.remove('hidden');
+            gameState.locked = true;
+            gameState.yearGuess = 1999;
+            gameState.betActive = true;
+
+            const yearSelector = document.getElementById('year-selector');
+            yearSelector.innerHTML = '<option value="1999" selected>1999</option>';
+
+            const betToggle = document.getElementById('bet-toggle');
+            betToggle.setAttribute('aria-pressed', 'true');
+            betToggle.classList.add('bg-green-500');
+
+            const submissionConf = document.getElementById('submission-confirmation');
+            submissionConf.classList.remove('hidden');
+
+            log('State dirtied: locked=true, year=1999, bet=true', 'info');
+
+            // Perform cleanup
+            const cleanupTime = cleanupActiveRound();
+
+            // Verify all state reset
+            const checks = {
+                yearReset: yearSelector.value === '',
+                betReset: betToggle.getAttribute('aria-pressed') === 'false',
+                submissionHidden: submissionConf.classList.contains('hidden'),
+                lockReset: !gameState.locked,
+                yearGuessReset: gameState.yearGuess === null,
+                betActiveReset: !gameState.betActive
+            };
+
+            const allClear = Object.values(checks).every(v => v);
+
+            reportTest('Test 6: State Cleanup', allClear,
+                `Cleanup time: ${cleanupTime.toFixed(2)}ms. All state reset: ${allClear ? 'PASS' : 'FAIL'}. ` +
+                `Checks: ${JSON.stringify(checks)}`);
+        });
+
+        // ============================================================================
+        // INITIALIZATION
+        // ============================================================================
+
+        log('Epic 8-9 Integration Test loaded', 'success');
+        log('Click test buttons to run integration scenarios', 'info');
+    </script>
+</body>
+</html>

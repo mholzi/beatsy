@@ -2,13 +2,17 @@
 
 Provides unauthenticated WebSocket endpoint for real-time game communication
 between server and player clients.
+
+This module implements the generic WebSocket event bus (Epic 6, Story 6.1)
+for pub/sub messaging using 2025 asyncio best practices.
 """
 import asyncio
 import json
 import logging
+import time
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from aiohttp import web, WSMsgType
 from homeassistant.components.http import HomeAssistantView
@@ -47,15 +51,19 @@ class BeatsyWebSocketView(HomeAssistantView):
         Returns:
             WebSocket response handler.
         """
-        ws = web.WebSocketResponse()
+        # Story 6.2, AC-5: Configure heartbeat/ping-pong (20-30 sec interval)
+        # Using 25 seconds as middle ground for 2025 best practice
+        ws = web.WebSocketResponse(
+            heartbeat=25.0,  # Send PING every 25 seconds
+            timeout=20.0     # Wait 20 seconds for PONG response
+        )
         await ws.prepare(request)
 
         # Generate unique connection ID
         conn_id = str(uuid.uuid4())
 
-        # Store connection in registry
-        connections = self.hass.data[DOMAIN]["ws_connections"]
-        connections[conn_id] = ws
+        # Store connection in registry using add_connection()
+        add_connection(self.hass, conn_id, ws, player_name=None)
 
         _LOGGER.info("WebSocket client connected: %s", conn_id)
 
@@ -130,6 +138,12 @@ class BeatsyWebSocketView(HomeAssistantView):
                             }
                         )
 
+                elif msg.type == WSMsgType.PONG:
+                    # Story 6.2, AC-5: Update last_ping timestamp on successful PONG
+                    # aiohttp automatically handles PING/PONG frames, but we track for monitoring
+                    update_last_ping(self.hass, conn_id)
+                    _LOGGER.debug("PONG received from %s, last_ping updated", conn_id[:8] + "...")
+
                 elif msg.type == WSMsgType.ERROR:
                     _LOGGER.warning(
                         "WebSocket error for %s: %s", conn_id, ws.exception()
@@ -143,9 +157,8 @@ class BeatsyWebSocketView(HomeAssistantView):
 
         finally:
             # Cleanup: Remove connection from registry
-            if conn_id in connections:
-                del connections[conn_id]
-                _LOGGER.info("Client disconnected: %s", conn_id)
+            remove_connection(self.hass, conn_id)
+            _LOGGER.info("Client disconnected: %s", conn_id)
 
         return ws
 
@@ -175,7 +188,7 @@ class BeatsyWebSocketView(HomeAssistantView):
 
         elif action == "test_broadcast":
             # Trigger broadcast to all clients
-            await broadcast_message(
+            await broadcast_event(
                 self.hass,
                 "test_broadcast",
                 {"message": "Test broadcast from server", "sender": conn_id},
@@ -319,92 +332,275 @@ class BeatsyWebSocketView(HomeAssistantView):
             )
 
 
-async def broadcast_message(
-    hass: HomeAssistant, msg_type: str, data: dict[str, Any]
+# ============================================================================
+# Connection Management Functions (Epic 6, Story 6.1)
+# ============================================================================
+
+
+def add_connection(
+    hass: HomeAssistant,
+    connection_id: str,
+    connection: web.WebSocketResponse,
+    player_name: Optional[str] = None,
 ) -> None:
-    """Broadcast message to all connected WebSocket clients.
+    """Register new WebSocket connection with metadata.
 
     Args:
-        hass: The Home Assistant instance.
-        msg_type: The message type identifier.
-        data: The message payload data.
+        hass: Home Assistant instance.
+        connection_id: Unique connection identifier.
+        connection: WebSocket response object.
+        player_name: Optional player name (None if not registered yet).
     """
-    if DOMAIN not in hass.data or "ws_connections" not in hass.data[DOMAIN]:
+    connections = hass.data[DOMAIN]["websocket_connections"]
+    connections[connection_id] = {
+        "connection": connection,
+        "connection_id": connection_id,
+        "player_name": player_name,
+        "connected_at": time.time(),
+        "last_ping": time.time(),
+        "subscribed_events": [],  # Empty list = all events
+    }
+    _LOGGER.info(
+        "WebSocket connected: conn_id=%s player=%s",
+        connection_id[:8] + "...",
+        player_name or "unregistered",
+    )
+
+
+def remove_connection(hass: HomeAssistant, connection_id: str) -> None:
+    """Unregister connection on disconnect.
+
+    Args:
+        hass: Home Assistant instance.
+        connection_id: Connection identifier to remove.
+    """
+    connections = hass.data[DOMAIN]["websocket_connections"]
+    if connection_id in connections:
+        player_name = connections[connection_id].get("player_name")
+        del connections[connection_id]
+        _LOGGER.info(
+            "WebSocket disconnected: conn_id=%s player=%s",
+            connection_id[:8] + "...",
+            player_name or "unregistered",
+        )
+
+
+def get_connection_count(hass: HomeAssistant) -> int:
+    """Return number of active connections.
+
+    Args:
+        hass: Home Assistant instance.
+
+    Returns:
+        Number of active WebSocket connections.
+    """
+    return len(hass.data[DOMAIN]["websocket_connections"])
+
+
+def update_last_ping(hass: HomeAssistant, connection_id: str) -> None:
+    """Update last_ping timestamp for connection (Story 6.2, AC-5).
+
+    Called when PONG frame received from client to track connection health.
+
+    Args:
+        hass: Home Assistant instance.
+        connection_id: Connection identifier to update.
+    """
+    connections = hass.data[DOMAIN]["websocket_connections"]
+    if connection_id in connections:
+        connections[connection_id]["last_ping"] = time.time()
+
+
+def get_connection_by_player_name(
+    hass: HomeAssistant, player_name: str
+) -> Optional[dict]:
+    """Lookup connection by player name (Story 6.2, Task 5).
+
+    Returns first matching connection if player has multiple connections.
+
+    Args:
+        hass: Home Assistant instance.
+        player_name: Player name to search for.
+
+    Returns:
+        Connection metadata dict or None if not found.
+    """
+    connections = hass.data[DOMAIN]["websocket_connections"]
+    for conn_info in connections.values():
+        if conn_info.get("player_name") == player_name:
+            return conn_info
+    return None
+
+
+# ============================================================================
+# Generic Event Bus - Broadcast Functions (Epic 6, Story 6.1)
+# ============================================================================
+
+
+async def broadcast_event(
+    hass: HomeAssistant,
+    event_type: str,
+    payload: dict,
+    exclude_connection_id: Optional[str] = None,
+) -> None:
+    """Broadcast event to all connected WebSocket clients concurrently.
+
+    Uses asyncio.gather() for optimal performance (2025 best practice).
+    Silently skips clients with send errors (best-effort delivery).
+
+    Implements Epic 6, Story 6.1 acceptance criteria:
+    - AC #1: Backend can call broadcast_event() from any module
+    - AC #2: Standardized message format {type: "beatsy/event", event_type: "...", data: {...}}
+    - AC #3: Optional event filtering via subscribed_events
+    - AC #4: Disconnected clients automatically removed
+    - AC #5: Best-effort delivery with return_exceptions=True
+
+    Args:
+        hass: Home Assistant instance.
+        event_type: Event type identifier (e.g., "player_joined").
+        payload: Event-specific data dict.
+        exclude_connection_id: Optional connection ID to skip (for joining player).
+    """
+    if DOMAIN not in hass.data or "websocket_connections" not in hass.data[DOMAIN]:
         _LOGGER.warning("Cannot broadcast: WebSocket connections not initialized")
         return
 
-    connections = hass.data[DOMAIN]["ws_connections"]
+    connections = hass.data[DOMAIN]["websocket_connections"]
 
     if not connections:
         _LOGGER.debug("No WebSocket clients connected for broadcast")
         return
 
-    # Prepare message
+    # Standardized event message format (AC #2)
     message = {
-        "type": msg_type,
-        "data": data,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "type": "beatsy/event",
+        "event_type": event_type,
+        "data": payload,
     }
 
-    # Track failed connections for cleanup
+    _LOGGER.debug(
+        "Broadcasting event: type=%s clients=%d", event_type, len(connections)
+    )
+
+    # Build list of send tasks for concurrent execution
+    send_tasks = []
+    connection_ids = []
+
+    for conn_id, conn_info in connections.items():
+        # Skip excluded connection (e.g., joining player already has full list)
+        if exclude_connection_id and conn_id == exclude_connection_id:
+            continue
+
+        # Optional event filtering (AC #3)
+        subscribed_events = conn_info.get("subscribed_events", [])
+        if subscribed_events and event_type not in subscribed_events:
+            # Client has filter and event doesn't match
+            _LOGGER.debug(
+                "Skipping conn_id=%s: event %s not in subscription filter",
+                conn_id[:8] + "...",
+                event_type,
+            )
+            continue
+
+        # Add send task
+        ws = conn_info["connection"]
+        send_tasks.append(ws.send_json(message))
+        connection_ids.append(conn_id)
+
+    if not send_tasks:
+        _LOGGER.debug("No clients to broadcast to (after filtering)")
+        return
+
+    # Concurrent broadcast using asyncio.gather (2025 best practice)
+    # return_exceptions=True ensures one failure doesn't stop others (AC #5)
+    results = await asyncio.gather(*send_tasks, return_exceptions=True)
+
+    # Handle failures: log errors and cleanup dead connections (AC #4, #5)
     failed_connections = []
-
-    # Broadcast to all connections
-    for conn_id, ws in connections.items():
-        try:
-            await ws.send_json(message)
-            _LOGGER.debug("Broadcast sent to %s", conn_id)
-
-        except ConnectionResetError:
-            _LOGGER.debug("Connection reset for %s during broadcast", conn_id)
-            failed_connections.append(conn_id)
-
-        except Exception as e:
-            _LOGGER.warning("Failed to send broadcast to %s: %s", conn_id, str(e))
+    for conn_id, result in zip(connection_ids, results):
+        if isinstance(result, Exception):
+            _LOGGER.error(
+                "Failed to send event to conn_id=%s: %s", conn_id[:8] + "...", result
+            )
             failed_connections.append(conn_id)
 
     # Cleanup failed connections
     for conn_id in failed_connections:
         if conn_id in connections:
             del connections[conn_id]
-            _LOGGER.info("Removed dead connection during broadcast: %s", conn_id)
+            _LOGGER.info(
+                "Removed dead connection during broadcast: %s", conn_id[:8] + "..."
+            )
 
-    if failed_connections:
-        _LOGGER.debug(
-            "Broadcast complete: %d delivered, %d failed",
-            len(connections),
-            len(failed_connections),
-        )
-    else:
-        _LOGGER.debug("Broadcast complete: %d clients", len(connections))
+    _LOGGER.debug(
+        "Broadcast complete: %d delivered, %d failed",
+        len(send_tasks) - len(failed_connections),
+        len(failed_connections),
+    )
 
 
-async def close_all_connections(hass: HomeAssistant) -> None:
-    """Close all active WebSocket connections.
+# Legacy alias for backward compatibility
+async def broadcast_message(
+    hass: HomeAssistant, msg_type: str, data: dict[str, Any]
+) -> None:
+    """Legacy broadcast function - delegates to broadcast_event.
 
-    Called during component unload to gracefully shutdown all connections.
+    DEPRECATED: Use broadcast_event() directly for new code.
+
+    Args:
+        hass: The Home Assistant instance.
+        msg_type: The message type identifier.
+        data: The message payload data.
+    """
+    await broadcast_event(hass, msg_type, data)
+
+
+async def cleanup_all_connections(hass: HomeAssistant) -> None:
+    """Close all connections on component unload.
+
+    Called from async_unload_entry() to ensure clean shutdown.
 
     Args:
         hass: The Home Assistant instance.
     """
-    if DOMAIN not in hass.data or "ws_connections" not in hass.data[DOMAIN]:
+    if DOMAIN not in hass.data or "websocket_connections" not in hass.data[DOMAIN]:
         return
 
-    connections = hass.data[DOMAIN]["ws_connections"]
+    connections = hass.data[DOMAIN]["websocket_connections"]
 
     if not connections:
         return
 
     _LOGGER.info("Closing %d WebSocket connections", len(connections))
 
-    # Close all connections
-    for conn_id, ws in list(connections.items()):
-        try:
-            await ws.close()
-            _LOGGER.debug("Closed WebSocket connection: %s", conn_id)
-        except Exception as e:
-            _LOGGER.warning("Error closing connection %s: %s", conn_id, str(e))
+    # Close all connections concurrently
+    close_tasks = []
+    for conn_id, conn_info in connections.items():
+        ws = conn_info["connection"]
+        close_tasks.append(ws.close())
+
+    # Use gather to close all at once
+    results = await asyncio.gather(*close_tasks, return_exceptions=True)
+
+    # Log any failures
+    for conn_id, result in zip(connections.keys(), results):
+        if isinstance(result, Exception):
+            _LOGGER.warning(
+                "Error closing connection %s: %s", conn_id[:8] + "...", result
+            )
 
     # Clear registry
     connections.clear()
     _LOGGER.info("All WebSocket connections closed")
+
+
+# Legacy alias for backward compatibility
+async def close_all_connections(hass: HomeAssistant) -> None:
+    """Legacy function - delegates to cleanup_all_connections.
+
+    DEPRECATED: Use cleanup_all_connections() for new code.
+
+    Args:
+        hass: The Home Assistant instance.
+    """
+    await cleanup_all_connections(hass)

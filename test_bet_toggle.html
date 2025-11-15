@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bet Toggle Test - Story 8.3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .test-pass {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+        .test-fail {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">Story 8.3: Bet Toggle Visual Feedback - Test Suite</h1>
+
+        <!-- Test Button (simulating actual bet toggle) -->
+        <div class="mb-8 p-6 bg-white rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold mb-4">Test Bet Toggle Button</h2>
+            <button
+                id="bet-toggle"
+                class="w-full bg-gray-300 text-gray-800 py-3 px-4 rounded-md text-lg font-semibold hover:bg-gray-400 min-h-[44px] transition-colors duration-75 active:scale-95"
+                data-bet-active="false"
+                aria-label="Toggle bet on this round"
+                aria-pressed="false"
+            >
+                BET ON IT
+            </button>
+            <p id="bet-status" class="mt-2 text-center text-sm text-gray-600">Status: OFF</p>
+            <p id="performance-log" class="mt-2 text-center text-sm text-gray-600">Performance: --</p>
+        </div>
+
+        <!-- Test Results -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Test Results</h2>
+            <div id="test-results"></div>
+            <button id="run-tests" class="mt-4 w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">
+                Run All Tests
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Mock global gameState (normally in ui-player.js)
+        const gameState = {
+            playerName: 'TestPlayer',
+            betActive: false,
+            yearGuess: null,
+            locked: false
+        };
+
+        // Mock WebSocket
+        let ws = {
+            readyState: WebSocket.OPEN,
+            send: function(data) {
+                console.log('Mock WS send:', JSON.parse(data));
+            }
+        };
+
+        // Test results container
+        const resultsContainer = document.getElementById('test-results');
+
+        /**
+         * Log test result
+         */
+        function logTest(name, passed, details = '') {
+            const div = document.createElement('div');
+            div.className = `test-result ${passed ? 'test-pass' : 'test-fail'}`;
+            div.innerHTML = `
+                <strong>${passed ? '✓ PASS' : '✗ FAIL'}</strong>: ${name}
+                ${details ? '<br><span style="font-size: 12px;">' + details + '</span>' : ''}
+            `;
+            resultsContainer.appendChild(div);
+        }
+
+        /**
+         * Story 8.3 Task 2: Handle bet toggle button click
+         */
+        function onBetToggle() {
+            const startTime = performance.now();
+
+            const button = document.getElementById('bet-toggle');
+            if (!button) {
+                console.error('Bet toggle button not found');
+                return;
+            }
+
+            // Check if inputs are locked
+            if (gameState.locked || button.disabled) {
+                console.log('Bet toggle disabled (inputs locked)');
+                return;
+            }
+
+            const currentState = button.dataset.betActive === 'true';
+            const newState = !currentState;
+
+            // Update button state
+            button.dataset.betActive = newState.toString();
+            button.setAttribute('aria-pressed', newState.toString());
+
+            // Update visual appearance
+            if (newState) {
+                // Bet ON: Red background, "BETTING ✓" text
+                button.classList.remove('bg-gray-300', 'hover:bg-gray-400');
+                button.classList.add('bg-red-600', 'hover:bg-red-700', 'text-white');
+                button.textContent = 'BETTING ✓';
+            } else {
+                // Bet OFF: Gray background, "BET ON IT" text
+                button.classList.remove('bg-red-600', 'hover:bg-red-700', 'text-white');
+                button.classList.add('bg-gray-300', 'hover:bg-gray-400');
+                button.textContent = 'BET ON IT';
+            }
+
+            // Update client-side state
+            gameState.betActive = newState;
+
+            // Send WebSocket command to broadcast to all players
+            placeBet(newState);
+
+            const duration = performance.now() - startTime;
+            document.getElementById('performance-log').textContent = `Performance: ${duration.toFixed(2)}ms`;
+            document.getElementById('bet-status').textContent = `Status: ${newState ? 'ON' : 'OFF'}`;
+
+            console.log(`Bet toggled: ${newState ? 'ON' : 'OFF'} (${duration.toFixed(2)}ms)`);
+
+            if (duration > 50) {
+                console.warn(`⚠️ Bet toggle exceeded 50ms target: ${duration.toFixed(2)}ms`);
+            }
+
+            return duration;
+        }
+
+        /**
+         * Story 8.3 Task 3: Send place_bet WebSocket command
+         */
+        function placeBet(betActive) {
+            const playerName = gameState.playerName;
+
+            if (!playerName) {
+                console.error('Cannot place bet: Player name not set');
+                return;
+            }
+
+            const message = {
+                type: 'beatsy/place_bet',
+                player_name: playerName,
+                bet_active: betActive
+            };
+
+            try {
+                ws.send(JSON.stringify(message));
+                console.log('Place bet command sent', message);
+            } catch (error) {
+                console.error('Failed to send place_bet command', error);
+            }
+        }
+
+        /**
+         * Get current bet state
+         */
+        function getBetState() {
+            const button = document.getElementById('bet-toggle');
+            if (!button) return false;
+            return button.dataset.betActive === 'true';
+        }
+
+        /**
+         * Reset bet toggle to OFF state
+         */
+        function resetBetToggle() {
+            const button = document.getElementById('bet-toggle');
+            if (!button) return;
+
+            button.dataset.betActive = 'false';
+            button.setAttribute('aria-pressed', 'false');
+            button.classList.remove('bg-red-600', 'hover:bg-red-700', 'text-white');
+            button.classList.add('bg-gray-300', 'hover:bg-gray-400');
+            button.textContent = 'BET ON IT';
+
+            gameState.betActive = false;
+            document.getElementById('bet-status').textContent = 'Status: OFF';
+        }
+
+        /**
+         * Lock inputs
+         */
+        function lockInputs() {
+            gameState.locked = true;
+            const button = document.getElementById('bet-toggle');
+            if (button) {
+                button.disabled = true;
+                button.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        /**
+         * Unlock inputs
+         */
+        function unlockInputs() {
+            gameState.locked = false;
+            const button = document.getElementById('bet-toggle');
+            if (button) {
+                button.disabled = false;
+                button.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        // Add click event listener
+        document.getElementById('bet-toggle').addEventListener('click', onBetToggle);
+
+        // Run all tests
+        document.getElementById('run-tests').addEventListener('click', () => {
+            resultsContainer.innerHTML = '';
+
+            // Test 1: Initial state is OFF
+            resetBetToggle();
+            const initialState = getBetState();
+            logTest('AC-1: Initial state is OFF', initialState === false,
+                `Expected: false, Got: ${initialState}`);
+
+            // Test 2: Toggle OFF → ON
+            resetBetToggle();
+            onBetToggle();
+            const toggledOn = getBetState();
+            const button = document.getElementById('bet-toggle');
+            const hasRedBg = button.classList.contains('bg-red-600');
+            const hasWhiteText = button.classList.contains('text-white');
+            const textIsCorrect = button.textContent === 'BETTING ✓';
+            logTest('AC-1: Toggle OFF → ON (state)', toggledOn === true,
+                `Expected: true, Got: ${toggledOn}`);
+            logTest('AC-1: Toggle OFF → ON (visual - red background)', hasRedBg,
+                `Has bg-red-600: ${hasRedBg}`);
+            logTest('AC-1: Toggle OFF → ON (visual - white text)', hasWhiteText,
+                `Has text-white: ${hasWhiteText}`);
+            logTest('AC-2: Button text is "BETTING ✓"', textIsCorrect,
+                `Expected: "BETTING ✓", Got: "${button.textContent}"`);
+
+            // Test 3: Toggle ON → OFF
+            onBetToggle();
+            const toggledOff = getBetState();
+            const hasGrayBg = button.classList.contains('bg-gray-300');
+            const textIsCorrect2 = button.textContent === 'BET ON IT';
+            logTest('AC-3: Toggle ON → OFF (state)', toggledOff === false,
+                `Expected: false, Got: ${toggledOff}`);
+            logTest('AC-1: Toggle ON → OFF (visual - gray background)', hasGrayBg,
+                `Has bg-gray-300: ${hasGrayBg}`);
+            logTest('AC-1: Toggle ON → OFF (text)', textIsCorrect2,
+                `Expected: "BET ON IT", Got: "${button.textContent}"`);
+
+            // Test 4: Multiple rapid toggles
+            resetBetToggle();
+            for (let i = 0; i < 10; i++) {
+                onBetToggle();
+            }
+            const finalState = getBetState();
+            logTest('AC-3: Rapid toggle (10x) ends in correct state', finalState === false,
+                `Expected: false (OFF after even number of toggles), Got: ${finalState}`);
+
+            // Test 5: Performance test
+            resetBetToggle();
+            const durations = [];
+            for (let i = 0; i < 10; i++) {
+                const duration = onBetToggle();
+                durations.push(duration);
+            }
+            const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
+            const maxDuration = Math.max(...durations);
+            logTest('AC-5: Performance < 50ms (average)', avgDuration < 50,
+                `Average: ${avgDuration.toFixed(2)}ms, Max: ${maxDuration.toFixed(2)}ms`);
+
+            // Test 6: Lock prevents toggle
+            resetBetToggle();
+            lockInputs();
+            const stateBefore = getBetState();
+            onBetToggle();
+            const stateAfter = getBetState();
+            logTest('AC-3: Locked state prevents toggle', stateBefore === stateAfter,
+                `State before: ${stateBefore}, State after: ${stateAfter}`);
+            unlockInputs();
+
+            // Test 7: Aria attributes
+            resetBetToggle();
+            onBetToggle();
+            const ariaPressed = button.getAttribute('aria-pressed');
+            logTest('Accessibility: aria-pressed updates', ariaPressed === 'true',
+                `Expected: "true", Got: "${ariaPressed}"`);
+
+            console.log('All tests completed!');
+        });
+
+        // Auto-run tests on load
+        setTimeout(() => {
+            document.getElementById('run-tests').click();
+        }, 500);
+    </script>
+</body>
+</html>

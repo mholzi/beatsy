@@ -158,6 +158,7 @@
                         src=""
                         alt="Album Cover"
                         class="w-72 h-72 rounded-lg shadow-2xl object-cover"
+                        onerror="this.src='/api/beatsy/static/assets/placeholder-cover.png'"
                     />
                 </div>
 
@@ -173,7 +174,7 @@
 
                 <!-- Timer Display -->
                 <div class="text-center mb-6">
-                    <div id="timer" class="text-5xl font-bold text-purple-600">
+                    <div id="timer" class="text-4xl font-bold text-gray-800">
                         --
                     </div>
                     <p class="text-sm text-gray-500 mt-1">seconds remaining</p>
@@ -197,13 +198,20 @@
                 <div class="mb-4">
                     <button
                         id="bet-toggle"
-                        class="w-full bg-yellow-400 text-gray-800 py-3 px-4 rounded-md text-lg font-semibold hover:bg-yellow-500 min-h-[44px] transition-colors border-2 border-yellow-600"
-                        aria-label="Bet toggle"
+                        class="w-full bg-gray-300 text-gray-800 py-3 px-4 rounded-md text-lg font-semibold hover:bg-gray-400 min-h-[44px] transition-colors duration-75 active:scale-95"
+                        data-bet-active="false"
+                        aria-label="Toggle bet on this round"
                         aria-pressed="false"
                     >
-                        🎲 BET ON IT
+                        BET ON IT
                     </button>
                     <p class="text-xs text-gray-500 mt-1 text-center">Double your points if you're right!</p>
+                </div>
+
+                <!-- Story 8.4: Betting Indicators -->
+                <div id="betting-indicators" class="text-sm text-center mt-2 mb-4" aria-live="polite" aria-atomic="true">
+                    <span class="font-semibold text-gray-700">Betting Now:</span>
+                    <span id="betting-players-list" class="text-gray-500">None</span>
                 </div>
 
                 <!-- Submit Guess Button -->
@@ -214,6 +222,41 @@
                 >
                     Submit Guess
                 </button>
+
+                <!-- Story 8.6: Submission Confirmation Message -->
+                <div id="submission-confirmation" class="hidden"></div>
+            </div>
+        </div>
+
+        <!-- Story 9.1 & 9.2: Results View -->
+        <div id="results-view" class="hidden min-h-screen bg-gradient-to-b from-green-50 to-green-100 p-4">
+            <div class="max-w-md mx-auto mt-8">
+                <!-- Story 9.2: Correct Year Section -->
+                <div id="correct-year-section" class="text-center mb-6">
+                    <h2 class="text-2xl text-gray-700 mb-2">The answer was:</h2>
+                    <div id="correct-year" class="text-6xl font-bold text-gray-900"></div>
+                </div>
+
+                <!-- Story 9.3: Round Results Board -->
+                <div id="round-results-section" class="bg-white rounded-lg shadow-md p-3 mb-4">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-3">Round Results</h3>
+                    <div id="round-results-list" class="space-y-2 max-h-80 overflow-y-auto" tabindex="0" role="region" aria-label="Round results list">
+                        <!-- Results items will be inserted here by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Story 9.4: Overall Leaderboard -->
+                <div id="leaderboard-section" class="bg-white rounded-lg shadow-md p-3 mb-4">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-3">Leaderboard</h3>
+                    <div id="leaderboard-list" class="space-y-2">
+                        <!-- Leaderboard items will be inserted here by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Story 9.5: Waiting State -->
+                <div id="waiting-state" role="status" aria-live="polite" class="text-center mt-8 hidden">
+                    <p class="text-lg text-gray-600 waiting-pulse">Waiting for next song...</p>
+                </div>
             </div>
         </div>
 

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Story 5.1 Test - Next Song</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #0f0;
+        }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            margin: 10px;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #0d0;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 20px;
+            background: #000;
+            border: 2px solid #0f0;
+            min-height: 200px;
+            white-space: pre-wrap;
+        }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+        .info { color: #0ff; }
+    </style>
+</head>
+<body>
+    <h1>🎵 Story 5.1: Random Song Selection Test</h1>
+
+    <button onclick="testSingle()">Test Single Song</button>
+    <button onclick="testMultiple()">Test 5 Songs</button>
+    <button onclick="testUntilEmpty()">Test Until Empty</button>
+    <button onclick="clearOutput()">Clear</button>
+
+    <div id="output">Ready. Click a button to test...</div>
+
+    <script>
+        const output = document.getElementById('output');
+
+        function log(message, type = 'info') {
+            const line = document.createElement('div');
+            line.className = type;
+            line.textContent = message;
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            output.innerHTML = 'Ready. Click a button to test...';
+        }
+
+        async function testSingle() {
+            log('🎵 Testing single song selection...', 'info');
+
+            const adminKey = localStorage.getItem('beatsy_admin_key');
+            if (!adminKey) {
+                log('❌ No admin_key found! Start a game first.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/beatsy/api/next_song', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({admin_key: adminKey})
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    log(`✅ Round ${data.round_number}: "${data.title}" by ${data.artist}`, 'success');
+                } else {
+                    log(`❌ ${data.error}: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Request failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testMultiple() {
+            log('🎵 Testing 5 random song selections...', 'info');
+
+            const adminKey = localStorage.getItem('beatsy_admin_key');
+            if (!adminKey) {
+                log('❌ No admin_key found! Start a game first.', 'error');
+                return;
+            }
+
+            const songs = [];
+
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const response = await fetch('/api/beatsy/api/next_song', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({admin_key: adminKey})
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        log(`✅ Round ${data.round_number}: "${data.title}" by ${data.artist}`, 'success');
+                        songs.push(data.title);
+                    } else {
+                        log(`❌ ${data.error}: ${data.message}`, 'error');
+                        break;
+                    }
+
+                    await new Promise(r => setTimeout(r, 200));
+                } catch (error) {
+                    log(`❌ Request ${i+1} failed: ${error.message}`, 'error');
+                    break;
+                }
+            }
+
+            if (songs.length > 0) {
+                const unique = new Set(songs);
+                log(`\n📊 Selected ${songs.length} songs`, 'info');
+                log(unique.size === songs.length ?
+                    `✅ No duplicates!` :
+                    `❌ ${songs.length - unique.size} duplicate(s) detected!`,
+                    unique.size === songs.length ? 'success' : 'error'
+                );
+            }
+        }
+
+        async function testUntilEmpty() {
+            log('🎵 Testing until playlist exhausted...', 'info');
+
+            const adminKey = localStorage.getItem('beatsy_admin_key');
+            if (!adminKey) {
+                log('❌ No admin_key found! Start a game first.', 'error');
+                return;
+            }
+
+            let count = 0;
+
+            while (count < 100) { // Safety limit
+                try {
+                    const response = await fetch('/api/beatsy/api/next_song', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({admin_key: adminKey})
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        count++;
+                        if (count % 5 === 0) {
+                            log(`✅ ${count} songs selected...`, 'info');
+                        }
+                    } else {
+                        log(`\n🛑 Playlist exhausted after ${count} songs`, 'info');
+                        log(`   ${data.error}: ${data.message}`, 'error');
+                        break;
+                    }
+
+                    await new Promise(r => setTimeout(r, 100));
+                } catch (error) {
+                    log(`❌ Request failed: ${error.message}`, 'error');
+                    break;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

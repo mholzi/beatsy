@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Story 9.2 Test - Correct Year Reveal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-md mx-auto">
+        <h1 class="text-2xl font-bold mb-4">Story 9.2: Correct Year Reveal - Test</h1>
+
+        <!-- Results View -->
+        <div id="results-view" class="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 p-4">
+            <div class="max-w-md mx-auto mt-8">
+                <!-- Story 9.2: Correct Year Section -->
+                <div id="correct-year-section" class="text-center mb-6">
+                    <h2 class="text-2xl text-gray-700 mb-2">The answer was:</h2>
+                    <div id="correct-year" class="text-6xl font-bold text-gray-900"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Controls -->
+        <div class="bg-white p-4 rounded shadow mt-4">
+            <h2 class="text-xl font-semibold mb-4">Test Controls</h2>
+
+            <div class="mb-4">
+                <label class="block mb-2">Year to display:</label>
+                <input type="number" id="test-year" value="1986" class="border p-2 rounded w-full" min="1900" max="2099">
+            </div>
+
+            <button onclick="testRenderYear()" class="bg-blue-600 text-white px-4 py-2 rounded w-full mb-2">
+                Test Render Year
+            </button>
+
+            <button onclick="testInvalidYear()" class="bg-yellow-600 text-white px-4 py-2 rounded w-full mb-2">
+                Test Invalid Year (should show "Unknown")
+            </button>
+
+            <button onclick="testNullYear()" class="bg-red-600 text-white px-4 py-2 rounded w-full">
+                Test Null Year (should show "Unknown")
+            </button>
+        </div>
+
+        <!-- Test Results Log -->
+        <div class="bg-gray-800 text-white p-4 rounded shadow mt-4">
+            <h3 class="font-semibold mb-2">Console Log:</h3>
+            <pre id="console-log" class="text-xs overflow-auto max-h-40"></pre>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import the render function
+        import { renderCorrectYear } from './custom_components/beatsy/www/js/ui-results.js';
+
+        // Make functions available globally for buttons
+        window.testRenderYear = function() {
+            const year = parseInt(document.getElementById('test-year').value);
+            log(`Testing renderCorrectYear(${year})`);
+            renderCorrectYear(year);
+        };
+
+        window.testInvalidYear = function() {
+            log('Testing renderCorrectYear(999) - Invalid year');
+            renderCorrectYear(999);
+        };
+
+        window.testNullYear = function() {
+            log('Testing renderCorrectYear(null) - Null year');
+            renderCorrectYear(null);
+        };
+
+        function log(message) {
+            const logEl = document.getElementById('console-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logEl.textContent += `[${timestamp}] ${message}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        // Capture console.log and console.error
+        const originalLog = console.log;
+        const originalError = console.error;
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            log('LOG: ' + args.join(' '));
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            log('ERROR: ' + args.join(' '));
+        };
+
+        // Initial test
+        log('Page loaded. Ready for testing.');
+        log('Click buttons above to test different scenarios.');
+    </script>
+</body>
+</html>

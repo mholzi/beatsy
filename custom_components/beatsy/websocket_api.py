@@ -45,9 +45,13 @@ from .game_state import (
     initialize_game,
     initialize_round,
     prepare_round_started_payload,
+    reset_game,
+    reset_game_async,
     select_random_song,
     update_bet,
 )
+from .validation import validate_player_name, validate_year_guess
+from .rate_limiter import RATE_LIMITS
 
 if TYPE_CHECKING:
     from homeassistant.components.websocket_api import ActiveConnection
@@ -61,6 +65,8 @@ WS_TYPE_SUBMIT_GUESS = "beatsy/submit_guess"
 WS_TYPE_PLACE_BET = "beatsy/place_bet"
 WS_TYPE_START_GAME = "beatsy/start_game"
 WS_TYPE_NEXT_SONG = "beatsy/next_song"
+WS_TYPE_SKIP_SONG = "beatsy/skip_song"  # Story 7.5
+WS_TYPE_RESET_GAME = "beatsy/reset_game"  # Story 5.7
 
 # Command schemas with voluptuous validation (HA 2025 format)
 SCHEMA_JOIN_GAME = {
@@ -91,10 +97,19 @@ SCHEMA_PLACE_BET = {
 SCHEMA_START_GAME = {
     vol.Required("type"): WS_TYPE_START_GAME,
     vol.Required("config"): dict,  # Game configuration
+    vol.Optional("force", default=False): bool,  # Story 7.3: Force start despite conflict warning
 }
 
 SCHEMA_NEXT_SONG = {
     vol.Required("type"): WS_TYPE_NEXT_SONG,
+}
+
+SCHEMA_SKIP_SONG = {
+    vol.Required("type"): WS_TYPE_SKIP_SONG,
+}
+
+SCHEMA_RESET_GAME = {
+    vol.Required("type"): WS_TYPE_RESET_GAME,
 }
 
 
@@ -150,24 +165,53 @@ def handle_join_game(
 
     Registers a new player and tracks WebSocket connection.
 
+    Story 10.6: Rate limiting applied - 1 join per 5 seconds per connection.
+
     Args:
         hass: Home Assistant instance
         connection: WebSocket connection
         msg: Command message with player_name
     """
     try:
+        # Story 10.6: Rate limiting check (1 join per 5 seconds per connection)
+        rate_limiter = hass.data[DOMAIN].get("rate_limiter")
+        if rate_limiter:
+            # Use connection ID as rate limit key
+            rate_key = f"join_game:{id(connection)}"
+            limit = RATE_LIMITS["join_game"]
+            is_allowed, retry_after = rate_limiter.check_limit(rate_key, limit)
+
+            if not is_allowed:
+                _LOGGER.warning(
+                    "Rate limit exceeded for join_game: retry_after=%.1fs",
+                    retry_after or 0,
+                )
+                connection.send_error(
+                    msg["id"],
+                    "rate_limit_exceeded",
+                    f"Too many join attempts. Please wait {int(retry_after or 5)} seconds.",
+                )
+                return
+
         requested_name = msg["player_name"].strip()
         game_id = msg.get("game_id")  # Optional, future use
 
-        # Validate non-empty name
-        if not requested_name or not requested_name.strip():
+        # Story 10.5: Validate and sanitize player name
+        validation_result = validate_player_name(requested_name)
+        if not validation_result.valid:
+            _LOGGER.warning(
+                f"Player name validation failed: {requested_name} - {validation_result.error_message}"
+            )
             connection.send_error(
-                msg["id"], "invalid_name", "Player name cannot be empty"
+                msg["id"], "invalid_player_name", validation_result.error_message
             )
             return
 
+        # Use sanitized name for safety
+        sanitized_name = validation_result.sanitized_value
+
         # Find unique name (handles duplicates automatically)
-        unique_name = find_unique_name(hass, requested_name)
+        unique_name = find_unique_name(hass, sanitized_name)
         name_adjusted = unique_name != requested_name
 
         _LOGGER.info(
@@ -216,7 +260,7 @@ def handle_join_game(
                 "success": True,
                 "player_name": unique_name,
                 "original_name": requested_name,
-                "name_adjusted": name_adjusted,
+                "name_adjusted": name_adjusted or (unique_name != sanitized_name),
                 "session_id": session_id,
                 "connection_id": connection_id,
                 "players": players_list,  # Story 4.3: Full player list for lobby
@@ -265,6 +309,21 @@ def handle_reconnect(
     try:
         session_id = msg["session_id"]
         player_name = msg["player_name"]
+
+        # Story 10.5: Validate player name
+        name_validation = validate_player_name(player_name)
+        if not name_validation.valid:
+            _LOGGER.warning(
+                f"Invalid player name in reconnect: {player_name} - {name_validation.error_message}"
+            )
+            connection.send_result(
+                msg["id"],
+                {
+                    "success": False,
+                    "reason": "invalid_player_name",
+                },
+            )
+            return
 
         _LOGGER.info(f"Player '{player_name}' attempting reconnection (session: {session_id})")
 
@@ -459,6 +518,8 @@ def handle_place_bet(
 
     Updates player's bet status for current round.
 
+    Story 10.6: Rate limiting applied - 5 toggles per second per player.
+
     Args:
         hass: Home Assistant instance
         connection: WebSocket connection
@@ -467,6 +528,26 @@ def handle_place_bet(
     try:
         player_name = msg["player_name"]
         bet = msg["bet"]
+
+        # Story 10.6: Rate limiting check (5 toggles per second per player)
+        rate_limiter = hass.data[DOMAIN].get("rate_limiter")
+        if rate_limiter:
+            rate_key = f"place_bet:{player_name}"
+            limit = RATE_LIMITS["place_bet"]
+            is_allowed, retry_after = rate_limiter.check_limit(rate_key, limit)
+
+            if not is_allowed:
+                _LOGGER.warning(
+                    "Rate limit exceeded for place_bet (player=%s): retry_after=%.1fs",
+                    player_name,
+                    retry_after or 0,
+                )
+                connection.send_error(
+                    msg["id"],
+                    "rate_limit_exceeded",
+                    "Bet toggle too fast. Please slow down.",
+                )
+                return
 
         _LOGGER.debug(f"Player '{player_name}' {'placing' if bet else 'removing'} bet")
 
@@ -490,11 +571,11 @@ def handle_place_bet(
             },
         )
 
-        # Broadcast bet update
+        # Broadcast bet placement
         hass.async_create_task(
             broadcast_event(
                 hass,
-                "bet_updated",
+                "bet_placed",
                 {
                     "player_name": player_name,
                     "bet": bet,
@@ -510,30 +591,43 @@ def handle_place_bet(
         connection.send_error(msg["id"], "internal_error", "Failed to place bet")
 
 
-@callback
 @websocket_api.websocket_command(SCHEMA_START_GAME)
-def handle_start_game(
+@websocket_api.async_response
+async def handle_start_game(
     hass: HomeAssistant,
     connection: ActiveConnection,
     msg: dict,
 ) -> None:
     """Handle start_game command (admin only).
 
-    Initializes game with provided configuration.
-    Admin validation placeholder for Epic 3.
+    Story 7.3: Checks media player state before starting game. If player is
+    currently playing or paused, returns conflict_warning to admin. Admin can
+    then retry with force=true to proceed and save current state.
 
     Args:
         hass: Home Assistant instance
         connection: WebSocket connection
-        msg: Command message with config
+        msg: Command message with config and optional force flag
+
+    Response:
+        Success (no conflict): {success: true, game_started: true, players: int}
+        Conflict warning: {conflict_warning: true, current_media: {title, artist, state}}
+        Force success: {success: true, game_started: true, state_saved: true}
     """
     try:
+        from .spotify_service import (
+            get_media_player_state,
+            save_player_state,
+            should_warn_conflict,
+        )
+
         config = msg["config"]
+        force = msg.get("force", False)
 
         # TODO: Verify admin status (future enhancement - Epic 3)
         # For Epic 2, accept start_game from any connection
 
-        _LOGGER.info(f"Starting game with config: {config}")
+        _LOGGER.info("Starting game with config: %s (force=%s)", config, force)
 
         # Validate at least 2 players
         players = get_players(hass)
@@ -545,6 +639,45 @@ def handle_start_game(
             )
             return
 
+        # Story 7.3: Check media player state before starting
+        media_player_entity_id = config.get("media_player_entity_id")
+
+        if media_player_entity_id and not force:
+            # Query current media player state
+            player_state = await get_media_player_state(hass, media_player_entity_id)
+
+            # Check if conflict warning should be shown
+            if should_warn_conflict(player_state):
+                # AC-1: Show conflict warning to admin
+                _LOGGER.info(
+                    "Media player %s is %s, returning conflict warning to admin",
+                    media_player_entity_id,
+                    player_state.state,
+                )
+
+                # AC-2: Return conflict_warning response with current media info
+                connection.send_result(
+                    msg["id"],
+                    {
+                        "conflict_warning": True,
+                        "current_media": {
+                            "entity_id": player_state.entity_id,
+                            "title": player_state.media_title or "Unknown",
+                            "artist": player_state.media_artist or "Unknown",
+                            "state": player_state.state,
+                        },
+                    },
+                )
+                return
+
+        # AC-3: If force=true or no conflict, save state and proceed
+        if media_player_entity_id and force:
+            # Get fresh state for saving
+            player_state = await get_media_player_state(hass, media_player_entity_id)
+            if player_state is not None:
+                # Save state for restoration (Story 7.6)
+                save_player_state(hass, player_state)
+
         # Initialize game with config (placeholder for Epic 5)
         initialize_game(hass, config)
 
@@ -555,26 +688,25 @@ def handle_start_game(
                 "success": True,
                 "game_started": True,
                 "players": len(players),
+                "state_saved": force and media_player_entity_id is not None,
             },
         )
 
         # Broadcast game_started event
-        hass.async_create_task(
-            broadcast_event(
-                hass,
-                "game_started",
-                {
-                    "config": config,
-                    "players": len(players),
-                },
-            )
+        await broadcast_event(
+            hass,
+            "game_started",
+            {
+                "config": config,
+                "players": len(players),
+            },
         )
 
     except ValueError as e:
-        _LOGGER.warning(f"Validation error in start_game: {e}")
+        _LOGGER.warning("Validation error in start_game: %s", e)
         connection.send_error(msg["id"], "validation_error", str(e))
     except Exception as e:
-        _LOGGER.error(f"Error in start_game: {e}", exc_info=True)
+        _LOGGER.error("Error in start_game: %s", e, exc_info=True)
         connection.send_error(msg["id"], "internal_error", "Failed to start game")
 
 
@@ -610,6 +742,25 @@ async def handle_next_song(
         # TODO: Verify admin status (future enhancement - Epic 3)
 
         _LOGGER.info("Admin requested next song")
+
+        # Story 5.4, AC-9: Manual round end support
+        # If there's a current round, end it before starting new round
+        from .game_state import get_game_state, end_round
+        state = get_game_state(hass)
+
+        if state.current_round is not None:
+            # Cancel timer task if it exists and is still running
+            if state.round_timer_task is not None and not state.round_timer_task.done():
+                state.round_timer_task.cancel()
+                _LOGGER.info(
+                    "Cancelled timer task for round %d (manual round end by admin)",
+                    state.current_round.round_number,
+                )
+
+            # End current round (calculates scores, broadcasts round_ended event)
+            # This ensures proper round lifecycle: active -> ended -> new round
+            await end_round(hass)
+            _LOGGER.info("Round ended manually by admin before starting new round")
 
         # Story 5.1, AC-1: Select random song from available playlist
         # This function handles AC-1 through AC-7 (selection, validation, logging, etc.)
@@ -681,62 +832,373 @@ async def handle_next_song(
         )
 
 
-async def broadcast_event(
+@websocket_api.websocket_command(SCHEMA_SKIP_SONG)
+@websocket_api.async_response
+async def handle_skip_song(
     hass: HomeAssistant,
-    event_type: str,
-    data: dict,
-    exclude_connection_id: str | None = None,
+    connection: ActiveConnection,
+    msg: dict,
 ) -> None:
-    """Broadcast event to all connected WebSocket clients.
+    """Handle skip_song command (admin only) - replaces failed song with new one.
+
+    Story 7.5, Task 4: Allows admin to manually skip a song that failed to play.
+    Similar to next_song but triggered during playback errors. Selects a new random
+    song and starts a new round immediately.
 
     Args:
         hass: Home Assistant instance
-        event_type: Event identifier (e.g., "player_joined", "round_started")
-        data: Event payload
-        exclude_connection_id: Optional connection ID to exclude from broadcast
+        connection: WebSocket connection (admin)
+        msg: Command message with type "beatsy/skip_song"
+
+    Response:
+        Success: {"success": true, "result": {"round_number": int}}
+        Error: {"success": false, "error": {"code": "...", "message": "..."}}
+
+    Error Codes:
+        - playlist_exhausted: No more songs available to play
+        - invalid_song_data: Selected song has invalid structure
+        - internal_error: Unexpected failure during song selection
+
+    Flow:
+        1. Select new random song (select_random_song)
+        2. Initialize new round with selected song (initialize_round)
+        3. Broadcast round_started event to all clients
+        4. Return success with round_number to admin
     """
     try:
-        message = {
-            "type": "beatsy/event",
-            "event_type": event_type,
-            "data": data,
-        }
+        # TODO: Verify admin status (future enhancement - Epic 3)
 
-        # Get connections from first entry's state
-        entries = list(hass.data[DOMAIN].values())
-        if not entries:
-            _LOGGER.debug(f"No entries found to broadcast {event_type}")
-            return
+        _LOGGER.info("Admin requested skip to next song (playback error recovery)")
 
-        state = entries[0]
-        connections = state.get("websocket_connections", {})
+        # Story 7.5: Select new random song to replace failed one
+        selected_song = await select_random_song(hass)
 
-        if not connections:
-            _LOGGER.debug(f"No connections to broadcast {event_type}")
-            return
+        # Initialize new round with selected song
+        round_state = await initialize_round(hass, selected_song)
 
-        _LOGGER.debug(f"Broadcasting {event_type} to {len(connections)} clients")
+        # Prepare round_started payload (excludes year field for security)
+        payload = prepare_round_started_payload(round_state)
 
-        # Send to all connected clients (excluding specified connection if provided)
-        failed_connections = []
-        for connection_id, conn_info in connections.items():
-            # Skip excluded connection (Story 4.3: joining player already has full list)
-            if exclude_connection_id and connection_id == exclude_connection_id:
-                continue
+        # Broadcast round_started event to all connected clients
+        await broadcast_event(hass, "round_started", payload)
 
-            try:
-                connection = conn_info["connection"]
-                # Send message using connection's send_message method
-                connection.send_message(
-                    websocket_api.event_message(connection_id, message)
-                )
-            except Exception as e:
-                _LOGGER.warning(f"Failed to broadcast to {connection_id}: {e}")
-                failed_connections.append(connection_id)
+        # Log skip action
+        from .game_state import get_game_state
+        state = get_game_state(hass)
+        players_count = len(state.players)
 
-        # Clean up failed connections
-        for connection_id in failed_connections:
-            connections.pop(connection_id, None)
+        _LOGGER.info(
+            "Skipped to Round %d: '%s' by %s (%d players connected)",
+            round_state.round_number,
+            selected_song.get("title"),
+            selected_song.get("artist"),
+            players_count,
+        )
+
+        # Return success to admin with round_number
+        connection.send_result(
+            msg["id"],
+            {
+                "success": True,
+                "result": {
+                    "round_number": round_state.round_number,
+                },
+            },
+        )
+
+    except PlaylistExhaustedError as e:
+        # Handle empty playlist gracefully
+        _LOGGER.warning("Playlist exhausted when admin requested skip song")
+        connection.send_error(
+            msg["id"],
+            e.code,  # "playlist_exhausted"
+            e.message,
+        )
+
+    except ValueError as e:
+        # Song validation error (missing required fields)
+        _LOGGER.error(f"Song validation error in skip_song: {e}", exc_info=True)
+        connection.send_error(
+            msg["id"],
+            "invalid_song_data",
+            f"Selected song has invalid structure: {str(e)}",
+        )
 
     except Exception as e:
-        _LOGGER.error(f"Error in broadcast_event: {e}", exc_info=True)
+        # Unexpected error
+        _LOGGER.error(f"Unexpected error in skip_song: {e}", exc_info=True)
+        connection.send_error(
+            msg["id"], "internal_error", "Failed to skip to next song"
+        )
+
+
+@websocket_api.websocket_command(SCHEMA_SUBMIT_GUESS)
+@websocket_api.async_response
+async def handle_submit_guess(
+    hass: HomeAssistant,
+    connection: ActiveConnection,
+    msg: dict,
+) -> None:
+    """Handle submit_guess command (player action).
+
+    Story 5.3: Records player's year guess and bet choice during active round.
+    Story 10.6: Rate limiting applied - 1 guess per 2 seconds per player.
+    Validates timing (with 2s grace period), prevents duplicates, stores guess.
+
+    Validation Chain (fail-fast):
+    1. Rate limiting check (Story 10.6)
+    2. Active round check → status == "active"
+    3. Timer validation → elapsed <= (timer_duration + 2s grace)
+    4. Duplicate check → player_name not in guesses
+    5. Storage → add_guess() appends to current_round.guesses
+
+    Args:
+        hass: Home Assistant instance
+        connection: WebSocket connection
+        msg: Command message with:
+            - player_name: str (1-20 chars, validated by schema)
+            - year_guess: int (1950-2050, validated by schema)
+            - bet_placed: bool
+
+    Response:
+        Success: {"success": true, "result": {"message": "Guess submitted"}}
+        Error: {"success": false, "error": {"code": "...", "message": "..."}}
+
+    Error Codes:
+        - rate_limit_exceeded: Too many guesses in time window (Story 10.6)
+        - no_active_round: No round in progress or round ended
+        - timer_expired: Submission after timer + grace period
+        - already_submitted: Player already submitted guess for this round
+        - guess_storage_failed: Unexpected error storing guess
+
+    AC-1: Schema validation (player_name, year_guess, bet_placed) ✓ (decorator)
+    AC-2: Active round validation (current_round exists, status == "active")
+    AC-3: Timer validation (elapsed <= timer_duration + 2s grace period)
+    AC-4: Duplicate prevention (player_name not in guesses)
+    AC-5: Guess storage (add_guess() with timestamp)
+    AC-6: Response latency (<100ms target)
+    AC-7: Comprehensive logging (INFO/WARNING with context)
+    AC-8: Integration with Story 5.2 RoundState
+    AC-9: Error handling (no crashes, consistent state)
+    """
+    try:
+        player_name = msg["player_name"]
+        year_guess = msg["year_guess"]
+        bet_placed = msg["bet_placed"]
+
+        # Story 10.6: Rate limiting check (1 guess per 2 seconds per player)
+        rate_limiter = hass.data[DOMAIN].get("rate_limiter")
+        if rate_limiter:
+            rate_key = f"submit_guess:{player_name}"
+            limit = RATE_LIMITS["submit_guess"]
+            is_allowed, retry_after = rate_limiter.check_limit(rate_key, limit)
+
+            if not is_allowed:
+                _LOGGER.warning(
+                    "Rate limit exceeded for submit_guess (player=%s): retry_after=%.1fs",
+                    player_name,
+                    retry_after or 0,
+                )
+                connection.send_error(
+                    msg["id"],
+                    "rate_limit_exceeded",
+                    f"Guess submitted too quickly. Please wait {int(retry_after or 2)} seconds.",
+                )
+                return
+
+        # Story 10.5: Validate player name
+        name_validation = validate_player_name(player_name)
+        if not name_validation.valid:
+            _LOGGER.warning(
+                f"Invalid player name in submit_guess: {player_name} - {name_validation.error_message}"
+            )
+            connection.send_error(
+                msg["id"], "invalid_player_name", name_validation.error_message
+            )
+            return
+
+        # AC-2: Validate active round exists
+        current_round = get_current_round(hass)
+
+        if current_round is None or current_round.status != "active":
+            # AC-2, AC-7: Log WARNING for no active round
+            _LOGGER.warning(
+                "Player %s attempted guess with no active round (status: %s)",
+                player_name,
+                current_round.status if current_round else "None",
+            )
+            connection.send_error(
+                msg["id"],
+                "no_active_round",
+                "No active round to submit guess to",
+            )
+            return
+
+        # Story 10.5: Validate year guess against configured range
+        # Get year range from game state
+        from .game_state import get_game_state
+        state = get_game_state(hass)
+        min_year = getattr(state, 'year_range_min', 1950)
+        max_year = getattr(state, 'year_range_max', 2050)
+
+        year_validation = validate_year_guess(year_guess, min_year, max_year)
+        if not year_validation.valid:
+            _LOGGER.warning(
+                f"Invalid year guess from {player_name}: {year_guess} - {year_validation.error_message}"
+            )
+            connection.send_error(
+                msg["id"], "invalid_year_guess", year_validation.error_message
+            )
+            return
+
+        # Use validated year value
+        year_guess = year_validation.sanitized_value
+
+        # AC-3: Validate timer hasn't expired (with 2s grace period)
+        # Server timestamp authority - calculate elapsed time from server clock
+        elapsed = time.time() - current_round.started_at
+        deadline = current_round.timer_duration + 2.0  # 2-second grace period
+
+        if elapsed > deadline:
+            # AC-3, AC-7: Log WARNING for late submission with timing details
+            _LOGGER.warning(
+                "Late guess from %s: %.1fs > %.1fs deadline (round %d)",
+                player_name,
+                elapsed,
+                deadline,
+                current_round.round_number,
+            )
+            connection.send_error(
+                msg["id"],
+                "timer_expired",
+                "Round has ended, submission too late",
+            )
+            return
+
+        # AC-4: Check for duplicate submission (first submission wins)
+        # Linear search O(n) acceptable for 20 players
+        for existing_guess in current_round.guesses:
+            if existing_guess["player_name"] == player_name:
+                # AC-4, AC-7: Log WARNING for duplicate attempt
+                _LOGGER.warning(
+                    "Duplicate guess attempt from %s (round %d)",
+                    player_name,
+                    current_round.round_number,
+                )
+                connection.send_error(
+                    msg["id"],
+                    "already_submitted",
+                    "You have already submitted a guess for this round",
+                )
+                return
+
+        # AC-5: Store guess via add_guess() from Story 5.2
+        # This function appends to current_round.guesses with structure:
+        # {player_name, year_guess, bet_placed, submitted_at: time.time()}
+        add_guess(hass, player_name, year_guess, bet_placed)
+
+        # AC-6, AC-7: Log INFO for successful submission with context
+        _LOGGER.info(
+            "Guess submitted: player=%s, year=%d, bet=%s, round=%d",
+            player_name,
+            year_guess,
+            bet_placed,
+            current_round.round_number,
+        )
+
+        # AC-6: Return success response (target <100ms)
+        connection.send_result(
+            msg["id"],
+            {
+                "success": True,
+                "result": {"message": "Guess submitted"},
+            },
+        )
+
+    except Exception as e:
+        # AC-9: Error handling for unexpected failures
+        # Don't crash - log ERROR and return consistent error response
+        _LOGGER.error(
+            "Guess storage failed: player=%s, error=%s",
+            msg.get("player_name", "unknown"),
+            str(e),
+            exc_info=True,
+        )
+        connection.send_error(
+            msg["id"],
+            "guess_storage_failed",
+            "Failed to store guess",
+        )
+
+
+@websocket_api.async_response
+@websocket_api.websocket_command(SCHEMA_RESET_GAME)
+async def handle_reset_game(
+    hass: HomeAssistant,
+    connection: ActiveConnection,
+    msg: dict,
+) -> None:
+    """Handle reset_game command (admin only).
+
+    Story 5.7: Resets all ephemeral game state to prepare for new game session.
+    Story 7.6: Restores media player state before clearing game state.
+    Clears players, current_round, played_songs, and restores available_songs from original_playlist.
+    Broadcasts game_reset event to all connected clients.
+
+    Args:
+        hass: Home Assistant instance
+        connection: WebSocket connection (admin)
+        msg: Command message with type "beatsy/reset_game"
+
+    Response:
+        Success: {"success": true}
+        Error: {"success": false, "error": {"code": "...", "message": "..."}}
+
+    AC-6: Admin sends beatsy/reset_game command, handler calls reset_game_async(hass)
+    AC-3: Broadcast game_reset event to all clients with timestamp
+    Story 7.6 AC-1: Restore media player state during reset
+    """
+    try:
+        # TODO: Verify admin status (future enhancement - Epic 3)
+        # For now, accept reset_game from any connection
+
+        _LOGGER.info("Game reset requested by WebSocket connection %s", connection.id)
+
+        # AC-1, AC-2, AC-5: Call reset_game_async() function (async with media player restoration)
+        # Story 7.6: This will restore media player state before clearing game state
+        await reset_game_async(hass)
+
+        # AC-3: Broadcast game_reset event to ALL clients
+        hass.async_create_task(
+            broadcast_event(
+                hass,
+                "game_reset",
+                {
+                    "timestamp": time.time(),
+                    "message": "Game has been reset. Please return to registration.",
+                },
+            )
+        )
+
+        # Send success response to admin
+        connection.send_result(
+            msg["id"],
+            {
+                "success": True,
+            },
+        )
+
+        _LOGGER.info("Game reset completed successfully")
+
+    except Exception as e:
+        _LOGGER.error("Error in reset_game: %s", e, exc_info=True)
+        connection.send_error(
+            msg["id"],
+            "reset_failed",
+            f"Failed to reset game: {str(e)}",
+        )
+
+
+# Import broadcast_event from websocket_handler (Epic 6, Story 6.1)
+# This replaces the old implementation with the new asyncio.gather() version
+from .websocket_handler import broadcast_event  # noqa: F401

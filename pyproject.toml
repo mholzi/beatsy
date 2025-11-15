@@ -1,0 +1,154 @@
+# Beatsy Home Assistant Integration
+# Python code quality configuration using ruff
+
+[project]
+name = "beatsy"
+version = "0.1.20"
+description = "A music guessing game integration for Home Assistant using Spotify"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Beatsy Contributors"}
+]
+keywords = ["homeassistant", "spotify", "game", "music"]
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+# Target Python 3.11+ (Home Assistant 2025 requirement)
+target-version = "py311"
+
+# Line length: 100 characters (HA standard)
+line-length = 100
+
+# Select rules to enforce
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort (import sorting)
+    "N",    # pep8-naming
+    "UP",   # pyupgrade (modern Python idioms)
+    "B",    # flake8-bugbear (likely bugs)
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "RET",  # flake8-return (return statement best practices)
+    "ARG",  # flake8-unused-arguments
+    "PTH",  # flake8-use-pathlib
+]
+
+# Ignore specific rules that conflict with HA conventions
+ignore = [
+    "E501",   # Line too long (handled by formatter, HA allows longer lines)
+    "N802",   # Function name should be lowercase (HA uses async_setup_entry)
+    "N806",   # Variable in function should be lowercase (HA uses LOGGER pattern)
+    "ARG001", # Unused function argument (common in HA callbacks)
+    "ARG002", # Unused method argument (common in HA lifecycle methods)
+    "PTH123", # Use pathlib instead of os.path (HA uses both)
+    "SIM108", # Use ternary operator (sometimes less readable)
+]
+
+# Exclude directories from linting
+exclude = [
+    ".git",
+    ".pytest_cache",
+    ".venv",
+    "__pycache__",
+    "*.egg-info",
+    "build",
+    "dist",
+    "tests",  # Tests have different conventions
+    "www",    # JavaScript files, not Python
+]
+
+[tool.ruff.per-file-ignores]
+# Init files can have unused imports (they're re-exported)
+"__init__.py" = ["F401", "F403"]
+# Config flow has specific HA patterns
+"config_flow.py" = ["ARG002"]
+
+[tool.ruff.isort]
+# Import sorting configuration (follows HA conventions)
+known-first-party = ["custom_components.beatsy"]
+combine-as-imports = true
+force-sort-within-sections = true
+
+[tool.ruff.mccabe]
+# Maximum cyclomatic complexity
+max-complexity = 15
+
+[tool.black]
+# Black formatter configuration (alternative to ruff format)
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.pytest_cache
+  | \.venv
+  | __pycache__
+  | build
+  | dist
+  | www
+)/
+'''
+
+[tool.pytest.ini_options]
+# pytest configuration
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+[tool.coverage.run]
+# Code coverage configuration
+source = ["custom_components/beatsy"]
+omit = [
+    "*/tests/*",
+    "*/www/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+# Coverage reporting
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
+[tool.mypy]
+# Type checking configuration (optional for MVP)
+python_version = "3.11"
+show_error_codes = true
+follow_imports = "silent"
+ignore_missing_imports = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_reexport = true
+
+[[tool.mypy.overrides]]
+# Relaxed type checking for specific modules
+module = [
+    "tests.*",
+    "homeassistant.*",
+]
+ignore_errors = true

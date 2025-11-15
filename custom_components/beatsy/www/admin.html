@@ -312,6 +312,20 @@
                 Join as Player
             </button>
 
+            <!-- Story 5.7: Reset Game Button (Hidden by default, shown after game starts) -->
+            <button
+                id="reset-game-btn"
+                class="hidden w-full bg-red-600 text-white px-6 py-3 rounded-lg min-h-[44px] font-semibold shadow-lg hover:bg-red-700 transition-colors mt-4"
+                aria-label="Reset game and clear all state"
+            >
+                <span class="flex items-center justify-center space-x-2">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+                    </svg>
+                    <span>Reset Game</span>
+                </span>
+            </button>
+
             <!-- Story 3.5: Player URL Display (Hidden by default) -->
             <div id="game-info-section" class="hidden mt-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
                 <h3 class="text-lg font-semibold text-gray-800 mb-3">Share with Players</h3>
@@ -383,6 +397,64 @@
         </section>
 
     </main>
+
+    <!-- Story 7.3: Media Player Conflict Warning Modal -->
+    <div id="conflict-warning-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="conflict-modal-title">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 transform transition-all">
+            <!-- Modal Header -->
+            <div class="flex items-start mb-4">
+                <div class="flex-shrink-0 w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <div class="ml-4 flex-1">
+                    <h3 id="conflict-modal-title" class="text-lg font-semibold text-gray-900">
+                        Media Player Active
+                    </h3>
+                    <p class="mt-1 text-sm text-gray-600" id="conflict-modal-player">
+                        <!-- Player name populated by JS -->
+                    </p>
+                </div>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="mt-4">
+                <p class="text-sm text-gray-700 mb-3">
+                    <span id="conflict-modal-entity-name" class="font-semibold"><!-- Entity name --></span> is currently playing:
+                </p>
+                <div class="bg-purple-50 rounded-lg p-4 mb-4">
+                    <p class="font-semibold text-gray-900" id="conflict-modal-title-text">
+                        <!-- Media title -->
+                    </p>
+                    <p class="text-sm text-gray-600" id="conflict-modal-artist-text">
+                        <!-- Media artist -->
+                    </p>
+                </div>
+                <p class="text-sm text-gray-700 mb-4">
+                    Starting the game will take over playback. Your current music will resume when the game ends.
+                </p>
+            </div>
+
+            <!-- Modal Actions -->
+            <div class="flex flex-col-reverse sm:flex-row gap-3 mt-6">
+                <button
+                    id="conflict-cancel-btn"
+                    type="button"
+                    class="flex-1 px-4 py-2 min-h-[44px] border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
+                >
+                    Cancel
+                </button>
+                <button
+                    id="conflict-proceed-btn"
+                    type="button"
+                    class="flex-1 px-4 py-2 min-h-[44px] bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
+                >
+                    Start Game Anyway
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Footer -->
     <footer class="container mx-auto px-4 py-6 text-center text-sm text-gray-600">

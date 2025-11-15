@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Story 8.2: Year Dropdown Selector Tests</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .test-pass { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .test-fail { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .test-running { background-color: #fff3cd; border-color: #ffeaa7; color: #856404; }
+    </style>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">Story 8.2: Year Dropdown Selector - Test Suite</h1>
+
+        <!-- Test Controls -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Test Controls</h2>
+            <div class="space-x-4">
+                <button id="run-all-tests" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    Run All Tests
+                </button>
+                <button id="clear-results" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+                    Clear Results
+                </button>
+            </div>
+        </div>
+
+        <!-- Year Dropdown Test Element -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Year Dropdown Element</h2>
+            <select
+                id="year-selector"
+                class="w-full max-w-xs px-4 py-3 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none transition-colors min-h-[44px]"
+                aria-label="Select year"
+            >
+                <!-- Options populated by JavaScript -->
+            </select>
+            <p class="mt-2 text-sm text-gray-600">Selected year: <span id="selected-year-display" class="font-semibold">None</span></p>
+        </div>
+
+        <!-- Test Results -->
+        <div id="test-results" class="space-y-4">
+            <!-- Test results will be inserted here -->
+        </div>
+
+        <!-- Performance Metrics -->
+        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+            <h2 class="text-xl font-semibold mb-4">Performance Metrics</h2>
+            <div id="performance-metrics" class="text-sm">
+                <!-- Performance metrics will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import year selector functions
+        import {
+            populateYearSelector,
+            getSelectedYear,
+            resetYearSelector,
+            validateYearSelection
+        } from '/api/beatsy/static/js/ui-player.js';
+
+        // Setup year selector change listener (inline version for testing)
+        function setupYearSelectorListener() {
+            const dropdown = document.getElementById('year-selector');
+            if (!dropdown) {
+                console.warn('Year selector not found');
+                return;
+            }
+
+            dropdown.addEventListener('change', (event) => {
+                const selectedYear = event.target.value;
+                const display = document.getElementById('selected-year-display');
+
+                if (selectedYear) {
+                    console.log(`Year selected: ${selectedYear}`);
+                    event.target.classList.add('border-purple-500');
+                    event.target.classList.remove('border-gray-300');
+                    if (display) display.textContent = selectedYear;
+                } else {
+                    event.target.classList.remove('border-purple-500');
+                    event.target.classList.add('border-gray-300');
+                    if (display) display.textContent = 'None';
+                }
+            });
+        }
+
+        // Test suite
+        const tests = [];
+        const performanceMetrics = {};
+
+        function addTest(name, fn) {
+            tests.push({ name, fn });
+        }
+
+        function addResult(name, passed, message, duration = null) {
+            const resultsDiv = document.getElementById('test-results');
+            const testDiv = document.createElement('div');
+            testDiv.className = `p-4 rounded border ${passed ? 'test-pass' : 'test-fail'}`;
+
+            let html = `
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="font-semibold">${name}</h3>
+                        <p class="text-sm mt-1">${message}</p>
+                    </div>
+                    <span class="text-2xl">${passed ? '✅' : '❌'}</span>
+                </div>
+            `;
+
+            if (duration !== null) {
+                html += `<p class="text-xs mt-2">Duration: ${duration.toFixed(2)}ms</p>`;
+            }
+
+            testDiv.innerHTML = html;
+            resultsDiv.appendChild(testDiv);
+
+            if (duration !== null) {
+                performanceMetrics[name] = duration;
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = '';
+            document.getElementById('performance-metrics').innerHTML = '';
+            Object.keys(performanceMetrics).forEach(key => delete performanceMetrics[key]);
+        }
+
+        function updatePerformanceMetrics() {
+            const metricsDiv = document.getElementById('performance-metrics');
+            const entries = Object.entries(performanceMetrics);
+
+            if (entries.length === 0) {
+                metricsDiv.innerHTML = '<p class="text-gray-500">No performance data yet</p>';
+                return;
+            }
+
+            let html = '<div class="space-y-2">';
+            entries.forEach(([name, duration]) => {
+                const targetMet = duration < 100 ? '✅' : '⚠️';
+                html += `
+                    <div class="flex justify-between">
+                        <span>${name}</span>
+                        <span class="font-mono ${duration < 100 ? 'text-green-600' : 'text-orange-600'}">
+                            ${duration.toFixed(2)}ms ${targetMet}
+                        </span>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            metricsDiv.innerHTML = html;
+        }
+
+        // AC-1: Dropdown shows years from configured range
+        addTest('AC-1: Populate dropdown with years 1950-2024', () => {
+            const startTime = performance.now();
+            populateYearSelector(1950, 2024);
+            const duration = performance.now() - startTime;
+
+            const dropdown = document.getElementById('year-selector');
+            const options = dropdown.querySelectorAll('option');
+
+            // Should have 76 options (placeholder + 75 years)
+            const passed = options.length === 76;
+            const message = passed
+                ? `Dropdown populated with ${options.length - 1} years (1950-2024) + placeholder`
+                : `Expected 76 options, got ${options.length}`;
+
+            addResult('AC-1: Year range 1950-2024', passed, message, duration);
+        });
+
+        // AC-2: Years in descending order
+        addTest('AC-2: Years in descending order', () => {
+            populateYearSelector(1950, 2024);
+            const dropdown = document.getElementById('year-selector');
+            const options = Array.from(dropdown.querySelectorAll('option'));
+
+            // Skip placeholder (first option)
+            const firstYear = options[1]?.value;
+            const lastYear = options[options.length - 1]?.value;
+
+            const passed = firstYear === '2024' && lastYear === '1950';
+            const message = passed
+                ? `First year: 2024, Last year: 1950 (descending order confirmed)`
+                : `Expected first=2024, last=1950. Got first=${firstYear}, last=${lastYear}`;
+
+            addResult('AC-2: Descending order', passed, message);
+        });
+
+        // AC-3: Touch-friendly height (44px minimum)
+        addTest('AC-3: Touch-friendly height (44px minimum)', () => {
+            const dropdown = document.getElementById('year-selector');
+            const height = dropdown.offsetHeight;
+
+            const passed = height >= 44;
+            const message = passed
+                ? `Dropdown height: ${height}px (meets 44px minimum)`
+                : `Dropdown height: ${height}px (below 44px minimum)`;
+
+            addResult('AC-3: Touch-friendly height', passed, message);
+        });
+
+        // AC-4 & AC-5: Selection and validation
+        addTest('AC-4 & AC-5: Selection and change', () => {
+            populateYearSelector(1950, 2024);
+            const dropdown = document.getElementById('year-selector');
+
+            // Test initial state
+            let year = getSelectedYear();
+            let valid = validateYearSelection();
+
+            if (year !== null || valid) {
+                addResult('AC-4/5: Initial state', false, `Expected null and invalid, got year=${year}, valid=${valid}`);
+                return;
+            }
+
+            // Select a year
+            dropdown.value = '1987';
+            dropdown.dispatchEvent(new Event('change'));
+
+            year = getSelectedYear();
+            valid = validateYearSelection();
+
+            const selectPassed = year === 1987 && valid;
+            if (!selectPassed) {
+                addResult('AC-4/5: Selection', false, `Expected year=1987, valid=true. Got year=${year}, valid=${valid}`);
+                return;
+            }
+
+            // Change selection
+            dropdown.value = '2010';
+            dropdown.dispatchEvent(new Event('change'));
+
+            year = getSelectedYear();
+            const changePassed = year === 2010;
+
+            const passed = selectPassed && changePassed;
+            const message = passed
+                ? 'Selected 1987, changed to 2010 successfully'
+                : `Selection change failed. Final year: ${year}`;
+
+            addResult('AC-4/5: Selection & Change', passed, message);
+        });
+
+        // AC-6: Performance < 100ms
+        addTest('AC-6: Population performance (75 years)', () => {
+            const startTime = performance.now();
+            populateYearSelector(1950, 2024);
+            const duration = performance.now() - startTime;
+
+            const passed = duration < 100;
+            const message = passed
+                ? `Population completed in ${duration.toFixed(2)}ms (< 100ms target)`
+                : `Population took ${duration.toFixed(2)}ms (exceeds 100ms target)`;
+
+            addResult('AC-6: Performance < 100ms', passed, message, duration);
+        });
+
+        // Edge Case: Invalid range (min > max)
+        addTest('Edge Case: Invalid range (min > max)', () => {
+            const consoleSpy = [];
+            const originalError = console.error;
+            console.error = (...args) => {
+                consoleSpy.push(args);
+                originalError(...args);
+            };
+
+            populateYearSelector(2024, 1950);
+
+            console.error = originalError;
+
+            const passed = consoleSpy.length > 0;
+            const message = passed
+                ? 'Invalid range correctly logged error'
+                : 'Invalid range did not log error';
+
+            addResult('Edge Case: Invalid range', passed, message);
+        });
+
+        // Edge Case: Single year range
+        addTest('Edge Case: Single year range', () => {
+            populateYearSelector(2000, 2000);
+            const dropdown = document.getElementById('year-selector');
+            const options = dropdown.querySelectorAll('option');
+
+            // Should have 2 options (placeholder + 1 year)
+            const passed = options.length === 2 && options[1].value === '2000';
+            const message = passed
+                ? 'Single year range (2000) populated correctly'
+                : `Expected 2 options with year 2000, got ${options.length} options`;
+
+            addResult('Edge Case: Single year', passed, message);
+        });
+
+        // Edge Case: Large range performance
+        addTest('Edge Case: Large range (1900-2024, 125 years)', () => {
+            const startTime = performance.now();
+            populateYearSelector(1900, 2024);
+            const duration = performance.now() - startTime;
+
+            const dropdown = document.getElementById('year-selector');
+            const options = dropdown.querySelectorAll('option');
+
+            const passed = options.length === 126 && duration < 100;  // 125 years + placeholder
+            const message = passed
+                ? `Large range (125 years) populated in ${duration.toFixed(2)}ms`
+                : `Large range test failed. Options: ${options.length}, Duration: ${duration.toFixed(2)}ms`;
+
+            addResult('Edge Case: Large range performance', passed, message, duration);
+        });
+
+        // Reset functionality
+        addTest('Reset: Year selector reset', () => {
+            populateYearSelector(1950, 2024);
+            const dropdown = document.getElementById('year-selector');
+
+            // Select a year
+            dropdown.value = '1987';
+            dropdown.dispatchEvent(new Event('change'));
+
+            // Reset
+            resetYearSelector();
+
+            const year = getSelectedYear();
+            const passed = year === null && dropdown.value === '';
+            const message = passed
+                ? 'Year selector reset successfully'
+                : `Reset failed. Year: ${year}, value: ${dropdown.value}`;
+
+            addResult('Reset functionality', passed, message);
+        });
+
+        // Run all tests
+        async function runAllTests() {
+            clearResults();
+
+            for (const test of tests) {
+                try {
+                    await test.fn();
+                } catch (error) {
+                    addResult(test.name, false, `Error: ${error.message}`);
+                }
+            }
+
+            updatePerformanceMetrics();
+        }
+
+        // Setup event listeners
+        document.getElementById('run-all-tests').addEventListener('click', runAllTests);
+        document.getElementById('clear-results').addEventListener('click', clearResults);
+
+        // Setup year selector change listener
+        setupYearSelectorListener();
+
+        // Initialize with default range for manual testing
+        populateYearSelector(1950, new Date().getFullYear());
+
+        console.log('Test suite loaded. Click "Run All Tests" to execute.');
+    </script>
+</body>
+</html>

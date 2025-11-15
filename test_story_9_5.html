@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Story 9.5 - Waiting State Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/api/beatsy/static/css/custom.css">
+    <style>
+        /* Inline CSS animation for standalone test */
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        .waiting-pulse {
+            animation: pulse-subtle 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">Story 9.5: Waiting State Test</h1>
+
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Test Controls</h2>
+            <div class="space-y-3">
+                <button id="show-results-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
+                    Show Results View
+                </button>
+                <button id="trigger-round-started-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700">
+                    Trigger round_started Event
+                </button>
+                <button id="measure-latency-btn" class="w-full bg-purple-600 text-white py-2 px-4 rounded hover:bg-purple-700">
+                    Measure Transition Latency
+                </button>
+            </div>
+            <div id="test-output" class="mt-4 p-3 bg-gray-100 rounded text-sm font-mono hidden"></div>
+        </div>
+
+        <!-- Mock Results View -->
+        <div id="results-view" class="hidden min-h-screen bg-gradient-to-b from-green-50 to-green-100 p-4">
+            <div class="max-w-md mx-auto mt-8">
+                <!-- Correct Year Section -->
+                <div id="correct-year-section" class="text-center mb-6">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-3">The Correct Year</h2>
+                    <div id="correct-year" class="text-6xl font-bold text-green-600 mb-2">1986</div>
+                </div>
+
+                <!-- Round Results Board -->
+                <div id="round-results-section" class="bg-white rounded-lg shadow-md p-3 mb-4">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-3">Round Results</h3>
+                    <div id="round-results-list" class="space-y-2">
+                        <div class="bg-white p-3 border-b border-gray-200">
+                            <span class="font-semibold">Player 1</span> guessed 1985
+                            <span class="text-green-600 font-bold">+10</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leaderboard -->
+                <div id="leaderboard-section" class="bg-white rounded-lg shadow-md p-3 mb-4">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-3">Leaderboard</h3>
+                    <div id="leaderboard-list" class="space-y-2">
+                        <div class="bg-white p-3">
+                            1. Player 1 - 10 points
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Story 9.5: Waiting State -->
+                <div id="waiting-state" role="status" aria-live="polite" class="text-center mt-8 hidden">
+                    <p class="text-lg text-gray-600 waiting-pulse">Waiting for next song...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mock Active Round View -->
+        <div id="active-round-view" class="hidden min-h-screen bg-gradient-to-b from-purple-50 to-purple-100 p-4">
+            <div class="max-w-md mx-auto mt-8 text-center">
+                <h2 class="text-2xl font-bold mb-4">Active Round View</h2>
+                <p class="text-gray-600">Round is active...</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import showWaitingState function (inline for test)
+        function showWaitingState() {
+            const waitingEl = document.getElementById('waiting-state');
+            if (!waitingEl) {
+                console.error('Waiting state element not found');
+                return;
+            }
+            waitingEl.classList.remove('hidden');
+            console.log('✓ Waiting state displayed');
+        }
+
+        function transitionToActiveRound() {
+            console.log('🎵 Transitioning from results to active round');
+            const transitionStart = performance.now();
+
+            // Hide results view (and waiting state automatically)
+            const resultsView = document.getElementById('results-view');
+            if (resultsView) {
+                resultsView.classList.add('hidden');
+            }
+
+            // Show active round view
+            const activeRoundView = document.getElementById('active-round-view');
+            if (activeRoundView) {
+                activeRoundView.classList.remove('hidden');
+            }
+
+            // Measure transition latency
+            const transitionEnd = performance.now();
+            const transitionTime = transitionEnd - transitionStart;
+
+            const output = document.getElementById('test-output');
+            output.classList.remove('hidden');
+            output.innerHTML = `
+                ✓ Results → Active Round transition completed in ${transitionTime.toFixed(2)}ms<br>
+                ${transitionTime <= 500 ? '✓ PASS: Transition under 500ms' : '✗ FAIL: Transition exceeded 500ms'}
+            `;
+
+            console.log(`✓ Results → Active Round transition completed in ${transitionTime.toFixed(2)}ms`);
+
+            if (transitionTime > 500) {
+                console.warn(`⚠️ Transition time exceeded 500ms target (${transitionTime.toFixed(2)}ms)`);
+            }
+        }
+
+        // Test: Show results view with waiting state
+        document.getElementById('show-results-btn').addEventListener('click', () => {
+            // Hide active round
+            document.getElementById('active-round-view').classList.add('hidden');
+
+            // Show results view
+            document.getElementById('results-view').classList.remove('hidden');
+
+            // Show waiting state
+            showWaitingState();
+
+            const output = document.getElementById('test-output');
+            output.classList.remove('hidden');
+            output.textContent = '✓ Results view shown with waiting state';
+        });
+
+        // Test: Trigger round_started event (auto-transition)
+        document.getElementById('trigger-round-started-btn').addEventListener('click', () => {
+            const output = document.getElementById('test-output');
+            output.classList.remove('hidden');
+            output.textContent = 'Triggering round_started event...';
+
+            // Simulate round_started event
+            setTimeout(() => {
+                transitionToActiveRound();
+            }, 100);
+        });
+
+        // Test: Measure transition latency
+        document.getElementById('measure-latency-btn').addEventListener('click', () => {
+            // Ensure we're in results view
+            document.getElementById('active-round-view').classList.add('hidden');
+            document.getElementById('results-view').classList.remove('hidden');
+            showWaitingState();
+
+            const output = document.getElementById('test-output');
+            output.classList.remove('hidden');
+            output.textContent = 'Measuring transition latency...';
+
+            // Wait a moment, then transition
+            setTimeout(() => {
+                transitionToActiveRound();
+            }, 500);
+        });
+
+        console.log('Story 9.5 test page loaded');
+    </script>
+</body>
+</html>

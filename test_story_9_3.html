@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Story 9.3 Test: Round Results Board</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">Story 9.3: Round Results Board Test</h1>
+
+        <!-- Test Controls -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Test Controls</h2>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <button id="test-basic" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    Test 1: Basic Results (3 players)
+                </button>
+                <button id="test-sorting" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                    Test 2: Sorting (10 players)
+                </button>
+                <button id="test-ties" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">
+                    Test 3: Tie Handling
+                </button>
+                <button id="test-bets" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                    Test 4: Bet Indicators
+                </button>
+                <button id="test-highlighting" class="bg-pink-600 text-white px-4 py-2 rounded hover:bg-pink-700">
+                    Test 5: Current Player Highlighting
+                </button>
+                <button id="test-xss" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                    Test 6: XSS Prevention
+                </button>
+                <button id="test-scrolling" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
+                    Test 7: Scrolling (20 players)
+                </button>
+                <button id="test-edge-cases" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+                    Test 8: Edge Cases
+                </button>
+            </div>
+
+            <div class="mt-4">
+                <label class="block text-sm font-medium mb-2">Current Player Name:</label>
+                <input
+                    id="current-player-input"
+                    type="text"
+                    value="Markus"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+            </div>
+        </div>
+
+        <!-- Test Results View -->
+        <div id="results-view" class="bg-gradient-to-b from-blue-50 to-blue-100 rounded-lg p-4">
+            <div class="max-w-md mx-auto">
+                <!-- Correct Year Section -->
+                <div id="correct-year-section" class="text-center mb-6">
+                    <h2 class="text-2xl text-gray-700 mb-2">The answer was:</h2>
+                    <div id="correct-year" class="text-6xl font-bold text-gray-900">1987</div>
+                </div>
+
+                <!-- Round Results Board -->
+                <div id="round-results-section" class="mb-8">
+                    <h3 class="text-xl font-semibold mb-4">Round Results</h3>
+                    <div id="round-results-list" class="overflow-y-auto max-h-80 space-y-2 bg-white rounded-lg p-2">
+                        <!-- Results will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Output Log -->
+        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+            <h2 class="text-xl font-semibold mb-4">Test Output</h2>
+            <div id="test-output" class="font-mono text-sm bg-gray-100 p-4 rounded max-h-96 overflow-y-auto">
+                <!-- Test output will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { renderRoundResults, renderResultsView } from './custom_components/beatsy/www/js/ui-results.js';
+
+        const testOutput = document.getElementById('test-output');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                info: 'text-blue-600',
+                success: 'text-green-600',
+                error: 'text-red-600',
+                warn: 'text-yellow-600'
+            };
+            const line = document.createElement('div');
+            line.className = colors[type];
+            line.textContent = `[${timestamp}] ${message}`;
+            testOutput.appendChild(line);
+            testOutput.scrollTop = testOutput.scrollHeight;
+        }
+
+        // Test 1: Basic Results (3 players)
+        document.getElementById('test-basic').addEventListener('click', () => {
+            log('=== Test 1: Basic Results (3 players) ===');
+            const results = [
+                { player_name: 'Markus', guess: 1987, points_earned: 20, bet_placed: false, new_score: 20, proximity: 0 },
+                { player_name: 'Sarah', guess: 1985, points_earned: 10, bet_placed: false, new_score: 10, proximity: 2 },
+                { player_name: 'Mike', guess: 1990, points_earned: 5, bet_placed: false, new_score: 5, proximity: 3 }
+            ];
+            const currentPlayer = document.getElementById('current-player-input').value;
+            renderRoundResults(results, currentPlayer);
+            log('✓ Results rendered (check visual display above)', 'success');
+            log(`Expected: Markus (20pts), Sarah (10pts), Mike (5pts)`, 'info');
+        });
+
+        // Test 2: Sorting (10 players)
+        document.getElementById('test-sorting').addEventListener('click', () => {
+            log('=== Test 2: Sorting (10 players) ===');
+            const results = [
+                { player_name: 'Player1', guess: 1980, points_earned: 5, bet_placed: false, new_score: 5, proximity: 7 },
+                { player_name: 'Player2', guess: 1987, points_earned: 20, bet_placed: false, new_score: 20, proximity: 0 },
+                { player_name: 'Player3', guess: 1990, points_earned: 5, bet_placed: false, new_score: 5, proximity: 3 },
+                { player_name: 'Player4', guess: 1985, points_earned: 10, bet_placed: false, new_score: 10, proximity: 2 },
+                { player_name: 'Player5', guess: 1995, points_earned: 0, bet_placed: false, new_score: 0, proximity: 8 },
+                { player_name: 'Player6', guess: 1988, points_earned: 10, bet_placed: false, new_score: 10, proximity: 1 },
+                { player_name: 'Player7', guess: 1975, points_earned: 0, bet_placed: false, new_score: 0, proximity: 12 },
+                { player_name: 'Player8', guess: 1986, points_earned: 10, bet_placed: false, new_score: 10, proximity: 1 },
+                { player_name: 'Player9', guess: 1982, points_earned: 5, bet_placed: false, new_score: 5, proximity: 5 },
+                { player_name: 'Player10', guess: 1987, points_earned: 20, bet_placed: false, new_score: 20, proximity: 0 }
+            ];
+            const currentPlayer = document.getElementById('current-player-input').value;
+            renderRoundResults(results, currentPlayer);
+            log('✓ Results rendered and sorted by points descending', 'success');
+            log('Expected order: 20pts → 10pts → 5pts → 0pts', 'info');
+        });
+
+        // Test 3: Tie Handling
+        document.getElementById('test-ties').addEventListener('click', () => {
+            log('=== Test 3: Tie Handling (Alphabetical Secondary Sort) ===');
+            const results = [
+                { player_name: 'Zoe', guess: 1987, points_earned: 10, bet_placed: false, new_score: 10, proximity: 0 },
+                { player_name: 'Alice', guess: 1987, points_earned: 10, bet_placed: false, new_score: 10, proximity: 0 },
+                { player_name: 'Mike', guess: 1987, points_earned: 10, bet_placed: false, new_score: 10, proximity: 0 },
+                { player_name: 'Bob', guess: 1987, points_earned: 10, bet_placed: false, new_score: 10, proximity: 0 }
+            ];
+            const currentPlayer = document.getElementById('current-player-input').value;
+            renderRoundResults(results, currentPlayer);
+            log('✓ Tie handling test rendered', 'success');
+            log('Expected order: Alice, Bob, Mike, Zoe (alphabetical)', 'info');
+        });
+
+        // Test 4: Bet Indicators
+        document.getElementById('test-bets').addEventListener('click', () => {
+            log('=== Test 4: Bet Indicators (🔥 emoji) ===');
+            const results = [
+                { player_name: 'Markus', guess: 1987, points_earned: 40, bet_placed: true, new_score: 40, proximity: 0 },
+                { player_name: 'Sarah', guess: 1985, points_earned: 10, bet_placed: false, new_score: 10, proximity: 2 },
+                { player_name: 'Mike', guess: 1990, points_earned: -10, bet_placed: true, new_score: -10, proximity: 3 }
+            ];
+            const currentPlayer = document.getElementById('current-player-input').value;
+            renderRoundResults(results, currentPlayer);
+            log('✓ Bet indicators rendered', 'success');
+            log('Expected: Markus has 🔥, Sarah has no emoji, Mike has 🔥 with red -10', 'info');
+        });
+
+        // Test 5: Current Player Highlighting
+        document.getElementById('test-highlighting').addEventListener('click', () => {
+            log('=== Test 5: Current Player Highlighting ===');
+            const currentPlayer = document.getElementById('current-player-input').value;
+            const results = [
+                { player_name: currentPlayer, guess: 1987, points_earned: 20, bet_placed: false, new_score: 20, proximity: 0 },
+                { player_name: 'Sarah', guess: 1985, points_earned: 10, bet_placed: false, new_score: 10, proximity: 2 },
+                { player_name: 'Mike', guess: 1990, points_earned: 5, bet_placed: false, new_score: 5, proximity: 3 }
+            ];
+            renderRoundResults(results, currentPlayer);
+            log(`✓ Highlighting test rendered for: ${currentPlayer}`, 'success');
+            log(`Expected: ${currentPlayer} row has yellow background (bg-yellow-100)`, 'info');
+        });
+
+        // Test 6: XSS Prevention
+        document.getElementById('test-xss').addEventListener('click', () => {
+            log('=== Test 6: XSS Prevention ===');
+            const results = [
+                { player_name: '<script>alert("XSS")</script>', guess: 1987, points_earned: 20, bet_placed: false, new_score: 20, proximity: 0 },
+                { player_name: '<img src=x onerror="alert(\'XSS\')">', guess: 1985, points_earned: 10, bet_placed: false, new_score: 10, proximity: 2 },
+                { player_name: 'Normal Name', guess: 1990, points_earned: 5, bet_placed: false, new_score: 5, proximity: 3 }
+            ];
+            const currentPlayer = document.getElementById('current-player-input').value;
+            renderRoundResults(results, currentPlayer);
+            log('✓ XSS test rendered', 'success');
+            log('Expected: Malicious code displayed as text (not executed)', 'info');
+            log('Check DevTools: No <script> tags in DOM, only text nodes', 'warn');
+        });
+
+        // Test 7: Scrolling (20 players)
+        document.getElementById('test-scrolling').addEventListener('click', () => {
+            log('=== Test 7: Scrolling (20 players) ===');
+            const results = [];
+            for (let i = 1; i <= 20; i++) {
+                results.push({
+                    player_name: `Player${i}`,
+                    guess: 1980 + i,
+                    points_earned: 20 - i,
+                    bet_placed: i % 3 === 0,
+                    new_score: 20 - i,
+                    proximity: i
+                });
+            }
+            const currentPlayer = document.getElementById('current-player-input').value;
+            renderRoundResults(results, currentPlayer);
+            log('✓ 20 players rendered', 'success');
+            log('Expected: Scrollable list with max-h-80 (320px max height)', 'info');
+            log('Test: Scroll the results list to verify smooth scrolling', 'warn');
+        });
+
+        // Test 8: Edge Cases
+        document.getElementById('test-edge-cases').addEventListener('click', () => {
+            log('=== Test 8: Edge Cases ===');
+            log('Testing empty results array...', 'info');
+            renderRoundResults([], 'Markus');
+            setTimeout(() => {
+                log('✓ Empty results handled (should show "No results available")', 'success');
+
+                log('Testing negative points...', 'info');
+                const results = [
+                    { player_name: 'Winner', guess: 1987, points_earned: 20, bet_placed: false, new_score: 20, proximity: 0 },
+                    { player_name: 'BetLoser', guess: 1990, points_earned: -10, bet_placed: true, new_score: -10, proximity: 3 }
+                ];
+                renderRoundResults(results, 'Winner');
+                log('✓ Negative points rendered in red with minus sign', 'success');
+            }, 1000);
+        });
+
+        log('Test page loaded. Click buttons to run tests.', 'info');
+        log('Update "Current Player Name" to test highlighting with different names.', 'info');
+    </script>
+</body>
+</html>

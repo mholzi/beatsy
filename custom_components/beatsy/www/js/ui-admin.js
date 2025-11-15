@@ -544,6 +544,16 @@ function setupPlaceholderListeners() {
         });
     }
 
+    // Story 5.7: Reset Game button
+    const resetGameBtn = document.getElementById('reset-game-btn');
+    if (resetGameBtn) {
+        resetGameBtn.addEventListener('click', async (e) => {
+            if (confirm('Are you sure? This will end the current game and clear all players.')) {
+                await resetGame();
+            }
+        });
+    }
+
     console.log('✓ Placeholder event listeners registered');
 }
 
@@ -908,7 +918,7 @@ function setupGameSettingsListeners() {
  * Start a new game session
  * Story 3.5: AC-8 (Client-Side State Management), AC-9 (Error Handling)
  */
-async function startGame() {
+async function startGame(forceStart = false) {
     const startGameBtn = document.getElementById('start-game-btn');
     const spinnerElement = document.getElementById('start-game-spinner');
     const buttonTextElement = document.getElementById('start-game-text');
@@ -938,18 +948,35 @@ async function startGame() {
             bet_multiplier: parseInt(document.getElementById('bet-multiplier').value)
         };
 
-        console.log('Starting game with config:', config);
+        console.log('Starting game with config:', config, 'force:', forceStart);
 
-        // POST to start_game endpoint
+        // Story 7.3: POST to start_game endpoint with optional force parameter
         const response = await fetch('/api/beatsy/api/start_game', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ config })
+            body: JSON.stringify({
+                config,
+                force: forceStart  // Story 7.3: Include force flag
+            })
         });
 
         const data = await response.json();
+
+        // Story 7.3: Check for conflict warning (media player already playing)
+        if (response.ok && data.conflict_warning) {
+            console.log('Media player conflict detected:', data.current_media);
+
+            // Reset button state before showing modal
+            startGameBtn.disabled = false;
+            spinnerElement.classList.add('hidden');
+            buttonTextElement.textContent = 'Start Game';
+
+            // Show conflict warning modal
+            showConflictWarningModal(data.current_media);
+            return;  // Exit early - wait for user decision
+        }
 
         if (response.ok) {
             // Success! Handle 200 response
@@ -1039,6 +1066,100 @@ async function startGame() {
         spinnerElement.classList.add('hidden');
         buttonTextElement.textContent = 'Start Game';
     }
+}
+
+/**
+ * Reset game and clear all state
+ * Story 5.7: Send reset_game WebSocket command, handle response
+ */
+async function resetGame() {
+    const resetGameBtn = document.getElementById('reset-game-btn');
+
+    try {
+        console.log('Resetting game...');
+
+        // Disable button to prevent double-click
+        resetGameBtn.disabled = true;
+        resetGameBtn.textContent = 'Resetting...';
+
+        // Send WebSocket reset_game command
+        if (window.ws && window.ws.readyState === WebSocket.OPEN) {
+            const msgId = Date.now();
+            window.ws.send(JSON.stringify({
+                id: msgId,
+                type: 'beatsy/reset_game'
+            }));
+
+            console.log('Reset game command sent');
+            showToast('Game reset in progress...', 'info');
+        } else {
+            throw new Error('WebSocket not connected');
+        }
+
+        // Note: Actual state clearing will happen when game_reset event is received
+        // The button will be re-enabled and hidden by the event handler
+
+    } catch (error) {
+        console.error('Error resetting game:', error);
+        showToast('Failed to reset game: ' + error.message, 'error');
+
+        // Re-enable button on error
+        resetGameBtn.disabled = false;
+        resetGameBtn.innerHTML = '<span class="flex items-center justify-center space-x-2"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg><span>Reset Game</span></span>';
+    }
+}
+
+/**
+ * Handle game_reset event received from server (Story 5.7)
+ * Update admin UI to reflect reset state
+ */
+function handleAdminGameReset(data) {
+    console.log('Admin UI handling game_reset event:', data);
+
+    // Hide reset button (game no longer active)
+    const resetBtn = document.getElementById('reset-game-btn');
+    if (resetBtn) {
+        resetBtn.classList.add('hidden');
+        resetBtn.disabled = false;  // Re-enable for next use
+        resetBtn.innerHTML = '<span class="flex items-center justify-center space-x-2"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg><span>Reset Game</span></span>';
+    }
+
+    // Update start game button state
+    const startGameBtn = document.getElementById('start-game-btn');
+    const startGameText = document.getElementById('start-game-text');
+    const spinner = document.getElementById('start-game-spinner');
+
+    if (startGameBtn) {
+        startGameBtn.disabled = false;  // Re-enable (if config valid)
+        if (spinner) spinner.classList.add('hidden');
+        if (startGameText) startGameText.textContent = 'Start Game';
+    }
+
+    // Hide game info section
+    const gameInfoSection = document.getElementById('game-info-section');
+    if (gameInfoSection) {
+        gameInfoSection.classList.add('hidden');
+    }
+
+    // Hide join as player button
+    const joinAsPlayerBtn = document.getElementById('join-as-player-btn');
+    if (joinAsPlayerBtn) {
+        joinAsPlayerBtn.classList.add('hidden');
+    }
+
+    // Clear localStorage admin state
+    localStorage.removeItem('beatsy_game_id');
+
+    // Reload game status to reflect reset
+    if (typeof loadGameStatus === 'function') {
+        loadGameStatus();
+    }
+
+    // Show toast notification
+    const message = data.message || 'Game has been reset';
+    showToast(message, 'info');
+
+    console.log('✓ Admin UI reset to setup state');
 }
 
 /**
@@ -1368,6 +1489,37 @@ function setupGameStatusWebSocketListeners() {
     // 1. player_joined - Update player count
     // 2. round_started - Update game state, round number, songs remaining
     // 3. round_ended - Update game state to "Results"
+    // 4. game_reset - Return to setup state (Story 5.7)
+
+    // Story 5.7: Listen for game_reset event to update admin UI
+    if (window.ws) {
+        const originalOnMessage = window.ws.onmessage;
+
+        window.ws.onmessage = function(event) {
+            // Call original handler if exists
+            if (originalOnMessage) {
+                originalOnMessage.call(window.ws, event);
+            }
+
+            // Handle game_reset event and playback_error event
+            try {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'beatsy/event' && data.event_type === 'game_reset') {
+                    console.log('🔄 Game reset event received in admin UI:', data.data);
+                    handleAdminGameReset(data.data);
+                }
+
+                // Story 7.5: Handle playback_error event
+                if (data.type === 'beatsy/event' && data.event_type === 'playback_error') {
+                    console.log('⚠️ Playback error event received in admin UI:', data.data);
+                    showPlaybackErrorNotification(data.data);
+                }
+            } catch (error) {
+                console.error('Error parsing WebSocket message:', error);
+            }
+        };
+    }
 
     // Example handler structure (to be connected to real WebSocket):
     /*
@@ -1427,6 +1579,253 @@ function initGameStatus() {
     console.log('✓ Game status initialization complete');
 }
 
+// ============================================================================
+// Story 7.3: Media Player Conflict Warning Modal
+// ============================================================================
+
+/**
+ * Show conflict warning modal when media player is already playing
+ * Story 7.3: AC-1, AC-2 (Display warning to admin with current media info)
+ */
+function showConflictWarningModal(currentMedia) {
+    const modal = document.getElementById('conflict-warning-modal');
+    const entityNameEl = document.getElementById('conflict-modal-entity-name');
+    const titleEl = document.getElementById('conflict-modal-title-text');
+    const artistEl = document.getElementById('conflict-modal-artist-text');
+
+    if (!modal || !entityNameEl || !titleEl || !artistEl) {
+        console.error('Conflict warning modal elements not found');
+        // Fallback: ask via browser confirm dialog
+        const proceed = confirm(
+            `Media player is currently playing "${currentMedia.title}" by ${currentMedia.artist}. ` +
+            'Starting the game will take over playback. Continue?'
+        );
+        if (proceed) {
+            startGame(true);  // Retry with force=true
+        }
+        return;
+    }
+
+    // Populate modal with current media info
+    entityNameEl.textContent = getFriendlyEntityName(currentMedia.entity_id);
+    titleEl.textContent = currentMedia.title || 'Unknown Title';
+    artistEl.textContent = `by ${currentMedia.artist || 'Unknown Artist'}`;
+
+    // Show modal
+    modal.classList.remove('hidden');
+
+    // Setup button listeners (one-time setup)
+    setupConflictModalListeners();
+
+    console.log('Conflict warning modal shown:', currentMedia);
+}
+
+/**
+ * Hide conflict warning modal
+ * Story 7.3: AC-2 (Cancel button returns to config)
+ */
+function hideConflictWarningModal() {
+    const modal = document.getElementById('conflict-warning-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+/**
+ * Setup event listeners for conflict modal buttons
+ * Story 7.3: AC-2 (Proceed/Cancel buttons)
+ */
+function setupConflictModalListeners() {
+    const cancelBtn = document.getElementById('conflict-cancel-btn');
+    const proceedBtn = document.getElementById('conflict-proceed-btn');
+
+    if (!cancelBtn || !proceedBtn) {
+        console.error('Conflict modal buttons not found');
+        return;
+    }
+
+    // Remove existing listeners to avoid duplicates
+    cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+    proceedBtn.replaceWith(proceedBtn.cloneNode(true));
+
+    // Get fresh references after cloning
+    const freshCancelBtn = document.getElementById('conflict-cancel-btn');
+    const freshProceedBtn = document.getElementById('conflict-proceed-btn');
+
+    // AC-2: Cancel button - hide modal and return to config
+    freshCancelBtn.addEventListener('click', () => {
+        console.log('User cancelled game start (media player conflict)');
+        hideConflictWarningModal();
+    });
+
+    // AC-2, AC-3: Proceed button - retry with force=true
+    freshProceedBtn.addEventListener('click', async () => {
+        console.log('User chose to proceed despite media player conflict');
+        hideConflictWarningModal();
+
+        // Retry startGame with force=true to save state and proceed
+        await startGame(true);
+    });
+
+    // Also handle Escape key to close modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('conflict-warning-modal');
+            if (modal && !modal.classList.contains('hidden')) {
+                hideConflictWarningModal();
+            }
+        }
+    });
+}
+
+/**
+ * Get friendly name from entity_id
+ * Helper function to display human-readable entity names
+ */
+function getFriendlyEntityName(entityId) {
+    if (!entityId) return 'Media Player';
+
+    // Extract domain and name: "media_player.living_room" -> "Living Room"
+    const parts = entityId.split('.');
+    if (parts.length > 1) {
+        const name = parts[1];
+        // Replace underscores with spaces and capitalize words
+        return name
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    }
+
+    return entityId;
+}
+
+// ============================================================================
+// Story 7.5: Playback Error Notification
+// ============================================================================
+
+/**
+ * Show playback error notification banner to admin
+ * Story 7.5: AC-2, Task 3 (Display error notification with retry/skip options)
+ */
+function showPlaybackErrorNotification(errorData) {
+    const {
+        track_title = 'Unknown Track',
+        track_artist = 'Unknown Artist',
+        error_message = 'Playback failed',
+        retry_count = 0,
+        max_retries = 3,
+        can_retry = true
+    } = errorData;
+
+    // Create error notification banner
+    const banner = document.createElement('div');
+    banner.id = 'playback-error-banner';
+    banner.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-lg w-full mx-4';
+    banner.innerHTML = `
+        <div class="bg-red-50 border-2 border-red-500 rounded-lg p-4 shadow-lg">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <svg class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <div class="ml-3 flex-1">
+                    <h3 class="text-sm font-medium text-red-800">Playback Failed</h3>
+                    <div class="mt-2 text-sm text-red-700">
+                        <p>Could not play "<strong>${track_title}</strong>" by <strong>${track_artist}</strong></p>
+                        <p class="mt-1 text-xs">${error_message}</p>
+                        ${retry_count > 0 ? `<p class="mt-1 text-xs">Retry attempts: ${retry_count}/${max_retries}</p>` : ''}
+                    </div>
+                    ${can_retry ? `
+                        <div class="mt-4 flex gap-2">
+                            <button id="playback-error-skip-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium">
+                                Skip to Next Song
+                            </button>
+                            <button id="playback-error-dismiss-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium">
+                                Dismiss
+                            </button>
+                        </div>
+                    ` : `
+                        <div class="mt-4">
+                            <p class="text-sm font-semibold text-red-900">⚠️ Max retries exhausted. Please check:</p>
+                            <ul class="mt-2 text-xs text-red-800 list-disc list-inside">
+                                <li>Spotify connection status</li>
+                                <li>Media player availability</li>
+                                <li>Network connectivity</li>
+                            </ul>
+                            <button id="playback-error-dismiss-btn" class="mt-3 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium">
+                                Dismiss and Check Settings
+                            </button>
+                        </div>
+                    `}
+                </div>
+                <div class="ml-auto pl-3">
+                    <button id="playback-error-close-btn" class="inline-flex text-red-400 hover:text-red-600 focus:outline-none">
+                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove any existing error banner
+    const existingBanner = document.getElementById('playback-error-banner');
+    if (existingBanner) {
+        existingBanner.remove();
+    }
+
+    // Add to document
+    document.body.appendChild(banner);
+
+    // Setup event listeners
+    const closeBtn = document.getElementById('playback-error-close-btn');
+    const dismissBtn = document.getElementById('playback-error-dismiss-btn');
+    const skipBtn = document.getElementById('playback-error-skip-btn');
+
+    const closeBanner = () => {
+        banner.remove();
+    };
+
+    closeBtn.addEventListener('click', closeBanner);
+    dismissBtn.addEventListener('click', closeBanner);
+
+    if (skipBtn && can_retry) {
+        skipBtn.addEventListener('click', async () => {
+            console.log('Admin clicked "Skip to Next Song"');
+            closeBanner();
+
+            // Story 7.5 Task 4: Send skip_song WebSocket command
+            try {
+                const result = await sendWebSocketCommand('beatsy/skip_song', {});
+
+                if (result.success) {
+                    console.log(`Successfully skipped to round ${result.result.round_number}`);
+                    showToast(`Skipped to new song (Round ${result.result.round_number})`, 'success');
+                } else {
+                    console.error('Skip song failed:', result.error);
+                    showToast(`Failed to skip: ${result.error?.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error sending skip_song command:', error);
+                showToast('Failed to skip song', 'error');
+            }
+        });
+    }
+
+    // Auto-dismiss after 30 seconds for non-critical errors
+    if (can_retry) {
+        setTimeout(() => {
+            if (document.getElementById('playback-error-banner')) {
+                closeBanner();
+            }
+        }, 30000);
+    }
+
+    console.log('Playback error notification displayed:', errorData);
+}
+
 /**
  * Export functions for testing (optional - for future test suite)
  */
@@ -1453,5 +1852,12 @@ export {
     showNoGameStatus,
     updateConnectionStatus,
     loadGameStatusWithRetry,
-    initGameStatus
+    initGameStatus,
+    // Story 7.3 exports
+    showConflictWarningModal,
+    hideConflictWarningModal,
+    setupConflictModalListeners,
+    getFriendlyEntityName,
+    // Story 7.5 exports
+    showPlaybackErrorNotification
 };

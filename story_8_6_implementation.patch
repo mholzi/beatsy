@@ -1,0 +1,284 @@
+--- a/custom_components/beatsy/www/js/ui-player.js
++++ b/custom_components/beatsy/www/js/ui-player.js
+@@ -19,6 +19,12 @@ const MAX_RECONNECT_ATTEMPTS = 5;
+ // Global timer interval for active round
+ let timerInterval = null;
+
++// Story 8.6: Guess submission state
++const gameState = {
++    locked: false
++};
++
+ /**
+  * Story 4.5 Task 10: Pre-load year dropdown during page load
+  * AC-6: Year dropdown pre-populated with range (1950-2024)
+@@ -883,7 +889,8 @@ function startTimer(startedAt, timerDuration) {
+             timerDisplay.textContent = '0';
+             clearInterval(timerInterval);
+             timerInterval = null;
+-            // TODO Story 8.6: Trigger auto-lock inputs when timer expires
++            // Story 8.6: Trigger auto-lock inputs when timer expires
++            onTimerExpire();
+         }
+     }, 100);
+
+@@ -1045,6 +1052,243 @@ function showNameNotification(message) {
+     }
+ }
+
++/**
++ * Story 8.6 Task 1: Validate and submit guess
++ * AC-1: Validates year selected before submission
++ * AC-1: Sends WebSocket command with player_name, year_guess, bet_placed
++ * AC-2: Locks inputs immediately (optimistic locking)
++ * AC-3: Shows submission confirmation message
++ * AC-6: Executes within 200ms
++ */
++function onSubmitGuess() {
++    const startTime = performance.now();
++
++    // Task 1.2: Validate year is selected
++    const yearSelector = document.getElementById('year-selector');
++    if (!yearSelector || !yearSelector.value) {
++        // Task 1.3: Show error if no year selected
++        showError('Please select a year');
++        console.warn('Guess submission validation failed: No year selected');
++        return;
++    }
++
++    // Task 1.5: Get current bet state
++    const betToggle = document.getElementById('bet-toggle');
++    const betPlaced = betToggle ? betToggle.getAttribute('aria-pressed') === 'true' : false;
++
++    // Task 5.4: Check if already submitted (prevent duplicates)
++    if (gameState.locked) {
++        console.warn('Duplicate submission attempt prevented');
++        return;
++    }
++
++    // Task 3: Lock inputs immediately (optimistic locking)
++    lockInputs();
++    gameState.locked = true;
++
++    // Task 10.2: Show loading spinner briefly
++    const submitButton = document.getElementById('submit-guess');
++    if (submitButton) {
++        submitButton.innerHTML = '<span class="inline-block animate-spin mr-2">⏳</span> Submitting...';
++    }
++
++    // Task 2: Send WebSocket command
++    const playerName = localStorage.getItem('beatsy_player_name');
++    const yearGuess = parseInt(yearSelector.value);
++
++    const message = {
++        type: 'beatsy/submit_guess',
++        player_name: playerName,
++        year_guess: yearGuess,
++        bet_placed: betPlaced,
++        submitted_at: Date.now(),
++        id: Date.now()  // HA WebSocket API requires id field
++    };
++
++    console.log('Sending guess submission:', { player: playerName, year: yearGuess, bet: betPlaced });
++
++    // Task 2.4: Send via WebSocket
++    if (!ws || ws.readyState !== WebSocket.OPEN) {
++        showError('Connection lost. Please refresh the page.');
++        unlockInputs();
++        gameState.locked = false;
++        return;
++    }
++
++    ws.send(JSON.stringify(message));
++
++    // Task 4: Show submission confirmation
++    showSubmissionConfirmation();
++
++    // AC-6: Log execution time
++    const executionTime = performance.now() - startTime;
++    console.log(\`✓ Guess submission completed in \${executionTime.toFixed(2)}ms\`);
++
++    if (executionTime > 200) {
++        console.warn(\`⚠️ Submission exceeded 200ms target (\${executionTime.toFixed(2)}ms)\`);
++    }
++}
++
++/**
++ * Story 8.6 Task 3: Lock all input controls
++ * AC-2: Disables year dropdown, bet button, submit button
++ * AC-6: Executes within 200ms (synchronous DOM update)
++ * AC-2: Adds visual disabled state
++ */
++function lockInputs() {
++    // Task 3.2: Disable year dropdown
++    const yearSelector = document.getElementById('year-selector');
++    if (yearSelector) {
++        yearSelector.disabled = true;
++    }
++
++    // Task 3.3: Disable bet button
++    const betToggle = document.getElementById('bet-toggle');
++    if (betToggle) {
++        betToggle.disabled = true;
++    }
++
++    // Task 3.4: Disable submit button
++    const submitButton = document.getElementById('submit-guess');
++    if (submitButton) {
++        submitButton.disabled = true;
++    }
++
++    // Task 3.5: Add visual disabled state
++    if (submitButton) {
++        submitButton.classList.add('opacity-50', 'cursor-not-allowed');
++    }
++
++    console.log('✓ Inputs locked');
++}
++
++/**
++ * Story 8.6 Task 7: Unlock input controls
++ * AC-4: Re-enables all inputs for error recovery
++ * Only called for recoverable errors (not late submissions)
++ */
++function unlockInputs() {
++    // Task 7.2: Enable all inputs
++    const yearSelector = document.getElementById('year-selector');
++    if (yearSelector) {
++        yearSelector.disabled = false;
++    }
++
++    const betToggle = document.getElementById('bet-toggle');
++    if (betToggle) {
++        betToggle.disabled = false;
++    }
++
++    const submitButton = document.getElementById('submit-guess');
++    if (submitButton) {
++        submitButton.disabled = false;
++        // Task 7.3: Remove disabled styling
++        submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
++        submitButton.textContent = 'Submit Guess';
++    }
++
++    // Task 7.5: Reset submission flag
++    gameState.locked = false;
++
++    console.log('✓ Inputs unlocked');
++}
++
++/**
++ * Story 8.6 Task 4: Display submission confirmation
++ * AC-3: Shows "Guess submitted! Waiting for results..." message
++ * Task 4.3: Prominent green styling with checkmark
++ * Task 4.5: Mobile-friendly display
++ */
++function showSubmissionConfirmation() {
++    const confirmationDiv = document.getElementById('submission-confirmation');
++    if (confirmationDiv) {
++        // Task 4.2 & 4.3: Display confirmation message with styling
++        confirmationDiv.innerHTML = '✓ Guess submitted! Waiting for results...';
++        confirmationDiv.classList.remove('hidden');
++        confirmationDiv.classList.add('text-green-600', 'font-semibold', 'text-center', 'mt-4', 'p-3', 'bg-green-100', 'rounded-md');
++    }
++
++    // Hide submit button (replaced by confirmation)
++    const submitButton = document.getElementById('submit-guess');
++    if (submitButton) {
++        submitButton.classList.add('hidden');
++    }
++
++    console.log('✓ Submission confirmation displayed');
++}
++
++/**
++ * Story 8.6 Task 5 & 6: Handle submission response from server
++ * Processes both success and error responses
++ * @param {Object} data - Server response {success, error}
++ */
++function handleSubmitGuessResponse(data) {
++    if (data.success) {
++        // Task 5.2 & 5.3: Success - keep locked, log success
++        console.log('✓ Guess submitted successfully');
++        // Inputs already locked and confirmation shown optimistically
++    } else {
++        // Task 6: Handle errors
++        const errorMessage = data.error || 'Submission failed';
++
++        if (errorMessage.includes('timer_expired') || errorMessage.includes('Too late') || errorMessage.includes('expired')) {
++            // Task 6.2: Late submission error
++            showError('Too late! Timer expired.');
++            // Task 6.3: Keep inputs locked (don't allow retry)
++            console.log('Late submission rejected by server');
++        } else if (errorMessage.includes('already_submitted')) {
++            // Duplicate submission
++            showError('You have already submitted a guess for this round');
++            console.log('Duplicate guess rejected by server');
++        } else {
++            // Other errors - allow retry
++            showError(errorMessage);
++            unlockInputs();
++            const confirmationDiv = document.getElementById('submission-confirmation');
++            if (confirmationDiv) {
++                confirmationDiv.classList.add('hidden');
++            }
++            const submitButton = document.getElementById('submit-guess');
++            if (submitButton) {
++                submitButton.classList.remove('hidden');
++            }
++        }
++    }
++}
++
++/**
++ * Story 8.6 Task 8: Handle timer expiration auto-lock
++ * AC-4: Timer continues for other players
++ * AC-5: Prevents submission after timer expires
++ * Called from startTimer() when remaining time reaches 0
++ */
++function onTimerExpire() {
++    console.log('⏰ Timer expired');
++
++    // Task 8.1: Lock inputs automatically
++    lockInputs();
++
++    // Task 8.2: Show appropriate message
++    if (gameState.locked) {
++        // Task 8.3: Already submitted - keep confirmation visible
++        console.log('Timer expired - guess already submitted');
++    } else {
++        // Task 8.2: Not submitted - show time's up message
++        const confirmationDiv = document.getElementById('submission-confirmation');
++        if (confirmationDiv) {
++            confirmationDiv.innerHTML = '⏱️ Time\\'s up! Waiting for results...';
++            confirmationDiv.classList.remove('hidden');
++            confirmationDiv.classList.add('text-orange-600', 'font-semibold', 'text-center', 'mt-4', 'p-3', 'bg-orange-100', 'rounded-md');
++        }
++
++        // Hide submit button
++        const submitButton = document.getElementById('submit-guess');
++        if (submitButton) {
++            submitButton.classList.add('hidden');
++        }
++
++        gameState.locked = true;
++        console.log('Timer expired - inputs locked, no guess submitted');
++    }
++}
++
+ /**
+  * Main initialization - runs when DOM is fully loaded
+  */
+@@ -1064,5 +1308,11 @@ export {
+     showActiveRoundView,
+     startTimer,
+     showError,
+-    showNameNotification
++    showNameNotification,
++    onSubmitGuess,
++    lockInputs,
++    unlockInputs,
++    showSubmissionConfirmation,
++    handleSubmitGuessResponse,
++    onTimerExpire
+ };

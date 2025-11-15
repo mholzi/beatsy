@@ -26,6 +26,7 @@ from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
+from .validation import validate_game_settings, validate_spotify_uri
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -428,14 +429,30 @@ class BeatsyAPIView(HomeAssistantView):
                 )
 
             if endpoint == "validate_playlist":
-                # Placeholder for future Spotify integration
+                # Story 10.5: Validate playlist URI format
                 _LOGGER.debug("POST /api/beatsy/api/validate_playlist called")
-                playlist_uri = data.get("playlist_uri")
+                playlist_uri = data.get("playlist_uri", "")
+
+                # Validate Spotify URI format
+                validation_result = validate_spotify_uri(playlist_uri)
+                if not validation_result.valid:
+                    _LOGGER.warning(
+                        f"Invalid playlist URI: {playlist_uri} - {validation_result.error_message}"
+                    )
+                    return web.json_response(
+                        {
+                            "valid": False,
+                            "error": "invalid_uri",
+                            "message": validation_result.error_message,
+                        },
+                        status=400,
+                    )
+
                 return web.json_response(
                     {
                         "valid": True,
-                        "message": "Playlist validation not yet implemented",
-                        "playlist_uri": playlist_uri,
+                        "message": "Playlist URI format is valid",
+                        "playlist_uri": validation_result.sanitized_value,
                     }
                 )
 
@@ -450,6 +467,7 @@ class BeatsyAPIView(HomeAssistantView):
                 try:
                     # Extract configuration from request
                     config = data.get("config", {})
+                    force = data.get("force", False)  # Story 7.3: Force flag to bypass conflict warning
 
                     if not config:
                         return web.json_response(
@@ -459,6 +477,25 @@ class BeatsyAPIView(HomeAssistantView):
                             },
                             status=400,
                         )
+
+                    # Story 10.5: Validate game settings
+                    settings_validation = validate_game_settings(config)
+                    if not settings_validation.valid:
+                        _LOGGER.warning(
+                            f"Game settings validation failed: {settings_validation.error_message}"
+                        )
+                        return web.json_response(
+                            {
+                                "error": "validation_failed",
+                                "details": [settings_validation.error_message],
+                            },
+                            status=400,
+                        )
+
+                    # Use sanitized/validated config values
+                    validated_config = settings_validation.sanitized_value
+                    # Merge with original config (validated values override)
+                    config = {**config, **validated_config}
 
                     # Create GameConfigInput instance
                     try:
@@ -547,6 +584,57 @@ class BeatsyAPIView(HomeAssistantView):
                     # Create playlist data with filtered songs
                     filtered_playlist = playlist_data.copy()
                     filtered_playlist["songs"] = filtered_songs
+
+                    # Story 7.3: Check media player state for conflict warning
+                    media_player_entity_id = game_config.media_player
+                    if media_player_entity_id and not force:
+                        from .spotify_service import (
+                            get_media_player_state,
+                            should_warn_conflict,
+                        )
+
+                        # Query current media player state
+                        player_state = await get_media_player_state(
+                            hass, media_player_entity_id
+                        )
+
+                        # Check if conflict warning should be shown
+                        if should_warn_conflict(player_state):
+                            # AC-1: Show conflict warning to admin
+                            _LOGGER.info(
+                                "Media player %s is %s, returning conflict warning to admin",
+                                media_player_entity_id,
+                                player_state.state,
+                            )
+
+                            # AC-2: Return conflict_warning response with current media info
+                            return web.json_response(
+                                {
+                                    "conflict_warning": True,
+                                    "current_media": {
+                                        "entity_id": player_state.entity_id,
+                                        "title": player_state.media_title or "Unknown",
+                                        "artist": player_state.media_artist or "Unknown",
+                                        "state": player_state.state,
+                                    },
+                                },
+                                status=200,
+                            )
+
+                    # AC-3: If force=true, save state before proceeding
+                    if media_player_entity_id and force:
+                        from .spotify_service import (
+                            get_media_player_state,
+                            save_player_state,
+                        )
+
+                        # Get fresh state for saving
+                        player_state = await get_media_player_state(
+                            hass, media_player_entity_id
+                        )
+                        if player_state is not None:
+                            # Save state for restoration (Story 7.6)
+                            save_player_state(hass, player_state)
 
                     # Create game session (atomic operation)
                     try:

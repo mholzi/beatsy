@@ -5,8 +5,10 @@ Handles game session creation, state reset, and ID generation for new games.
 Provides atomic initialization operations with rollback capability.
 
 Story 3.5: Task 4 - Game State Reset and Session Creation (AC-2, AC-4, AC-5, AC-6)
+Story 7.1: Spotify Playlist Track Fetching with Pagination
 """
 
+import copy
 import logging
 import uuid
 from dataclasses import dataclass
@@ -14,10 +16,34 @@ from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
 from .const import DOMAIN
+from .spotify_helper import (
+    fetch_playlist_tracks,
+    extract_track_metadata,
+    SpotifyPlaylistNotFound,
+    SpotifyAPIError,
+)
 
 _LOGGER = logging.getLogger(__name__)
+
+
+@dataclass
+class PlaylistMetadata:
+    """
+    Playlist loading metadata for admin feedback.
+
+    Story 7.2: Provides detailed information about playlist loading results,
+    including filtered track counts for quality assessment.
+    """
+
+    playlist_id: str
+    playlist_name: str
+    total_tracks: int  # Total tracks in Spotify playlist
+    loaded_tracks: int  # Tracks successfully loaded with year data
+    filtered_tracks: int  # Tracks excluded (missing year)
+    load_timestamp: datetime
 
 
 @dataclass
@@ -255,6 +281,107 @@ def validate_admin_key(hass: HomeAssistant, admin_key: str, game_id: Optional[st
     return True
 
 
+async def load_spotify_playlist(
+    hass: HomeAssistant, playlist_uri: str
+) -> tuple[list[dict[str, Any]], PlaylistMetadata]:
+    """Load and process tracks from Spotify playlist.
+
+    Story 7.1: Fetches playlist tracks via Spotify API and extracts metadata.
+    Story 7.2: Filters tracks without year and returns metadata with filtered counts.
+
+    Args:
+        hass: Home Assistant instance
+        playlist_uri: Spotify playlist URI (spotify:playlist:xxx or URL)
+
+    Returns:
+        Tuple of (tracks, metadata):
+            - tracks: List of track dictionaries with metadata: {uri, title, artist, album, year, cover_url}
+            - metadata: PlaylistMetadata with filtered track counts
+
+    Raises:
+        SpotifyPlaylistNotFound: If playlist URI is invalid or inaccessible
+        SpotifyAPIError: If API communication fails
+        ValueError: If playlist URI format is invalid or no playable tracks found
+    """
+    # Story 7.1 AC-1: Fetch all tracks from Spotify playlist with pagination
+    _LOGGER.info("Loading Spotify playlist: %s", playlist_uri)
+
+    try:
+        raw_tracks, playlist_name, playlist_id = await fetch_playlist_tracks(hass, playlist_uri)
+    except (SpotifyPlaylistNotFound, SpotifyAPIError, ValueError) as e:
+        _LOGGER.error("Failed to load Spotify playlist: %s", str(e))
+        raise
+
+    total_tracks = len(raw_tracks)
+
+    if not raw_tracks:
+        _LOGGER.warning("Spotify playlist is empty: %s", playlist_uri)
+        metadata = PlaylistMetadata(
+            playlist_id=playlist_id,
+            playlist_name=playlist_name,
+            total_tracks=0,
+            loaded_tracks=0,
+            filtered_tracks=0,
+            load_timestamp=datetime.now()
+        )
+        return [], metadata
+
+    # Story 7.2 AC-1: Extract metadata from each track
+    _LOGGER.info("Extracting metadata from %d tracks", total_tracks)
+    tracks_with_metadata = []
+    filtered_tracks = 0
+
+    for raw_track in raw_tracks:
+        metadata_dict = extract_track_metadata(raw_track)
+
+        # Story 7.2 AC-2: Filter tracks without year
+        if not metadata_dict.get('year'):
+            filtered_tracks += 1
+            _LOGGER.warning(
+                "Track '%s' by '%s' skipped - missing release year",
+                metadata_dict.get('title', 'Unknown'),
+                metadata_dict.get('artist', 'Unknown')
+            )
+            continue
+
+        # Story 7.2 AC-1: Add to available_songs list
+        tracks_with_metadata.append(metadata_dict)
+
+    # Story 7.2 AC-3: Report filtered track count
+    if filtered_tracks > 0:
+        _LOGGER.info(
+            "Loaded %d of %d tracks (%d filtered - missing year)",
+            len(tracks_with_metadata),
+            total_tracks,
+            filtered_tracks
+        )
+
+    # Story 7.2: Check if no playable tracks found
+    if not tracks_with_metadata:
+        raise ValueError(
+            f"No playable tracks found. All tracks are missing release year data "
+            f"(total tracks: {total_tracks}, filtered: {filtered_tracks})"
+        )
+
+    # Story 7.2: Create PlaylistMetadata for admin response
+    playlist_metadata = PlaylistMetadata(
+        playlist_id=playlist_id,
+        playlist_name=playlist_name,
+        total_tracks=total_tracks,
+        loaded_tracks=len(tracks_with_metadata),
+        filtered_tracks=filtered_tracks,
+        load_timestamp=datetime.now()
+    )
+
+    _LOGGER.info(
+        "Successfully loaded %d tracks from playlist '%s'",
+        len(tracks_with_metadata),
+        playlist_name
+    )
+
+    return tracks_with_metadata, playlist_metadata
+
+
 def create_game_session(
     hass: HomeAssistant, config: dict[str, Any], playlist_data: dict[str, Any]
 ) -> dict[str, Any]:
@@ -319,6 +446,9 @@ def create_game_session(
     # Step 4: Store playlist songs
     songs = playlist_data.get("songs", [])
     hass.data[DOMAIN]["available_songs"] = songs.copy()  # Make a copy to avoid mutations
+
+    # Story 5.7: Store original playlist for reset_game() to restore available_songs
+    hass.data[DOMAIN]["original_playlist"] = copy.deepcopy(songs)
 
     # Step 5: Set game status to lobby
     hass.data[DOMAIN]["game_status"] = "lobby"

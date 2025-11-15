@@ -35,7 +35,10 @@ from .websocket_api import (
     handle_place_bet,
     handle_start_game,
     handle_next_song,
+    handle_skip_song,
+    handle_reset_game,
 )
+from .rate_limiter import RateLimiter
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -111,10 +114,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
 
-    # Initialize WebSocket connections registry (Story 4.5)
-    if "ws_connections" not in hass.data[DOMAIN]:
-        hass.data[DOMAIN]["ws_connections"] = {}
+    # Initialize WebSocket connections registry (Epic 6, Story 6.1)
+    if "websocket_connections" not in hass.data[DOMAIN]:
+        hass.data[DOMAIN]["websocket_connections"] = {}
         _LOGGER.debug("Initialized WebSocket connections registry")
+
+    # Legacy registry for backward compatibility
+    if "ws_connections" not in hass.data[DOMAIN]:
+        # Point to the same registry for backward compatibility
+        hass.data[DOMAIN]["ws_connections"] = hass.data[DOMAIN]["websocket_connections"]
+
+    # Initialize rate limiter (Story 10.6)
+    if "rate_limiter" not in hass.data[DOMAIN]:
+        rate_limiter = RateLimiter()
+        hass.data[DOMAIN]["rate_limiter"] = rate_limiter
+        # Start cleanup task to prevent memory leaks
+        await rate_limiter.start_cleanup_task()
+        _LOGGER.info("Rate limiter initialized with cleanup task")
 
     if not hass.data[DOMAIN].get("_http_views_registered", False):
         try:
@@ -142,9 +158,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             ha_websocket_api.async_register_command(hass, handle_place_bet)
             ha_websocket_api.async_register_command(hass, handle_start_game)
             ha_websocket_api.async_register_command(hass, handle_next_song)
+            ha_websocket_api.async_register_command(hass, handle_skip_song)
+            ha_websocket_api.async_register_command(hass, handle_reset_game)
             hass.data[DOMAIN]["_ws_commands_registered"] = True
             _LOGGER.info(
-                "WebSocket commands registered: join_game, submit_guess, place_bet, start_game, next_song"
+                "WebSocket commands registered: join_game, submit_guess, place_bet, start_game, next_song, reset_game"
             )
         except Exception as e:
             _LOGGER.warning("Failed to register WebSocket commands (may already exist): %s", str(e))
@@ -247,27 +265,21 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
             state = hass.data[DOMAIN].pop(entry.entry_id)
 
-            # Close all WebSocket connections (Story 2.6)
-            # Handle both dict (legacy) and BeatsyGameState (current)
+            # Close all WebSocket connections (Epic 6, Story 6.1)
             try:
-                if hasattr(state, "websocket_connections"):
-                    websocket_connections = state.websocket_connections
-                else:
-                    websocket_connections = state.get("websocket_connections", {})
-
-                for connection_id, conn_info in list(websocket_connections.items()):
-                    try:
-                        connection = conn_info.get("connection")
-                        if connection and hasattr(connection, "close"):
-                            await connection.close()
-                        _LOGGER.debug(f"Closed WebSocket connection: {connection_id}")
-                    except Exception as e:
-                        _LOGGER.warning(f"Error closing connection {connection_id}: {e}")
-
-                # Clear connection tracking
-                websocket_connections.clear()
+                from .websocket_handler import cleanup_all_connections
+                await cleanup_all_connections(hass)
             except Exception as e:
                 _LOGGER.warning(f"Error during WebSocket cleanup: {e}")
+
+            # Stop rate limiter cleanup task (Story 10.6)
+            if "rate_limiter" in hass.data[DOMAIN]:
+                try:
+                    rate_limiter = hass.data[DOMAIN].pop("rate_limiter")
+                    await rate_limiter.stop_cleanup_task()
+                    _LOGGER.info("Rate limiter cleanup task stopped")
+                except Exception as e:
+                    _LOGGER.warning(f"Error stopping rate limiter: {e}")
         else:
             _LOGGER.debug(f"Entry {entry.entry_id} not found in hass.data during unload")
 

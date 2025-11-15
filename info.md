@@ -1,55 +1,82 @@
 # Beatsy - Music Year Guessing Party Game
 
-Beatsy transforms your Home Assistant into an interactive multiplayer party game where players compete to guess the release year of songs from your Spotify playlists.
+Transform your Home Assistant into an interactive multiplayer party game! Beatsy lets players compete to guess the release year of songs from your Spotify playlists.
 
-## Key Features
+## What Makes Beatsy Special
 
-- **Instant Player Join**: No authentication required - players join with just a name
-- **Real-Time Multiplayer**: WebSocket-powered synchronized gameplay
-- **Spotify Integration**: Works with your existing HA Spotify setup
-- **Smart Scoring**: Points for exact, close, and near guesses
-- **Betting System**: Optional 2x multiplier for confident players
-- **Mobile-Optimized**: Perfect for phones and tablets
+- **Zero Friction**: Players join instantly with just a name - no accounts or authentication needed
+- **Real-Time Fun**: WebSocket-powered live updates keep everyone synchronized
+- **Your Music**: Uses your existing Spotify integration and playlists
+- **Smart Scoring**: Points for exact (+100), close (+50), and near (+25) guesses
+- **Betting Mechanic**: Confident? Toggle "Bet" for 2x points (but lose points if wrong!)
+- **Mobile-First**: Designed for phones and tablets - perfect for party play
 
-## How It Works
+## How to Play
 
-The admin (game host) selects a Spotify playlist and configures game settings. Players join via their phones by entering a name. When the game starts, songs play through your Spotify-enabled speaker, and players race to guess the release year before the timer expires. Points are awarded based on accuracy, with bonus points for exact guesses.
+**For the Host:**
+1. Open admin interface at `/api/beatsy/admin`
+2. Select your Spotify media player and playlist
+3. Configure settings (timer, year range, scoring)
+4. Start the game and share the player URL
+
+**For Players:**
+1. Visit `/api/beatsy/player` on your phone
+2. Enter your name to join the lobby
+3. When a song plays, guess the year and optionally bet
+4. Earn points based on accuracy
+5. Check the leaderboard after each round
 
 ## Requirements
 
-- Home Assistant 2024.1 or later
-- Configured Spotify integration
-- Spotify-capable media player (Sonos, Chromecast, etc.)
-- Players on the same local network
+- **Home Assistant**: Version 2024.1 or later
+- **Spotify Integration**: Configured with at least one media player
+- **Spotify Premium**: Required for playback control
+- **Network**: All players must be on the same local network
 
-## Quick Start
+## Installation via HACS
 
-1. Install via HACS
-2. Navigate to `/api/beatsy/admin` to configure and start a game
-3. Players join at `/api/beatsy/player`
-4. Have fun guessing!
+1. Open HACS in Home Assistant
+2. Go to Integrations → Three dots menu → Custom repositories
+3. Add repository: `https://github.com/markusholzhaeuser/beatsy`
+4. Category: Integration
+5. Search for "Beatsy" and install
+6. Restart Home Assistant
+7. Add the Beatsy integration via Settings → Devices & Services
 
-## Technical Details
+Full installation instructions and troubleshooting available in the [README](https://github.com/markusholzhaeuser/beatsy/blob/main/README.md).
 
-Beatsy is a custom Home Assistant integration built following the official integration blueprint structure. It uses unauthenticated HTTP views for player access, WebSocket for real-time communication, and integrates seamlessly with HA's Spotify integration.
+## What's New
 
-All gameplay occurs locally on your network - no cloud services or external dependencies required.
+### v0.1.22 - Current MVP Release
 
-## Changelog
+**Complete Gameplay Experience:**
+- Full admin interface with game configuration and control
+- Player registration, lobby, and active round views
+- Proximity-based scoring system (exact, close, near)
+- Betting system with 2x multiplier
+- Results view with round breakdown
+- Overall leaderboard tracking
+- Real-time WebSocket synchronization
+- Mobile-responsive design
+- Configuration entry flow (HA 2025 standards)
 
-### v0.1.0 - Initial Epic 2 Release
+**Infrastructure:**
+- HACS-compliant structure
+- Spotify integration with media player detection
+- HTTP routes for unauthenticated player access
+- WebSocket command system
+- In-memory game state management
 
-**Infrastructure Foundation**
-- HACS-compliant distribution structure
-- Production-ready component lifecycle management
-- In-memory game state system
-- Spotify media player detection
-- HTTP route registration for admin and player interfaces
-- WebSocket command infrastructure
-- Configuration entry support (HA 2025 best practices)
+## Coming Soon
 
-This release establishes the core infrastructure that subsequent features will build upon. Admin and player UI implementations coming in future releases.
+- Enhanced error handling and rate limiting
+- Comprehensive testing suite
+- Detailed troubleshooting documentation
+- Team play mode
+- Historical statistics
 
 ---
 
-Perfect for parties, family gatherings, or just testing your music knowledge with friends!
+**Perfect for**: Parties, family gatherings, game nights, or testing your music knowledge with friends!
+
+**Support**: [GitHub Issues](https://github.com/markusholzhaeuser/beatsy/issues) | [Discussions](https://github.com/markusholzhaeuser/beatsy/discussions)

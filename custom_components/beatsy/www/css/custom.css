@@ -119,6 +119,36 @@ section {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Story 9.5: Waiting state subtle pulse animation */
+@keyframes pulse-subtle {
+    0%, 100% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+.waiting-pulse {
+    animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+/* Story 9.2: Fade-in animation for correct year reveal */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
 /* Status indicator colors */
 .status-setup {
     color: var(--beatsy-gray-800);
@@ -157,6 +187,14 @@ section {
     body {
         padding-bottom: env(safe-area-inset-bottom);
     }
+}
+
+/* Story 9.6: Round results scrolling optimizations */
+/* iOS momentum scrolling and GPU acceleration for smooth 60fps scrolling */
+#round-results-list {
+    -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
+    transform: translateZ(0); /* Force GPU acceleration */
+    will-change: scroll-position; /* Hint browser for scroll optimization */
 }
 
 /* Print styles (hidden for admin interface) */

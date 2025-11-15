@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+  <!-- Gray background -->
+  <rect width="400" height="400" fill="#E5E7EB"/>
+
+  <!-- Music note icon (centered) -->
+  <g transform="translate(150, 100)">
+    <!-- Music note stem -->
+    <rect x="45" y="40" width="10" height="120" fill="#9CA3AF"/>
+
+    <!-- Music note head (oval) -->
+    <ellipse cx="40" cy="165" rx="25" ry="18" fill="#9CA3AF"/>
+
+    <!-- Music note flag -->
+    <path d="M 55 40 Q 85 45, 85 75 L 85 85 Q 85 55, 55 50 Z" fill="#9CA3AF"/>
+  </g>
+
+  <!-- Text label -->
+  <text x="200" y="300" font-family="Arial, sans-serif" font-size="18" fill="#6B7280" text-anchor="middle">
+    No Album Cover
+  </text>
+</svg>
