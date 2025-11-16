@@ -134,37 +134,39 @@
 
                 <!-- Year Range Settings -->
                 <fieldset class="mb-6">
-                    <legend class="text-sm font-medium text-gray-700 mb-3">Year Range</legend>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div class="form-group">
-                            <label for="year-range-min" class="block text-sm font-medium text-gray-700 mb-1">
-                                Min Year
-                            </label>
-                            <input
-                                type="number"
-                                id="year-range-min"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg min-h-[44px] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
-                                min="1900"
-                                max=""
-                                value="1950"
-                                aria-describedby="year-range-hint year-range-error"
-                                aria-label="Minimum year for song filtering"
-                            />
-                        </div>
-                        <div class="form-group">
-                            <label for="year-range-max" class="block text-sm font-medium text-gray-700 mb-1">
-                                Max Year
-                            </label>
-                            <input
-                                type="number"
-                                id="year-range-max"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg min-h-[44px] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
-                                min="1900"
-                                max=""
-                                value=""
-                                aria-describedby="year-range-hint year-range-error"
-                                aria-label="Maximum year for song filtering"
-                            />
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:gap-4 mb-2">
+                        <legend class="text-sm font-medium text-gray-700 sm:min-w-[120px] mb-2 sm:mb-0">Year Range</legend>
+                        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1">
+                            <div class="flex items-center gap-2 flex-1">
+                                <label for="year-range-min" class="text-sm font-medium text-gray-700 whitespace-nowrap">
+                                    Min
+                                </label>
+                                <input
+                                    type="number"
+                                    id="year-range-min"
+                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg min-h-[44px] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                                    min="1900"
+                                    max=""
+                                    value="1950"
+                                    aria-describedby="year-range-hint year-range-error"
+                                    aria-label="Minimum year for song filtering"
+                                />
+                            </div>
+                            <div class="flex items-center gap-2 flex-1">
+                                <label for="year-range-max" class="text-sm font-medium text-gray-700 whitespace-nowrap">
+                                    Max
+                                </label>
+                                <input
+                                    type="number"
+                                    id="year-range-max"
+                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg min-h-[44px] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                                    min="1900"
+                                    max=""
+                                    value=""
+                                    aria-describedby="year-range-hint year-range-error"
+                                    aria-label="Maximum year for song filtering"
+                                />
+                            </div>
                         </div>
                     </div>
                     <p id="year-range-hint" class="text-xs text-gray-500 mt-2">
@@ -178,15 +180,15 @@
                 <!-- Scoring Rules Settings -->
                 <fieldset class="mb-6">
                     <legend class="text-sm font-medium text-gray-700 mb-3">Scoring Rules</legend>
-                    <div class="space-y-4">
-                        <div class="form-group">
-                            <label for="exact-points" class="block text-sm font-medium text-gray-700 mb-1">
-                                Exact Match Points
+                    <div class="space-y-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                            <label for="exact-points" class="text-sm font-medium text-gray-700 sm:min-w-[180px]">
+                                Exact Match
                             </label>
                             <input
                                 type="number"
                                 id="exact-points"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg min-h-[44px] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                                class="flex-1 sm:max-w-[120px] px-3 py-2 border border-gray-300 rounded-lg min-h-[44px] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
                                 min="0"
                                 max="100"
                                 step="1"
@@ -194,18 +196,18 @@
                                 aria-describedby="scoring-hint scoring-example exact-points-error"
                                 aria-label="Points awarded for guessing exact year"
                             />
-                            <p id="exact-points-error" class="text-sm text-red-600 mt-1 hidden" role="alert">
+                            <p id="exact-points-error" class="text-sm text-red-600 hidden sm:flex-1" role="alert">
                                 <!-- Error message populated by JavaScript -->
                             </p>
                         </div>
-                        <div class="form-group">
-                            <label for="close-points" class="block text-sm font-medium text-gray-700 mb-1">
-                                Close Match Points (±2 years)
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                            <label for="close-points" class="text-sm font-medium text-gray-700 sm:min-w-[180px]">
+                                Close Match (±2 years)
                             </label>
                             <input
                                 type="number"
                                 id="close-points"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg min-h-[44px] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                                class="flex-1 sm:max-w-[120px] px-3 py-2 border border-gray-300 rounded-lg min-h-[44px] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
                                 min="0"
                                 max="100"
                                 step="1"
@@ -213,18 +215,18 @@
                                 aria-describedby="scoring-hint scoring-example close-points-error"
                                 aria-label="Points awarded for guessing within 2 years"
                             />
-                            <p id="close-points-error" class="text-sm text-red-600 mt-1 hidden" role="alert">
+                            <p id="close-points-error" class="text-sm text-red-600 hidden sm:flex-1" role="alert">
                                 <!-- Error message populated by JavaScript -->
                             </p>
                         </div>
-                        <div class="form-group">
-                            <label for="near-points" class="block text-sm font-medium text-gray-700 mb-1">
-                                Near Match Points (±5 years)
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                            <label for="near-points" class="text-sm font-medium text-gray-700 sm:min-w-[180px]">
+                                Near Match (±5 years)
                             </label>
                             <input
                                 type="number"
                                 id="near-points"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg min-h-[44px] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                                class="flex-1 sm:max-w-[120px] px-3 py-2 border border-gray-300 rounded-lg min-h-[44px] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
                                 min="0"
                                 max="100"
                                 step="1"
@@ -232,7 +234,7 @@
                                 aria-describedby="scoring-hint scoring-example near-points-error"
                                 aria-label="Points awarded for guessing within 5 years"
                             />
-                            <p id="near-points-error" class="text-sm text-red-600 mt-1 hidden" role="alert">
+                            <p id="near-points-error" class="text-sm text-red-600 hidden sm:flex-1" role="alert">
                                 <!-- Error message populated by JavaScript -->
                             </p>
                         </div>
