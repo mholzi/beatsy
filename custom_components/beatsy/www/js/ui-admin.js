@@ -741,12 +741,13 @@ function validateGameSettings() {
     // Year range validation
     const yearMin = parseInt(document.getElementById('year-range-min').value);
     const yearMax = parseInt(document.getElementById('year-range-max').value);
+    const currentYear = new Date().getFullYear();
 
-    if (isNaN(yearMin) || yearMin < 1900 || yearMin > 2024) {
-        errors.yearMin = "Year min must be between 1900-2024";
+    if (isNaN(yearMin) || yearMin < 1900 || yearMin > currentYear) {
+        errors.yearMin = `Year min must be between 1900-${currentYear}`;
     }
-    if (isNaN(yearMax) || yearMax < 1900 || yearMax > 2024) {
-        errors.yearMax = "Year max must be between 1900-2024";
+    if (isNaN(yearMax) || yearMax < 1900 || yearMax > currentYear) {
+        errors.yearMax = `Year max must be between 1900-${currentYear}`;
     }
     if (!isNaN(yearMin) && !isNaN(yearMax) && yearMin >= yearMax) {
         errors.yearRange = "Year min must be less than year max";

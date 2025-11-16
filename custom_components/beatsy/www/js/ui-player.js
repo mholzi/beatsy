@@ -1179,10 +1179,6 @@ function handleRoundEnded(data) {
     transitionToResults(data);
 }
 
-
-    console.log('✓ Active round view hidden');
-}
-
 // Story 8.1 lockInputs/unlockInputs moved to Story 8.6 section (lines 1563-1619) to consolidate implementation
 
 
