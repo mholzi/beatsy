@@ -603,16 +603,29 @@ function handleWebSocketMessage(event) {
         console.log('WebSocket message received:', data);
 
         // Handle HA WebSocket API responses (type: "result")
-        if (data.type === 'result' && data.result) {
-            // Check if this is a reconnect response
-            if ('success' in data.result && 'game_state' in data.result) {
-                handleReconnectResponse(data.result);
-                return;
+        if (data.type === 'result') {
+            // Check if this is a response to our reconnect or join_game message
+            if (data.success === false && data.error) {
+                console.warn('Command failed:', data.error);
+                // Handle as reconnection failure if we're waiting for reconnect
+                if (reconnectTimeout) {
+                    clearReconnectTimeout();
+                    handleReconnectionFailure(data.error.code || 'unknown_error');
+                    return;
+                }
             }
-            // Check if this is a join_game response
-            if ('success' in data.result && 'session_id' in data.result) {
-                handleJoinGameResponse(data.result);
-                return;
+            // Handle successful result responses
+            if (data.result) {
+                // Check if this is a reconnect response
+                if ('success' in data.result && 'game_state' in data.result) {
+                    handleReconnectResponse(data.result);
+                    return;
+                }
+                // Check if this is a join_game response
+                if ('success' in data.result && 'session_id' in data.result) {
+                    handleJoinGameResponse(data.result);
+                    return;
+                }
             }
             // Story 8.6: Check if this is a submit_guess response
             if (data.id && ('success' in data.result || 'error' in data.result)) {
