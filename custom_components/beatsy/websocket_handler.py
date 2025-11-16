@@ -195,12 +195,13 @@ class BeatsyWebSocketView(HomeAssistantView):
             )
             _LOGGER.debug("Triggered test broadcast from %s", conn_id)
 
-        elif action == "join_game":
-            # Story 4.1 Task 8: Handle player registration
-            await self._handle_join_game(conn_id, ws, data)
-
-        elif action and action.startswith("beatsy/"):
-            # Route beatsy/* commands to registered WebSocket command handlers
+        elif action and (action.startswith("beatsy/") or action == "join_game" or action == "reconnect"):
+            # Route beatsy/* commands and legacy join_game/reconnect to registered WebSocket command handlers
+            # Convert legacy action names to beatsy/* format for routing
+            if action == "join_game":
+                data["type"] = "beatsy/join_game"
+            elif action == "reconnect":
+                data["type"] = "beatsy/reconnect"
             await self._route_to_command_handler(conn_id, ws, data)
 
         else:
@@ -232,30 +233,57 @@ class BeatsyWebSocketView(HomeAssistantView):
         class MockConnection:
             """Mock HA ActiveConnection for routing to command handlers."""
 
-            def __init__(self, ws_response, conn_id):
+            def __init__(self, ws_response, conn_id, command_type):
                 self.ws = ws_response
                 self.id = conn_id
+                self.command_type = command_type
 
             def send_result(self, msg_id, result):
                 """Send success response to client."""
-                asyncio.create_task(self.ws.send_json({
-                    "id": msg_id,
-                    "type": "result",
-                    "success": True,
-                    "result": result
-                }))
+                # For join_game and reconnect, use legacy response format for backward compatibility
+                if self.command_type == "beatsy/join_game":
+                    asyncio.create_task(self.ws.send_json({
+                        "type": "join_game_response",
+                        "success": True,
+                        **result
+                    }))
+                elif self.command_type == "beatsy/reconnect":
+                    asyncio.create_task(self.ws.send_json({
+                        "type": "reconnect_response",
+                        "success": True,
+                        **result
+                    }))
+                else:
+                    # Standard HA WebSocket API response format
+                    asyncio.create_task(self.ws.send_json({
+                        "id": msg_id,
+                        "type": "result",
+                        "success": True,
+                        "result": result
+                    }))
 
             def send_error(self, msg_id, code, message):
                 """Send error response to client."""
-                asyncio.create_task(self.ws.send_json({
-                    "id": msg_id,
-                    "type": "result",
-                    "success": False,
-                    "error": {
-                        "code": code,
+                # For join_game and reconnect, use legacy response format
+                if self.command_type in ("beatsy/join_game", "beatsy/reconnect"):
+                    response_type = "join_game_response" if self.command_type == "beatsy/join_game" else "reconnect_response"
+                    asyncio.create_task(self.ws.send_json({
+                        "type": response_type,
+                        "success": False,
+                        "error": code,
                         "message": message
-                    }
-                }))
+                    }))
+                else:
+                    # Standard HA WebSocket API error format
+                    asyncio.create_task(self.ws.send_json({
+                        "id": msg_id,
+                        "type": "result",
+                        "success": False,
+                        "error": {
+                            "code": code,
+                            "message": message
+                        }
+                    }))
 
         # Import command handlers
         from .websocket_api import (
@@ -287,7 +315,7 @@ class BeatsyWebSocketView(HomeAssistantView):
         if handler:
             try:
                 _LOGGER.debug("Routing %s to command handler", command_type)
-                mock_conn = MockConnection(ws, conn_id)
+                mock_conn = MockConnection(ws, conn_id, command_type)
                 await handler(self.hass, mock_conn, data)
             except Exception as e:
                 _LOGGER.error("Error in command handler for %s: %s", command_type, e, exc_info=True)
