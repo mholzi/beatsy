@@ -20,6 +20,9 @@ function initAdminUI() {
     // Verify all critical elements are present
     verifyPageStructure();
 
+    // Initialize year range inputs with current year
+    initializeYearRange();
+
     // Setup placeholder event listeners (will be implemented in later stories)
     setupPlaceholderListeners();
 
@@ -44,6 +47,35 @@ function initAdminUI() {
 }
 
 /**
+ * Initialize year range inputs with current year
+ * Sets max attribute and default value to current year
+ */
+function initializeYearRange() {
+    const currentYear = new Date().getFullYear();
+    const yearMinInput = document.getElementById('year-range-min');
+    const yearMaxInput = document.getElementById('year-range-max');
+
+    if (yearMinInput) {
+        yearMinInput.max = currentYear;
+    }
+
+    if (yearMaxInput) {
+        yearMaxInput.max = currentYear;
+        // Only set value if not already set (e.g., from localStorage)
+        if (!yearMaxInput.value) {
+            yearMaxInput.value = currentYear;
+        }
+    }
+
+    // Update gameConfig default
+    if (!gameConfig.yearRangeMax || gameConfig.yearRangeMax === 2024) {
+        gameConfig.yearRangeMax = currentYear;
+    }
+
+    console.log(`Year range initialized: min=1900, max=${currentYear}`);
+}
+
+/**
  * Global game configuration state
  * Story 3.2: Stores media player selection
  * Story 3.3: Stores playlist selection
@@ -54,7 +86,7 @@ const gameConfig = {
     playlist: null,         // Playlist ID
     timerDuration: 30,      // Timer duration (10-120 seconds)
     yearRangeMin: 1950,     // Year range minimum
-    yearRangeMax: 2024,     // Year range maximum
+    yearRangeMax: new Date().getFullYear(),     // Year range maximum (current year)
     exactPoints: 10,        // Points for exact match
     closePoints: 5,         // Points for ±2 years
     nearPoints: 2,          // Points for ±5 years
