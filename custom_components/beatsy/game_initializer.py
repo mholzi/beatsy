@@ -10,6 +10,7 @@ Story 7.1: Spotify Playlist Track Fetching with Pagination
 
 import copy
 import logging
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -418,19 +419,24 @@ def create_game_session(
         >>> session['status']
         'lobby'
     """
-    # Step 1: Reset all previous game state
-    reset_game_state(hass)
+    from .game_state import get_game_state
+
+    # Step 1: Get the existing game state (initialized during component setup)
+    try:
+        state = get_game_state(hass)
+    except ValueError:
+        # If no state exists, initialize domain but this shouldn't happen in normal flow
+        if DOMAIN not in hass.data:
+            hass.data[DOMAIN] = {}
+        from .game_state import init_game_state
+        state = init_game_state(hass, "default")
 
     # Step 2: Generate new game identifiers
     game_id = generate_game_id()
     admin_key, admin_key_expiry = generate_admin_key()
 
-    # Step 3: Store game configuration
-    if DOMAIN not in hass.data:
-        hass.data[DOMAIN] = {}
-
-    hass.data[DOMAIN]["game_id"] = game_id
-    hass.data[DOMAIN]["game_config"] = {
+    # Step 3: Update game state configuration
+    state.game_config = {
         "media_player": config["media_player"],
         "playlist_id": config["playlist_id"],
         "timer_duration": config.get("timer_duration", 30),
@@ -445,23 +451,33 @@ def create_game_session(
 
     # Step 4: Store playlist songs
     songs = playlist_data.get("songs", [])
-    hass.data[DOMAIN]["available_songs"] = songs.copy()  # Make a copy to avoid mutations
+    state.available_songs = songs.copy()  # Make a copy to avoid mutations
 
     # Story 5.7: Store original playlist for reset_game() to restore available_songs
-    hass.data[DOMAIN]["original_playlist"] = copy.deepcopy(songs)
+    state.original_playlist = copy.deepcopy(songs)
 
-    # Step 5: Set game status to lobby
-    hass.data[DOMAIN]["game_status"] = "lobby"
-    hass.data[DOMAIN]["lobby_timestamp"] = datetime.now()
+    # Step 5: Reset dynamic state for new game
+    state.players = []
+    state.current_round = None
+    state.played_songs = []
 
-    # Step 6: Store admin key with expiry
+    # Step 6: Set game status and timestamps
+    state.game_status = "lobby"
+    state.game_started = True
+    state.game_started_at = time.time()  # CRITICAL: Set timestamp for game_id generation
+
+    # Step 7: Store admin key in legacy location for backward compatibility
+    # (websocket_api and other modules may still reference hass.data[DOMAIN]["admin_key"])
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
     hass.data[DOMAIN]["admin_key"] = admin_key
     hass.data[DOMAIN]["admin_key_expiry"] = admin_key_expiry
 
     _LOGGER.info(
-        "Game session created: game_id=%s, status=lobby, songs=%d",
+        "Game session created: game_id=%s, status=lobby, songs=%d, started_at=%f",
         game_id,
         len(songs),
+        state.game_started_at,
     )
 
     # Return session data for API response
