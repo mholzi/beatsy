@@ -1200,26 +1200,24 @@ async function startRound() {
             startRoundText.textContent = 'Starting...';
         }
 
-        // Send WebSocket next_song command
-        if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-            const msgId = Date.now();
-            window.ws.send(JSON.stringify({
-                id: msgId,
-                type: 'beatsy/next_song'
-            }));
+        // Send WebSocket next_song command using helper
+        const result = await sendWebSocketCommand('beatsy/next_song', {});
 
-            console.log('Start round command sent (beatsy/next_song)');
-            showToast('Starting round...', 'info');
+        if (result.success) {
+            console.log('Round started successfully:', result.result);
+            showToast(`Round ${result.result.round_number} started!`, 'success');
 
             // Hide the button - it will be shown again when round ends
             setTimeout(() => {
                 startRoundBtn.classList.add('hidden');
+                startRoundBtn.disabled = false;
+                if (startRoundText) {
+                    startRoundText.textContent = 'Start Round';
+                }
             }, 500);
         } else {
-            throw new Error('WebSocket not connected');
+            throw new Error(result.error?.message || 'Failed to start round');
         }
-
-        // Note: Button will be shown again when round_ended event is received
 
     } catch (error) {
         console.error('Error starting round:', error);
