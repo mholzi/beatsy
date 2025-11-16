@@ -634,6 +634,14 @@ function setupPlaceholderListeners() {
         });
     }
 
+    // Start Round button (sends beatsy/next_song command)
+    const startRoundBtn = document.getElementById('start-round-btn');
+    if (startRoundBtn) {
+        startRoundBtn.addEventListener('click', async (e) => {
+            await startRound();
+        });
+    }
+
     // Story 5.7: Reset Game button
     const resetGameBtn = document.getElementById('reset-game-btn');
     if (resetGameBtn) {
@@ -1175,6 +1183,56 @@ async function startGame(forceStart = false) {
  * Reset game and clear all state
  * Story 5.7: Send reset_game WebSocket command, handle response
  */
+/**
+ * Start a new round by sending beatsy/next_song command
+ * Shows/hides the button based on game state (lobby or results)
+ */
+async function startRound() {
+    const startRoundBtn = document.getElementById('start-round-btn');
+    const startRoundText = document.getElementById('start-round-text');
+
+    try {
+        console.log('Starting new round...');
+
+        // Disable button to prevent double-click
+        startRoundBtn.disabled = true;
+        if (startRoundText) {
+            startRoundText.textContent = 'Starting...';
+        }
+
+        // Send WebSocket next_song command
+        if (window.ws && window.ws.readyState === WebSocket.OPEN) {
+            const msgId = Date.now();
+            window.ws.send(JSON.stringify({
+                id: msgId,
+                type: 'beatsy/next_song'
+            }));
+
+            console.log('Start round command sent (beatsy/next_song)');
+            showToast('Starting round...', 'info');
+
+            // Hide the button - it will be shown again when round ends
+            setTimeout(() => {
+                startRoundBtn.classList.add('hidden');
+            }, 500);
+        } else {
+            throw new Error('WebSocket not connected');
+        }
+
+        // Note: Button will be shown again when round_ended event is received
+
+    } catch (error) {
+        console.error('Error starting round:', error);
+        showToast('Failed to start round: ' + error.message, 'error');
+
+        // Re-enable button on error
+        startRoundBtn.disabled = false;
+        if (startRoundText) {
+            startRoundText.textContent = 'Start Round';
+        }
+    }
+}
+
 async function resetGame() {
     const resetGameBtn = document.getElementById('reset-game-btn');
 
@@ -1515,6 +1573,20 @@ function updateUIForActiveGame(gameStatus) {
         if (joinAsPlayerBtn) {
             joinAsPlayerBtn.classList.remove('hidden');
             console.log('✓ "Join as Player" button shown');
+        }
+    }
+
+    // Show "Start Round" button if game is in lobby or results state (waiting to start next round)
+    if (gameStatus.state === 'lobby' || gameStatus.state === 'results') {
+        const startRoundBtn = document.getElementById('start-round-btn');
+        if (startRoundBtn) {
+            startRoundBtn.classList.remove('hidden');
+            startRoundBtn.disabled = false;
+            const startRoundText = document.getElementById('start-round-text');
+            if (startRoundText) {
+                startRoundText.textContent = gameStatus.state === 'lobby' ? 'Start First Round' : 'Next Round';
+            }
+            console.log('✓ "Start Round" button shown');
         }
     }
 
