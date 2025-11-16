@@ -979,6 +979,18 @@ async function startGame(forceStart = false) {
         }
 
         if (response.ok) {
+            // Double-check: if admin_key is missing, this might be a conflict warning
+            if (!data.admin_key && data.conflict_warning) {
+                console.log('Conflict warning detected (fallback check):', data.current_media);
+                showConflictWarningModal(data.current_media);
+
+                // Reset button state
+                startGameBtn.disabled = false;
+                spinnerElement.classList.add('hidden');
+                buttonTextElement.textContent = 'Start Game';
+                return;
+            }
+
             // Success! Handle 200 response
             console.log('Game started successfully:', data);
 
