@@ -31,6 +31,7 @@ from .spotify_helper import (
 )
 from .websocket_api import (
     handle_join_game,
+    handle_reconnect,
     handle_submit_guess,
     handle_place_bet,
     handle_start_game,
@@ -168,6 +169,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not hass.data[DOMAIN].get("_ws_commands_registered", False):
         try:
             ha_websocket_api.async_register_command(hass, handle_join_game)
+            ha_websocket_api.async_register_command(hass, handle_reconnect)
             ha_websocket_api.async_register_command(hass, handle_submit_guess)
             ha_websocket_api.async_register_command(hass, handle_place_bet)
             ha_websocket_api.async_register_command(hass, handle_start_game)
@@ -176,7 +178,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             ha_websocket_api.async_register_command(hass, handle_reset_game)
             hass.data[DOMAIN]["_ws_commands_registered"] = True
             _LOGGER.info(
-                "WebSocket commands registered: join_game, submit_guess, place_bet, start_game, next_song, reset_game"
+                "WebSocket commands registered: join_game, reconnect, submit_guess, place_bet, start_game, next_song, skip_song, reset_game"
             )
         except Exception as e:
             _LOGGER.warning("Failed to register WebSocket commands (may already exist): %s", str(e))

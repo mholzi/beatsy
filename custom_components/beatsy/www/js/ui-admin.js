@@ -1959,6 +1959,11 @@ function handleWebSocketMessage(event) {
                     loadGameStatus();
                     break;
 
+                case 'game_status_update':
+                    console.log('📊 Game status update event received');
+                    loadGameStatus();
+                    break;
+
                 default:
                     console.log('Unknown event type:', data.event_type);
             }

@@ -199,6 +199,10 @@ class BeatsyWebSocketView(HomeAssistantView):
             # Story 4.1 Task 8: Handle player registration
             await self._handle_join_game(conn_id, ws, data)
 
+        elif action and action.startswith("beatsy/"):
+            # Route beatsy/* commands to registered WebSocket command handlers
+            await self._route_to_command_handler(conn_id, ws, data)
+
         else:
             _LOGGER.debug("Unknown action '%s' from %s", action, conn_id)
             await ws.send_json(
@@ -208,6 +212,105 @@ class BeatsyWebSocketView(HomeAssistantView):
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
             )
+
+    async def _route_to_command_handler(
+        self, conn_id: str, ws: web.WebSocketResponse, data: dict[str, Any]
+    ) -> None:
+        """Route beatsy/* commands to registered WebSocket command handlers.
+
+        This bridges the unauthenticated /api/beatsy/ws endpoint to the
+        authenticated HA WebSocket API command handlers.
+
+        Args:
+            conn_id: The connection ID.
+            ws: The WebSocket response object.
+            data: The message data with 'type' field.
+        """
+        from homeassistant.components.websocket_api import ActiveConnection
+
+        # Create a mock ActiveConnection that wraps our aiohttp WebSocket
+        class MockConnection:
+            """Mock HA ActiveConnection for routing to command handlers."""
+
+            def __init__(self, ws_response, conn_id):
+                self.ws = ws_response
+                self.id = conn_id
+
+            def send_result(self, msg_id, result):
+                """Send success response to client."""
+                asyncio.create_task(self.ws.send_json({
+                    "id": msg_id,
+                    "type": "result",
+                    "success": True,
+                    "result": result
+                }))
+
+            def send_error(self, msg_id, code, message):
+                """Send error response to client."""
+                asyncio.create_task(self.ws.send_json({
+                    "id": msg_id,
+                    "type": "result",
+                    "success": False,
+                    "error": {
+                        "code": code,
+                        "message": message
+                    }
+                }))
+
+        # Import command handlers
+        from .websocket_api import (
+            handle_join_game,
+            handle_reconnect,
+            handle_submit_guess,
+            handle_place_bet,
+            handle_start_game,
+            handle_next_song,
+            handle_skip_song,
+            handle_reset_game,
+        )
+
+        # Map command types to handlers
+        command_handlers = {
+            "beatsy/join_game": handle_join_game,
+            "beatsy/reconnect": handle_reconnect,
+            "beatsy/submit_guess": handle_submit_guess,
+            "beatsy/place_bet": handle_place_bet,
+            "beatsy/start_game": handle_start_game,
+            "beatsy/next_song": handle_next_song,
+            "beatsy/skip_song": handle_skip_song,
+            "beatsy/reset_game": handle_reset_game,
+        }
+
+        command_type = data.get("type")
+        handler = command_handlers.get(command_type)
+
+        if handler:
+            try:
+                _LOGGER.debug("Routing %s to command handler", command_type)
+                mock_conn = MockConnection(ws, conn_id)
+                await handler(self.hass, mock_conn, data)
+            except Exception as e:
+                _LOGGER.error("Error in command handler for %s: %s", command_type, e, exc_info=True)
+                await ws.send_json({
+                    "id": data.get("id"),
+                    "type": "result",
+                    "success": False,
+                    "error": {
+                        "code": "handler_error",
+                        "message": str(e)
+                    }
+                })
+        else:
+            _LOGGER.warning("No handler found for command: %s", command_type)
+            await ws.send_json({
+                "id": data.get("id"),
+                "type": "result",
+                "success": False,
+                "error": {
+                    "code": "unknown_command",
+                    "message": f"No handler for {command_type}"
+                }
+            })
 
     async def _handle_join_game(
         self, conn_id: str, ws: web.WebSocketResponse, data: dict[str, Any]
