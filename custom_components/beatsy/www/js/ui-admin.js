@@ -1353,6 +1353,11 @@ async function loadGameStatus() {
             // Game exists, update status panel
             console.log('Game status loaded successfully:', data);
             updateStatusPanel(data);
+
+            // If game is active (not in setup state), update UI accordingly
+            if (data.state !== 'setup') {
+                updateUIForActiveGame(data);
+            }
         } else if (response.status === 404) {
             // No game active
             console.log('No active game found');
@@ -1417,6 +1422,42 @@ function updateStatusPanel(status) {
     }
 
     console.log('Status panel updated:', status);
+}
+
+/**
+ * Update UI elements when an active game is detected on page load
+ * Restores game active state: button states, Join as Player visibility, etc.
+ */
+function updateUIForActiveGame(gameStatus) {
+    console.log('Restoring UI for active game:', gameStatus);
+
+    // Update Start Game button to "Game Active" state
+    const startGameBtn = document.getElementById('start-game-btn');
+    const buttonTextElement = document.getElementById('start-game-btn-text');
+    const spinnerElement = document.getElementById('start-game-spinner');
+
+    if (startGameBtn && buttonTextElement && spinnerElement) {
+        startGameBtn.disabled = true;
+        buttonTextElement.textContent = 'Game Active';
+        spinnerElement.classList.add('hidden');
+        console.log('✓ Start Game button set to "Game Active"');
+    }
+
+    // Show "Join as Player" button if game is in lobby or active state
+    if (gameStatus.state === 'lobby' || gameStatus.state === 'active' || gameStatus.state === 'results') {
+        const joinAsPlayerBtn = document.getElementById('join-as-player-btn');
+        if (joinAsPlayerBtn) {
+            joinAsPlayerBtn.classList.remove('hidden');
+            console.log('✓ "Join as Player" button shown');
+        }
+    }
+
+    // Display player URL if we have the host information
+    const playerUrl = `${window.location.protocol}//${window.location.host}/api/beatsy/player`;
+    if (typeof displayPlayerUrl === 'function') {
+        displayPlayerUrl(playerUrl);
+        console.log('✓ Player URL displayed:', playerUrl);
+    }
 }
 
 /**
