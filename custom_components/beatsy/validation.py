@@ -23,6 +23,7 @@ from __future__ import annotations
 import html
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Optional
 
 
@@ -303,7 +304,7 @@ def validate_year_range(min_year: Any, max_year: Any) -> ValidationResult:
 
     Validation rules:
     - Type: Both must be integers (or convertible to integer)
-    - Range: Both between 1900 and 2024
+    - Range: Both between 1900 and current year
     - Logic: max_year must be > min_year
 
     Args:
@@ -313,6 +314,8 @@ def validate_year_range(min_year: Any, max_year: Any) -> ValidationResult:
     Returns:
         ValidationResult with valid=True/False and error message
     """
+    current_year = datetime.now().year
+
     try:
         min_int = int(min_year)
         max_int = int(max_year)
@@ -323,17 +326,17 @@ def validate_year_range(min_year: Any, max_year: Any) -> ValidationResult:
             sanitized_value=None,
         )
 
-    if min_int < 1900 or min_int > 2024:
+    if min_int < 1900 or min_int > current_year:
         return ValidationResult(
             valid=False,
-            error_message="Minimum year must be between 1900 and 2024",
+            error_message=f"Minimum year must be between 1900 and {current_year}",
             sanitized_value=None,
         )
 
-    if max_int < 1900 or max_int > 2024:
+    if max_int < 1900 or max_int > current_year:
         return ValidationResult(
             valid=False,
-            error_message="Maximum year must be between 1900 and 2024",
+            error_message=f"Maximum year must be between 1900 and {current_year}",
             sanitized_value=None,
         )
 

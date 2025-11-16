@@ -94,11 +94,12 @@ class GameConfigInput:
             errors.append("Timer must be between 10-120 seconds")
 
         # Year range validation
-        if not (1900 <= self.year_range_min <= 2025):
-            errors.append("Year min must be between 1900-2025")
+        current_year = datetime.now().year
+        if not (1900 <= self.year_range_min <= current_year):
+            errors.append(f"Year min must be between 1900-{current_year}")
 
-        if not (1900 <= self.year_range_max <= 2025):
-            errors.append("Year max must be between 1900-2025")
+        if not (1900 <= self.year_range_max <= current_year):
+            errors.append(f"Year max must be between 1900-{current_year}")
 
         if self.year_range_min >= self.year_range_max:
             errors.append("Year min must be less than year max")
