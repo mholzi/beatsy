@@ -1490,6 +1490,13 @@ function updateStatusPanel(status) {
 function updateUIForActiveGame(gameStatus) {
     console.log('Restoring UI for active game:', gameStatus);
 
+    // Restore game_id to localStorage if available
+    // This ensures "Join as Player" works after page reload
+    if (gameStatus.game_id && gameStatus.game_id !== 'unknown') {
+        localStorage.setItem('beatsy_game_id', gameStatus.game_id);
+        console.log('✓ Game ID restored to localStorage:', gameStatus.game_id);
+    }
+
     // Update Start Game button to "Game Active" state
     const startGameBtn = document.getElementById('start-game-btn');
     const buttonTextElement = document.getElementById('start-game-btn-text');
