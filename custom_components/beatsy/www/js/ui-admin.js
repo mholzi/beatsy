@@ -1222,11 +1222,12 @@ async function joinAsPlayer() {
         return;
     }
 
-    // Construct player URL with game_id query parameter
-    // Admin key is already in localStorage from Task 1, will be detected by player registration
-    const playerUrl = `/local/beatsy/start.html?game_id=${gameId}`;
+    // Use the correct player URL path (no game_id parameter needed - it's in localStorage)
+    // The player interface will read game_id and admin_key from localStorage
+    const playerUrl = `/api/beatsy/player`;
 
     console.log('Redirecting to player registration:', playerUrl);
+    console.log('Game ID in localStorage:', gameId);
     console.log('Admin key in localStorage:', !!localStorage.getItem('beatsy_admin_key'));
 
     // Navigate to player registration page
