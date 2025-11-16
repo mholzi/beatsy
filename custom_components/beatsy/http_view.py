@@ -308,6 +308,54 @@ class BeatsyAPIView(HomeAssistantView):
                         status=500,
                     )
 
+            elif endpoint == "config":
+                # Story 11.1: Get persisted game configuration
+                from .game_state import get_game_state, load_config
+
+                _LOGGER.debug("GET /api/beatsy/api/config called")
+
+                try:
+                    # Get game state to retrieve entry_id
+                    try:
+                        game_state = get_game_state(hass)
+                        entry_id = game_state.entry_id
+                    except ValueError:
+                        # No game state - try to load config from first entry
+                        _LOGGER.warning("No game state initialized, using first config entry")
+                        # Get first config entry
+                        entries = hass.config_entries.async_entries(DOMAIN)
+                        if not entries:
+                            return web.json_response(
+                                {
+                                    "error": "no_config",
+                                    "message": "No configuration entries found",
+                                },
+                                status=404,
+                            )
+                        entry_id = entries[0].entry_id
+
+                    # Load persisted config
+                    config = await load_config(hass, entry_id)
+
+                    if not config:
+                        # Return empty config if none exists
+                        _LOGGER.debug("No persisted config found, returning empty")
+                        return web.json_response({}, status=200)
+
+                    # Return config JSON
+                    _LOGGER.info("Config endpoint called, returning persisted config")
+                    return web.json_response(config, status=200)
+
+                except Exception as e:
+                    _LOGGER.error("Error loading config: %s", str(e), exc_info=True)
+                    return web.json_response(
+                        {
+                            "error": "internal_error",
+                            "message": "Failed to load configuration",
+                        },
+                        status=500,
+                    )
+
             elif endpoint == "game_status":
                 # Story 3.7: Get current game status for admin status panel
                 from .game_state import get_game_state
@@ -361,6 +409,15 @@ class BeatsyAPIView(HomeAssistantView):
                     import hashlib
                     game_id = hashlib.md5(str(game_state.game_started_at).encode()).hexdigest()[:8] if game_state.game_started_at else "unknown"
 
+                    # Story 11.3: Add players array with name and joined_at (chronological order)
+                    players_data = [
+                        {
+                            "name": player.name,
+                            "joined_at": int(player.joined_at)  # Unix timestamp
+                        }
+                        for player in (game_state.players if game_state.players else [])
+                    ]
+
                     response_data = {
                         "game_id": game_id,
                         "state": state,
@@ -368,6 +425,7 @@ class BeatsyAPIView(HomeAssistantView):
                         "songs_total": songs_total,
                         "songs_remaining": songs_remaining,
                         "current_round": current_round,
+                        "players": players_data,  # Story 11.3: Players array for admin ticker
                     }
 
                     _LOGGER.info(
@@ -638,7 +696,7 @@ class BeatsyAPIView(HomeAssistantView):
 
                     # Create game session (atomic operation)
                     try:
-                        session_data = game_initializer.create_game_session(
+                        session_data = await game_initializer.create_game_session(
                             hass, config, filtered_playlist
                         )
                     except Exception as e:

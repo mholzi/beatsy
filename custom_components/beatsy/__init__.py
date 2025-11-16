@@ -13,7 +13,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
-from .game_state import init_game_state, load_config
+from .game_state import init_game_state, load_config, save_config
 from .http_view import (
     BeatsyTestView,
     BeatsyAdminView,
@@ -82,6 +82,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if persisted_config:
         state.game_config.update(persisted_config)
         _LOGGER.debug("Loaded persisted config for entry %s", entry.entry_id)
+    else:
+        # Story 11.1: AC-5 - Save default config on first installation
+        default_config = {
+            "round_timer_seconds": 30,
+            "points_exact": 10,
+            "points_close": 5,
+            "points_near": 2,
+            "bet_multiplier": 2,
+            "year_range_min": 1950,
+            "year_range_max": 2025,
+        }
+        state.game_config.update(default_config)
+        await save_config(hass, state.game_config, entry.entry_id)
+        _LOGGER.info("First installation: Default config saved for entry %s", entry.entry_id)
 
     # Store Spotify helper functions reference in state
     state.spotify = {

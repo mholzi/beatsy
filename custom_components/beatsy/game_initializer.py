@@ -384,13 +384,14 @@ async def load_spotify_playlist(
     return tracks_with_metadata, playlist_metadata
 
 
-def create_game_session(
+async def create_game_session(
     hass: HomeAssistant, config: dict[str, Any], playlist_data: dict[str, Any]
 ) -> dict[str, Any]:
     """
     Create a new game session with full state initialization.
 
     Story 3.5: AC-2, AC-4, AC-5, AC-6
+    Story 11.1: Persists configuration to HA storage
     Atomic operation: Either fully succeeds or leaves state unchanged.
 
     Args:
@@ -416,11 +417,11 @@ def create_game_session(
     Example:
         >>> config = {"media_player": "media_player.spotify", ...}
         >>> playlist = {"playlist_name": "80s Hits", "songs": [...]}
-        >>> session = create_game_session(hass, config, playlist)
+        >>> session = await create_game_session(hass, config, playlist)
         >>> session['status']
         'lobby'
     """
-    from .game_state import get_game_state
+    from .game_state import get_game_state, save_config
 
     # Step 1: Get the existing game state (initialized during component setup)
     try:
@@ -449,6 +450,10 @@ def create_game_session(
         "bet_multiplier": config.get("bet_multiplier", 2),
         "game_id": game_id,  # Include game_id for tracking
     }
+
+    # Story 11.1: AC-1 - Persist config to HA storage immediately
+    await save_config(hass, state.game_config, state.entry_id)
+    _LOGGER.debug("Config persisted to storage for entry %s", state.entry_id)
 
     # Step 4: Store playlist songs
     songs = playlist_data.get("songs", [])

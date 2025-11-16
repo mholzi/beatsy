@@ -5,9 +5,93 @@
  */
 
 /**
+ * Story 11.1: Load game configuration from backend on page initialization
+ * Fetches persisted config from /api/beatsy/api/config and populates form fields
+ */
+async function loadConfigFromBackend() {
+    try {
+        console.log('Loading config from backend...');
+        const response = await fetch('/api/beatsy/api/config');
+
+        if (!response.ok) {
+            throw new Error(`Config load failed: ${response.status}`);
+        }
+
+        const config = await response.json();
+
+        // Handle empty config (first installation or no config saved yet)
+        if (!config || Object.keys(config).length === 0) {
+            console.log('No persisted config found, using defaults');
+            return;
+        }
+
+        // Populate gameConfig state
+        if (config.media_player) gameConfig.mediaPlayer = config.media_player;
+        if (config.playlist_id) gameConfig.playlist = config.playlist_id;
+        if (config.timer_duration) gameConfig.timerDuration = config.timer_duration;
+        if (config.round_timer_seconds) gameConfig.timerDuration = config.round_timer_seconds;
+        if (config.year_range_min) gameConfig.yearRangeMin = config.year_range_min;
+        if (config.year_range_max) gameConfig.yearRangeMax = config.year_range_max;
+        if (config.exact_points) gameConfig.exactPoints = config.exact_points;
+        if (config.points_exact) gameConfig.exactPoints = config.points_exact;
+        if (config.close_points) gameConfig.closePoints = config.close_points;
+        if (config.points_close) gameConfig.closePoints = config.points_close;
+        if (config.near_points) gameConfig.nearPoints = config.near_points;
+        if (config.points_near) gameConfig.nearPoints = config.points_near;
+        if (config.bet_multiplier) gameConfig.betMultiplier = config.bet_multiplier;
+        if (config.points_bet_multiplier) gameConfig.betMultiplier = config.points_bet_multiplier;
+
+        // Populate form inputs
+        const timerInput = document.getElementById('timer-duration');
+        if (timerInput && gameConfig.timerDuration) {
+            timerInput.value = gameConfig.timerDuration;
+        }
+
+        const yearMinInput = document.getElementById('year-range-min');
+        if (yearMinInput && gameConfig.yearRangeMin) {
+            yearMinInput.value = gameConfig.yearRangeMin;
+        }
+
+        const yearMaxInput = document.getElementById('year-range-max');
+        if (yearMaxInput && gameConfig.yearRangeMax) {
+            yearMaxInput.value = gameConfig.yearRangeMax;
+        }
+
+        const exactPointsInput = document.getElementById('exact-points');
+        if (exactPointsInput && gameConfig.exactPoints) {
+            exactPointsInput.value = gameConfig.exactPoints;
+        }
+
+        const closePointsInput = document.getElementById('close-points');
+        if (closePointsInput && gameConfig.closePoints) {
+            closePointsInput.value = gameConfig.closePoints;
+        }
+
+        const nearPointsInput = document.getElementById('near-points');
+        if (nearPointsInput && gameConfig.nearPoints) {
+            nearPointsInput.value = gameConfig.nearPoints;
+        }
+
+        const betMultiplierInput = document.getElementById('bet-multiplier');
+        if (betMultiplierInput && gameConfig.betMultiplier) {
+            betMultiplierInput.value = gameConfig.betMultiplier;
+        }
+
+        // Media player and playlist will be auto-selected by their respective load functions
+        // after the dropdown options are populated
+
+        console.log('✓ Config loaded from backend:', config);
+    } catch (error) {
+        console.error('Failed to load config from backend:', error);
+        // Don't show error to user - gracefully fall back to defaults
+        // The form will work with manual configuration
+    }
+}
+
+/**
  * Initialize admin UI on DOM ready
  */
-function initAdminUI() {
+async function initAdminUI() {
     console.log('Beatsy Admin UI initialized');
     console.log('Version: 1.0.0');
     console.log('Environment:', {
@@ -23,6 +107,10 @@ function initAdminUI() {
     // Initialize year range inputs with current year
     initializeYearRange();
 
+    // Story 11.1: Load config from backend BEFORE localStorage
+    // This ensures persisted config takes precedence
+    await loadConfigFromBackend();
+
     // Setup collapsible sections
     setupCollapsibleSections();
 
@@ -35,7 +123,8 @@ function initAdminUI() {
     // Story 3.3: Load playlists on page initialization
     loadPlaylists();
 
-    // Story 3.4: Load game settings from localStorage and setup event listeners
+    // Story 3.4: Load game settings from localStorage (as fallback only)
+    // Note: Backend config already loaded above, this is backup
     loadSettingsFromLocalStorage();
     setupGameSettingsListeners();
 
@@ -223,15 +312,17 @@ function populateMediaPlayerDropdown(players) {
     dropdown.classList.remove('bg-gray-100', 'cursor-not-allowed');
     dropdown.classList.add('cursor-pointer');
 
-    // Restore saved selection from localStorage (Story 3.2: AC-4)
-    const savedPlayer = localStorage.getItem('beatsy_media_player');
-    if (savedPlayer) {
+    // Story 11.1: Restore from backend config first (gameConfig.mediaPlayer set by loadConfigFromBackend)
+    // Then fallback to localStorage if no backend config
+    let selectedPlayer = gameConfig.mediaPlayer || localStorage.getItem('beatsy_media_player');
+
+    if (selectedPlayer) {
         // Check if saved player exists in current list
-        const playerExists = players.some(p => p.entity_id === savedPlayer);
+        const playerExists = players.some(p => p.entity_id === selectedPlayer);
         if (playerExists) {
-            dropdown.value = savedPlayer;
-            gameConfig.mediaPlayer = savedPlayer;
-            console.log('Restored saved media player selection:', savedPlayer);
+            dropdown.value = selectedPlayer;
+            gameConfig.mediaPlayer = selectedPlayer;
+            console.log('Restored media player selection:', selectedPlayer);
 
             // Show visual feedback for restored selection
             updateVisualFeedback(dropdown, true);
@@ -457,19 +548,21 @@ function populatePlaylistDropdown(playlists) {
     dropdown.classList.remove('bg-gray-100', 'cursor-not-allowed');
     dropdown.classList.add('cursor-pointer');
 
-    // Restore saved selection from localStorage (Story 3.3: AC-5)
-    const savedPlaylist = localStorage.getItem('beatsy_playlist');
-    if (savedPlaylist) {
+    // Story 11.1: Restore from backend config first (gameConfig.playlist set by loadConfigFromBackend)
+    // Then fallback to localStorage if no backend config
+    let selectedPlaylist = gameConfig.playlist || localStorage.getItem('beatsy_playlist');
+
+    if (selectedPlaylist) {
         // Check if saved playlist exists in current list
-        const playlistExists = playlists.some(p => p.playlist_id === savedPlaylist);
+        const playlistExists = playlists.some(p => p.playlist_id === selectedPlaylist);
         if (playlistExists) {
-            dropdown.value = savedPlaylist;
-            gameConfig.playlist = savedPlaylist;
-            console.log('Restored saved playlist selection:', savedPlaylist);
+            dropdown.value = selectedPlaylist;
+            gameConfig.playlist = selectedPlaylist;
+            console.log('Restored playlist selection:', selectedPlaylist);
 
             // Show visual feedback and metadata
-            const selectedPlaylist = playlists.find(p => p.playlist_id === savedPlaylist);
-            updatePlaylistVisualFeedback(dropdown, true, selectedPlaylist);
+            const selectedPlaylistObj = playlists.find(p => p.playlist_id === selectedPlaylist);
+            updatePlaylistVisualFeedback(dropdown, true, selectedPlaylistObj);
         } else {
             // Saved playlist no longer available, select first
             dropdown.selectedIndex = 0;
@@ -1536,6 +1629,11 @@ function updateStatusPanel(status) {
         roundElement.textContent = status.current_round || '-';
     }
 
+    // Story 11.3: Update players ticker (AC-3, AC-6)
+    if (status.players && Array.isArray(status.players)) {
+        updatePlayersList(status.players);
+    }
+
     console.log('Status panel updated:', status);
 }
 
@@ -1835,8 +1933,19 @@ function handleWebSocketMessage(event) {
                     break;
 
                 case 'player_joined':
-                    console.log('👤 Player joined event received');
-                    // Reload game status to update player count
+                    console.log('👤 Player joined event received:', data.data);
+                    // Story 11.3: Add player to ticker immediately (AC-1, AC-2, AC-5)
+                    if (data.data && data.data.player_name) {
+                        addPlayerToTicker(data.data.player_name);
+                        // Update player count if available
+                        if (data.data.total_players !== undefined) {
+                            const playersElement = document.getElementById('status-players');
+                            if (playersElement) {
+                                playersElement.textContent = data.data.total_players;
+                            }
+                        }
+                    }
+                    // Also reload game status to ensure consistency
                     loadGameStatus();
                     break;
 
@@ -1882,6 +1991,22 @@ function initGameStatus() {
 
     // Setup WebSocket listeners (placeholder)
     setupGameStatusWebSocketListeners();
+
+    // Story 11.3: Set up periodic API sync for reliability (AC-6)
+    // Poll game_status endpoint every 30 seconds to recover from missed WebSocket messages
+    setInterval(async () => {
+        try {
+            const response = await fetch('/api/beatsy/api/game_status');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.players && Array.isArray(data.players)) {
+                    updatePlayersList(data.players);
+                }
+            }
+        } catch (error) {
+            console.debug('Periodic sync failed (non-critical):', error.message);
+        }
+    }, 30000);  // 30 seconds
 
     console.log('✓ Game status initialization complete');
 }
@@ -2131,6 +2256,70 @@ function showPlaybackErrorNotification(errorData) {
     }
 
     console.log('Playback error notification displayed:', errorData);
+}
+
+// ============================================================================
+// Story 11.3: Admin Player Ticker Functions
+// ============================================================================
+
+/**
+ * Add a player badge to the admin ticker
+ * Story 11.3: AC-2, AC-3, AC-4
+ */
+function addPlayerToTicker(playerName) {
+    const playersList = document.getElementById('players-list');
+    if (!playersList) {
+        console.warn('Players list element not found');
+        return;
+    }
+
+    // Check for duplicate using dataset attribute
+    const existing = playersList.querySelector(`[data-player-name="${playerName}"]`);
+    if (existing) {
+        console.log('Player badge already exists:', playerName);
+        return;
+    }
+
+    // Create badge element
+    const badge = document.createElement('span');
+    badge.className = 'px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm';
+    badge.textContent = playerName;
+    badge.dataset.playerName = playerName;  // For deduplication
+
+    // Append badge (chronological order - append to end)
+    playersList.appendChild(badge);
+
+    console.log('Player badge added to ticker:', playerName);
+}
+
+/**
+ * Update players list from API response (periodic sync)
+ * Story 11.3: AC-6 (Periodic API sync for reliability)
+ */
+function updatePlayersList(players) {
+    const playersList = document.getElementById('players-list');
+    if (!playersList) {
+        console.warn('Players list element not found');
+        return;
+    }
+
+    // Get current players from DOM
+    const currentPlayers = new Set(
+        Array.from(playersList.children).map(badge => badge.dataset.playerName)
+    );
+
+    // Add any missing players from API response
+    let addedCount = 0;
+    players.forEach(player => {
+        if (!currentPlayers.has(player.name)) {
+            addPlayerToTicker(player.name);
+            addedCount++;
+        }
+    });
+
+    if (addedCount > 0) {
+        console.log(`Periodic sync: Added ${addedCount} missing player(s)`);
+    }
 }
 
 /**

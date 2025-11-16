@@ -131,7 +131,7 @@ function checkExistingSession() {
 }
 
 /**
- * Story 4.3 Task 12: Restore lobby view for existing session
+ * Story 11.4: Restore lobby view for existing session with horizontal ticker
  * Shows lobby with "Reconnecting..." state until WebSocket reconnects
  */
 function restoreLobbyView() {
@@ -139,12 +139,17 @@ function restoreLobbyView() {
     document.getElementById('registration-view').classList.add('hidden');
     document.getElementById('lobby-view').classList.remove('hidden');
 
-    // Show reconnecting state
-    const listEl = document.getElementById('lobby-player-list');
+    // Show reconnecting state (Story 11.4: updated to use ticker)
+    const ticker = document.getElementById('lobby-players-ticker');
     const countEl = document.getElementById('lobby-player-count');
 
-    listEl.innerHTML = '<li class="p-3 text-gray-500 text-center">Reconnecting...</li>';
-    countEl.textContent = 'Reconnecting to game...';
+    if (ticker) {
+        ticker.innerHTML = '<span class="px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-sm">Reconnecting...</span>';
+    }
+
+    if (countEl) {
+        countEl.textContent = 'Reconnecting to game...';
+    }
 
     console.log('Lobby view restored, waiting for WebSocket connection');
 }
@@ -700,57 +705,76 @@ function handleJoinGameResponse(data) {
 }
 
 /**
- * Story 4.3 Task 3: Initialize lobby with existing player list
- * Renders the initial player list from join_game_response
+ * Story 11.4: Initialize lobby with existing player list using horizontal ticker
+ * Includes defensive programming with try-catch and null checks
  * @param {Array} players - Array of player objects {name, joined_at}
  */
 function initializeLobby(players) {
-    const listEl = document.getElementById('lobby-player-list');
-    const currentPlayerName = localStorage.getItem('beatsy_player_name');
+    try {
+        console.log('Initializing lobby view');
 
-    if (!listEl) {
-        console.error('Lobby player list element not found');
-        return;
+        const ticker = document.getElementById('lobby-players-ticker');
+        const countEl = document.getElementById('lobby-player-count');
+
+        if (!ticker) {
+            console.error('Lobby ticker element not found');
+            return;
+        }
+
+        if (!countEl) {
+            console.error('Lobby player count element not found');
+            return;
+        }
+
+        // Get current player name for highlighting
+        const currentPlayerName = localStorage.getItem('beatsy_player_name');
+
+        // Clear ticker
+        ticker.innerHTML = '';
+
+        // Populate ticker with badges
+        if (players && Array.isArray(players)) {
+            players.forEach(player => {
+                const isCurrent = player.name === currentPlayerName;
+                const badge = createPlayerBadge(player.name, isCurrent);
+                if (badge) {
+                    ticker.appendChild(badge);
+                }
+            });
+        }
+
+        // Update count
+        const count = players ? players.length : 0;
+        countEl.textContent = `${count} player${count !== 1 ? 's' : ''} joined`;
+
+        console.log(`Lobby initialized with ${count} players`);
+
+    } catch (error) {
+        console.error('Lobby initialization failed:', error);
     }
-
-    // Clear existing list
-    listEl.innerHTML = '';
-
-    // Render each player
-    players.forEach(player => {
-        const playerItem = createPlayerListItem(player.name, player.name === currentPlayerName);
-        listEl.appendChild(playerItem);
-    });
-
-    // Update player count
-    updatePlayerCount(players.length);
-
-    console.log(`Lobby initialized with ${players.length} players`);
 }
 
 /**
- * Story 4.3 Task 3: Create player list item element
- * Creates a styled list item for a player, with highlight for current player
+ * Story 11.4: Create player badge element for horizontal ticker
+ * Creates a styled badge for a player, with highlight for current player
  * @param {string} playerName - The player's name to display
  * @param {boolean} isCurrent - Whether this is the current player
- * @returns {HTMLLIElement} The created list item element
+ * @returns {HTMLSpanElement} The created badge element
  */
-function createPlayerListItem(playerName, isCurrent) {
-    const li = document.createElement('li');
-    li.className = isCurrent
-        ? 'p-3 rounded-md bg-blue-100 border-2 border-blue-400 font-semibold'
-        : 'p-3 rounded-md bg-gray-50 border border-gray-200';
-    li.textContent = playerName;
-
-    // Add "You" badge if current player
-    if (isCurrent) {
-        const badge = document.createElement('span');
-        badge.className = 'ml-2 px-2 py-1 text-xs bg-blue-500 text-white rounded';
-        badge.textContent = 'You';
-        li.appendChild(badge);
+function createPlayerBadge(playerName, isCurrent) {
+    if (!playerName) {
+        console.error('createPlayerBadge called with empty playerName');
+        return null;
     }
 
-    return li;
+    const badge = document.createElement('span');
+    badge.className = isCurrent
+        ? 'px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold border-2 border-blue-500'
+        : 'px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm';
+    badge.textContent = isCurrent ? `${playerName} (You)` : playerName;
+    badge.dataset.playerName = playerName;  // For deduplication
+
+    return badge;
 }
 
 /**
@@ -770,34 +794,57 @@ function updatePlayerCount(count) {
 }
 
 /**
- * Story 4.3 Task 5: Handle player_joined event from server
- * Adds new player to lobby list in real-time
+ * Story 11.4: Handle player_joined event from server with defensive programming
+ * Adds new player badge to horizontal ticker in real-time
  * @param {Object} data - Event data {player_name, total_players}
  */
 function handlePlayerJoined(data) {
-    // Only update if we're in lobby view
-    const lobbyView = document.getElementById('lobby-view');
-    if (!lobbyView || lobbyView.classList.contains('hidden')) {
-        return;
+    try {
+        console.log('Player joined event:', data);
+
+        // Only update if we're in lobby view
+        const lobbyView = document.getElementById('lobby-view');
+        if (!lobbyView || lobbyView.classList.contains('hidden')) {
+            return;
+        }
+
+        const ticker = document.getElementById('lobby-players-ticker');
+        const countEl = document.getElementById('lobby-player-count');
+
+        if (!ticker || !countEl) {
+            console.error('Lobby elements not found in handlePlayerJoined');
+            return;
+        }
+
+        const newPlayerName = data.player_name || data.name;
+        if (!newPlayerName) {
+            console.error('Player name missing from event data');
+            return;
+        }
+
+        // Check for duplicates
+        const existing = ticker.querySelector(`[data-player-name="${newPlayerName}"]`);
+        if (existing) {
+            console.warn('Player badge already exists:', newPlayerName);
+            return;
+        }
+
+        // Add new badge (not current player - new player joining)
+        const badge = createPlayerBadge(newPlayerName, false);
+        if (badge) {
+            ticker.appendChild(badge);
+        }
+
+        // Update count
+        const currentCount = ticker.children.length;
+        countEl.textContent = `${currentCount} player${currentCount !== 1 ? 's' : ''} joined`;
+
+        // Show toast notification
+        showToast(`${newPlayerName} joined the lobby`);
+
+    } catch (error) {
+        console.error('handlePlayerJoined failed:', error);
     }
-
-    const playerName = data.player_name;
-    const currentPlayerName = localStorage.getItem('beatsy_player_name');
-
-    console.log(`Player joined: ${playerName} (total: ${data.total_players})`);
-
-    // Add player to list
-    const listEl = document.getElementById('lobby-player-list');
-    if (listEl) {
-        const playerItem = createPlayerListItem(playerName, playerName === currentPlayerName);
-        listEl.appendChild(playerItem);
-    }
-
-    // Update player count
-    updatePlayerCount(data.total_players);
-
-    // Show toast notification (Task 11)
-    showToast(`${playerName} joined the lobby`);
 }
 
 /**

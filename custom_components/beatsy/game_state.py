@@ -164,6 +164,7 @@ class BeatsyGameState:
     All game state is accessed through this object.
     """
 
+    entry_id: str = ""  # Story 11.1: Config entry ID for persistence operations
     game_config: GameConfig = field(default_factory=dict)
     players: list[Player] = field(default_factory=list)
     current_round: Optional[RoundState] = None
@@ -195,6 +196,9 @@ def init_game_state(hass: HomeAssistant, entry_id: str) -> BeatsyGameState:
         The initialized BeatsyGameState object.
     """
     state = BeatsyGameState()
+
+    # Story 11.1: Store entry_id for persistence operations
+    state.entry_id = entry_id
 
     # Ensure domain exists
     hass.data.setdefault(DOMAIN, {})

@@ -138,15 +138,14 @@
                 <!-- Header -->
                 <div class="text-center mb-6">
                     <h1 class="text-2xl font-bold text-gray-800">Waiting for game to start...</h1>
-                    <p id="lobby-player-count" class="text-lg text-gray-600 mt-2">1 player joined</p>
+                    <p id="lobby-player-count" class="text-lg text-gray-600 mt-2">0 players joined</p>
                 </div>
 
-                <!-- Player List -->
-                <div class="bg-white rounded-lg shadow-md p-4">
-                    <h2 class="text-lg font-semibold text-gray-700 mb-3">Players in Lobby</h2>
-                    <ul id="lobby-player-list" class="space-y-2 max-h-96 overflow-y-auto">
-                        <!-- Player items will be inserted here -->
-                    </ul>
+                <!-- Story 11.4: Horizontal Player Ticker -->
+                <div class="mt-4 p-3 bg-white/50 rounded-lg border border-blue-200">
+                    <div id="lobby-players-ticker" class="flex flex-wrap gap-2 justify-center">
+                        <!-- Player badges will be inserted here by JavaScript -->
+                    </div>
                 </div>
             </div>
         </div>
