@@ -23,6 +23,9 @@ function initAdminUI() {
     // Initialize year range inputs with current year
     initializeYearRange();
 
+    // Setup collapsible sections
+    setupCollapsibleSections();
+
     // Setup placeholder event listeners (will be implemented in later stories)
     setupPlaceholderListeners();
 
@@ -73,6 +76,60 @@ function initializeYearRange() {
     }
 
     console.log(`Year range initialized: min=1900, max=${currentYear}`);
+}
+
+/**
+ * Setup collapsible sections with chevron rotation
+ * Handles Game Configuration and Game Settings collapse/expand
+ */
+function setupCollapsibleSections() {
+    // Game Configuration collapse
+    const gameConfigToggle = document.getElementById('game-config-toggle');
+    const gameConfigContent = document.getElementById('game-config-content');
+    const gameConfigChevron = document.getElementById('game-config-chevron');
+
+    if (gameConfigToggle && gameConfigContent && gameConfigChevron) {
+        gameConfigToggle.addEventListener('click', () => {
+            const isExpanded = gameConfigToggle.getAttribute('aria-expanded') === 'true';
+
+            if (isExpanded) {
+                // Collapse
+                gameConfigContent.classList.add('hidden');
+                gameConfigToggle.setAttribute('aria-expanded', 'false');
+                gameConfigChevron.classList.remove('rotate-180');
+            } else {
+                // Expand
+                gameConfigContent.classList.remove('hidden');
+                gameConfigToggle.setAttribute('aria-expanded', 'true');
+                gameConfigChevron.classList.add('rotate-180');
+            }
+        });
+        console.log('✓ Game Configuration collapse initialized');
+    }
+
+    // Game Settings collapse
+    const gameSettingsToggle = document.getElementById('game-settings-toggle');
+    const gameSettingsContent = document.getElementById('game-settings-content');
+    const gameSettingsChevron = document.getElementById('game-settings-chevron');
+
+    if (gameSettingsToggle && gameSettingsContent && gameSettingsChevron) {
+        gameSettingsToggle.addEventListener('click', () => {
+            const isExpanded = gameSettingsToggle.getAttribute('aria-expanded') === 'true';
+
+            if (isExpanded) {
+                // Collapse
+                gameSettingsContent.classList.add('hidden');
+                gameSettingsToggle.setAttribute('aria-expanded', 'false');
+                gameSettingsChevron.classList.remove('rotate-180');
+            } else {
+                // Expand
+                gameSettingsContent.classList.remove('hidden');
+                gameSettingsToggle.setAttribute('aria-expanded', 'true');
+                gameSettingsChevron.classList.add('rotate-180');
+            }
+        });
+        console.log('✓ Game Settings collapse initialized');
+    }
 }
 
 /**
@@ -519,9 +576,10 @@ function updatePlaylistVisualFeedback(dropdown, isValid, playlist) {
  */
 function verifyPageStructure() {
     const requiredSections = [
-        'game-config',
         'game-control',
-        'game-status'
+        'game-status',
+        'game-config-collapsed',
+        'game-settings-collapsed'
     ];
 
     const missingElements = [];
