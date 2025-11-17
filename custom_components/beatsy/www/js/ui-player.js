@@ -628,7 +628,7 @@ function handleWebSocketMessage(event) {
                 }
             }
             // Story 8.6: Check if this is a submit_guess response
-            if (data.id && ('success' in data.result || 'error' in data.result)) {
+            if (data.id && data.result && ('success' in data.result || 'error' in data.result)) {
                 handleSubmitGuessResponse(data.result);
                 return;
             }

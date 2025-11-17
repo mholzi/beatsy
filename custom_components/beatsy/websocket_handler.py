@@ -326,7 +326,14 @@ class BeatsyWebSocketView(HomeAssistantView):
                     _LOGGER.debug("Generated message id: %s", data["id"])
 
                 mock_conn = MockConnection(ws, conn_id, command_type)
-                await handler(self.hass, mock_conn, data)
+
+                # Check if handler is async or sync (@callback)
+                import inspect
+                if inspect.iscoroutinefunction(handler):
+                    await handler(self.hass, mock_conn, data)
+                else:
+                    # Synchronous handler (decorated with @callback)
+                    handler(self.hass, mock_conn, data)
             except Exception as e:
                 _LOGGER.error("Error in command handler for %s: %s", command_type, e, exc_info=True)
                 await ws.send_json({
