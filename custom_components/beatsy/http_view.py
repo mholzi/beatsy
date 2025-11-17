@@ -172,8 +172,10 @@ class BeatsyPlayerView(HomeAssistantView):
             module_dir = Path(__file__).parent
             player_html_path = module_dir / "www" / "start.html"
 
-            # Read the HTML content
-            html_content = player_html_path.read_text(encoding="utf-8")
+            # Read the HTML content (async to avoid blocking event loop)
+            html_content = await request.app["hass"].async_add_executor_job(
+                player_html_path.read_text, "utf-8"
+            )
 
             _LOGGER.debug("Serving player page from %s", player_html_path)
 
@@ -594,8 +596,8 @@ class BeatsyAPIView(HomeAssistantView):
                     playlists_dir = module_dir / "playlists"
 
                     try:
-                        playlist_data = playlist_loader.load_playlist_file(
-                            playlists_dir, game_config.playlist_id
+                        playlist_data = await playlist_loader.load_playlist_file(
+                            hass, playlists_dir, game_config.playlist_id
                         )
                     except FileNotFoundError:
                         _LOGGER.error(
@@ -942,8 +944,10 @@ class BeatsyStaticView(HomeAssistantView):
                 _LOGGER.debug("Static file not found: %s", file_path)
                 return web.Response(text="File not found", status=404)
 
-            # Read file content
-            content = file_path.read_bytes()
+            # Read file content (async to avoid blocking event loop)
+            content = await request.app["hass"].async_add_executor_job(
+                file_path.read_bytes
+            )
 
             # Determine content type from file extension
             content_type, _ = mimetypes.guess_type(str(file_path))

@@ -43,9 +43,12 @@ async def list_playlists(hass: HomeAssistant) -> list[dict[str, Any]]:
     # Scan for *.json files
     for file_path in playlists_dir.glob("*.json"):
         try:
-            # Load and parse JSON file
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
+            # Load and parse JSON file (async to avoid blocking event loop)
+            def _read_json():
+                with open(file_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+
+            data = await hass.async_add_executor_job(_read_json)
 
             # Validate required fields
             errors = validate_playlist_json(data)
@@ -131,7 +134,7 @@ def validate_playlist_json(data: dict[str, Any]) -> list[str]:
 # ============================================================================
 
 
-def load_playlist_file(playlists_dir: Path, playlist_id: str) -> dict[str, Any]:
+async def load_playlist_file(hass: HomeAssistant, playlists_dir: Path, playlist_id: str) -> dict[str, Any]:
     """
     Load and validate a specific playlist JSON file for game initialization.
 
@@ -168,10 +171,13 @@ def load_playlist_file(playlists_dir: Path, playlist_id: str) -> dict[str, Any]:
             f"Playlist file '{playlist_id}.json' not found in {playlists_dir}"
         )
 
-    # Read and parse JSON
+    # Read and parse JSON (async to avoid blocking event loop)
     try:
-        with playlist_path.open("r", encoding="utf-8") as f:
-            data = json.load(f)
+        def _read_json():
+            with playlist_path.open("r", encoding="utf-8") as f:
+                return json.load(f)
+
+        data = await hass.async_add_executor_job(_read_json)
     except json.JSONDecodeError as e:
         _LOGGER.error("Invalid JSON in playlist %s: %s", playlist_id, e)
         raise ValueError(f"Playlist '{playlist_id}' contains invalid JSON: {e}")
