@@ -134,6 +134,9 @@ async function initAdminUI() {
     // Story 3.7: Initialize game status display
     initGameStatus();
 
+    // Story 11.6: Initialize QR modal event listeners
+    initQRModal();
+
     // Log successful initialization
     console.log('DOM ready - All sections loaded successfully');
 }
@@ -1194,10 +1197,14 @@ async function startGame(forceStart = false) {
             // Log admin key storage (security: first 8 chars only)
             console.log('Admin key stored:', data.admin_key.substring(0, 8) + '... (expires in 24 hours)');
 
-            // Update button state to "Game Active"
-            buttonTextElement.textContent = 'Game Active';
+            // Story 11.7: Hide Start Game button and show Game Active badge
             spinnerElement.classList.add('hidden');
-            startGameBtn.disabled = true;  // Keep disabled
+            startGameBtn.classList.add('hidden');
+            const gameActiveBadge = document.getElementById('game-active-badge');
+            if (gameActiveBadge) {
+                gameActiveBadge.classList.remove('hidden');
+                console.log('✓ Game Active badge shown, Start Game button hidden');
+            }
 
             // Story 3.6 Task 2: Show "Join as Player" button after successful game start
             const joinAsPlayerBtn = document.getElementById('join-as-player-btn');
@@ -1376,15 +1383,22 @@ function handleAdminGameReset(data) {
         resetBtn.innerHTML = '<span class="flex items-center justify-center space-x-2"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg><span>Reset Game</span></span>';
     }
 
-    // Update start game button state
+    // Story 11.7: Show Start Game button and hide Game Active badge
     const startGameBtn = document.getElementById('start-game-btn');
     const startGameText = document.getElementById('start-game-text');
     const spinner = document.getElementById('start-game-spinner');
 
     if (startGameBtn) {
+        startGameBtn.classList.remove('hidden');
         startGameBtn.disabled = false;  // Re-enable (if config valid)
         if (spinner) spinner.classList.add('hidden');
         if (startGameText) startGameText.textContent = 'Start Game';
+
+        const gameActiveBadge = document.getElementById('game-active-badge');
+        if (gameActiveBadge) {
+            gameActiveBadge.classList.add('hidden');
+            console.log('✓ Start Game button shown, Game Active badge hidden (game reset)');
+        }
     }
 
     // Hide game info section
@@ -1442,80 +1456,196 @@ async function joinAsPlayer() {
     window.location.href = playerUrl;
 }
 
+// Story 11.6: Store player URL globally for modal access
+let currentPlayerUrl = '';
+
 /**
  * Display player URL after successful game start
  * Story 3.5: AC-8 (Player URL Display)
+ * Story 11.6: Modified to show QR icon instead of inline section
  */
 function displayPlayerUrl(playerUrl) {
-    const gameInfoSection = document.getElementById('game-info-section');
-    const playerUrlInput = document.getElementById('player-url');
+    // Store player URL for modal access
+    currentPlayerUrl = playerUrl;
 
-    if (!gameInfoSection || !playerUrlInput) {
-        console.error('Player URL display elements not found');
+    const qrIconBtn = document.getElementById('qr-icon-btn');
+
+    if (!qrIconBtn) {
+        console.error('QR icon button not found');
         return;
     }
 
-    // Set the player URL value
-    playerUrlInput.value = playerUrl;
+    // Show the QR icon
+    qrIconBtn.classList.remove('hidden');
 
-    // Show the game info section
-    gameInfoSection.classList.remove('hidden');
+    console.log('QR icon displayed, player URL stored:', playerUrl);
+}
 
-    // Focus on URL input for easy manual copying
-    playerUrlInput.focus();
-    playerUrlInput.select();
+// ============================================================================
+// Story 11.6: QR Code Modal Functions
+// ============================================================================
 
-    console.log('Player URL displayed:', playerUrl);
+/**
+ * Generate QR code from player URL
+ * Story 11.6: AC-4 (QR code generation with error handling)
+ */
+function generateQRCode(playerUrl) {
+    const canvas = document.getElementById('qr-canvas');
 
-    // Setup copy button listener (do this once)
-    setupCopyButton();
+    if (!canvas) {
+        console.error('QR canvas element not found');
+        return;
+    }
+
+    // Check if QRCode library is available
+    if (typeof QRCode === 'undefined') {
+        console.error('QRCode library not loaded');
+        alert('QR code generation unavailable. Please use the URL to share manually.');
+        return;
+    }
+
+    QRCode.toCanvas(canvas, playerUrl, {
+        width: 200,
+        margin: 2,
+        color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+        }
+    }, (error) => {
+        if (error) {
+            console.error('QR generation failed:', error);
+            alert('Failed to generate QR code. Please use the URL to share manually.');
+        } else {
+            console.log('QR code generated successfully');
+        }
+    });
 }
 
 /**
- * Setup copy-to-clipboard functionality for player URL
- * Story 3.5: AC-8 (Copy to clipboard)
+ * Show QR code modal with player URL
+ * Story 11.6: AC-3, AC-5 (Display modal with QR code and URL)
  */
-function setupCopyButton() {
-    const copyBtn = document.getElementById('copy-url-btn');
-    const playerUrlInput = document.getElementById('player-url');
+function showQRModal() {
+    const modal = document.getElementById('qr-modal');
+    const urlInput = document.getElementById('qr-modal-player-url');
 
-    if (!copyBtn || !playerUrlInput) return;
+    if (!modal || !urlInput) {
+        console.error('QR modal elements not found');
+        return;
+    }
 
-    // Remove any existing listeners (prevent duplicates)
+    // Show modal
+    modal.classList.remove('hidden');
+
+    // Set player URL
+    urlInput.value = currentPlayerUrl;
+
+    // Generate QR code
+    generateQRCode(currentPlayerUrl);
+
+    // Setup copy button for modal
+    setupModalCopyButton();
+
+    console.log('QR modal opened');
+}
+
+/**
+ * Hide QR code modal
+ * Story 11.6: AC-3 (Close modal functionality)
+ */
+function hideQRModal() {
+    const modal = document.getElementById('qr-modal');
+
+    if (!modal) {
+        console.error('QR modal not found');
+        return;
+    }
+
+    modal.classList.add('hidden');
+    console.log('QR modal closed');
+}
+
+/**
+ * Setup copy button for modal
+ * Story 11.6: AC-5 (Copy button functionality)
+ */
+function setupModalCopyButton() {
+    const copyBtn = document.getElementById('qr-modal-copy-btn');
+    const urlInput = document.getElementById('qr-modal-player-url');
+
+    if (!copyBtn || !urlInput) return;
+
+    // Remove existing listener to avoid duplicates
     copyBtn.replaceWith(copyBtn.cloneNode(true));
-    const newCopyBtn = document.getElementById('copy-url-btn');
+    const newCopyBtn = document.getElementById('qr-modal-copy-btn');
 
     newCopyBtn.addEventListener('click', async () => {
-        const playerUrl = playerUrlInput.value;
-
         try {
-            // Modern clipboard API
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(playerUrl);
-                showToast('Player URL copied to clipboard!', 'success');
-                console.log('URL copied via clipboard API');
-            } else {
-                // Fallback for older browsers
-                playerUrlInput.select();
-                const success = document.execCommand('copy');
+            await navigator.clipboard.writeText(urlInput.value);
 
-                if (success) {
-                    showToast('Player URL copied to clipboard!', 'success');
-                    console.log('URL copied via execCommand');
-                } else {
-                    throw new Error('execCommand failed');
-                }
+            // Visual feedback
+            const originalHTML = newCopyBtn.innerHTML;
+            newCopyBtn.innerHTML = '<span class="text-sm">Copied!</span>';
+
+            setTimeout(() => {
+                newCopyBtn.innerHTML = originalHTML;
+            }, 2000);
+
+            console.log('Player URL copied to clipboard from modal');
+        } catch (err) {
+            console.error('Failed to copy URL:', err);
+            alert('Failed to copy URL. Please copy manually.');
+        }
+    });
+}
+
+/**
+ * Initialize QR modal event listeners
+ * Story 11.6: AC-1, AC-3 (Event listeners for all close methods)
+ */
+function initQRModal() {
+    const qrIconBtn = document.getElementById('qr-icon-btn');
+    const qrModalClose = document.getElementById('qr-modal-close');
+    const qrModal = document.getElementById('qr-modal');
+
+    // QR icon click
+    if (qrIconBtn) {
+        qrIconBtn.addEventListener('click', showQRModal);
+
+        // Keyboard support (Enter or Space)
+        qrIconBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                showQRModal();
             }
-        } catch (error) {
-            console.error('Failed to copy URL:', error);
-            showToast('Failed to copy. Please copy manually.', 'error');
+        });
+    }
 
-            // Select the text so user can copy manually
-            playerUrlInput.select();
+    // Close button click
+    if (qrModalClose) {
+        qrModalClose.addEventListener('click', hideQRModal);
+    }
+
+    // Click outside modal to close
+    if (qrModal) {
+        qrModal.addEventListener('click', (e) => {
+            if (e.target === qrModal) {
+                hideQRModal();
+            }
+        });
+    }
+
+    // Escape key to close
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('qr-modal');
+            if (modal && !modal.classList.contains('hidden')) {
+                hideQRModal();
+            }
         }
     });
 
-    console.log('Copy button setup complete');
+    console.log('QR modal event listeners initialized');
 }
 
 /**
@@ -1611,11 +1741,8 @@ function updateStatusPanel(status) {
         }
     }
 
-    // Update player count
-    const playersElement = document.getElementById('status-players');
-    if (playersElement) {
-        playersElement.textContent = status.player_count || 0;
-    }
+    // Update player count circle (Story 11.5)
+    updatePlayerCountCircle(status.player_count || 0);
 
     // Update songs remaining
     const songsElement = document.getElementById('status-songs');
@@ -1651,16 +1778,18 @@ function updateUIForActiveGame(gameStatus) {
         console.log('✓ Game ID restored to localStorage:', gameStatus.game_id);
     }
 
-    // Update Start Game button to "Game Active" state
+    // Story 11.7: Hide Start Game button and show Game Active badge
     const startGameBtn = document.getElementById('start-game-btn');
-    const buttonTextElement = document.getElementById('start-game-btn-text');
     const spinnerElement = document.getElementById('start-game-spinner');
 
-    if (startGameBtn && buttonTextElement && spinnerElement) {
-        startGameBtn.disabled = true;
-        buttonTextElement.textContent = 'Game Active';
+    if (startGameBtn && spinnerElement) {
+        startGameBtn.classList.add('hidden');
         spinnerElement.classList.add('hidden');
-        console.log('✓ Start Game button set to "Game Active"');
+        const gameActiveBadge = document.getElementById('game-active-badge');
+        if (gameActiveBadge) {
+            gameActiveBadge.classList.remove('hidden');
+            console.log('✓ Game Active badge shown, Start Game button hidden (reconnection)');
+        }
     }
 
     // Show "Join as Player" button if game is in lobby or active state
@@ -1739,30 +1868,55 @@ function showStatusError(message) {
 /**
  * Update connection status indicator
  * Story 3.7 Task 6: AC-8 (Connection indicator)
+ * Story 11.5: Updated to use circle-only indicator with tooltip
  */
 function updateConnectionStatus(connected) {
-    const indicator = document.getElementById('connection-indicator');
-    const text = document.getElementById('connection-text');
-
-    if (!indicator || !text) return;
+    const circle = document.getElementById('connection-indicator-circle');
+    if (!circle) return;
 
     if (connected) {
-        // Green indicator + "Connected" text
-        indicator.classList.remove('bg-gray-400', 'bg-red-500');
-        indicator.classList.add('bg-green-500');
-        text.textContent = 'Connected';
-        text.classList.remove('text-gray-600', 'text-red-600');
-        text.classList.add('text-green-600');
+        circle.classList.remove('bg-gray-400', 'bg-red-500');
+        circle.classList.add('bg-green-500');
+        circle.title = 'Connected';
         console.log('Connection status: Connected');
     } else {
-        // Red indicator + "Reconnecting..." text
-        indicator.classList.remove('bg-gray-400', 'bg-green-500');
-        indicator.classList.add('bg-red-500');
-        text.textContent = 'Reconnecting...';
-        text.classList.remove('text-gray-600', 'text-green-600');
-        text.classList.add('text-red-600');
+        circle.classList.remove('bg-gray-400', 'bg-green-500');
+        circle.classList.add('bg-red-500');
+        circle.title = 'Reconnecting...';
         console.log('Connection status: Disconnected');
     }
+}
+
+/**
+ * Get player count circle color based on count
+ * Story 11.5: Helper function for dynamic circle color
+ * @param {number} count - Current player count
+ * @returns {string} Tailwind color class
+ */
+function getPlayerCountColor(count) {
+    if (count === 0) return 'bg-gray-400';
+    if (count <= 3) return 'bg-blue-500';
+    return 'bg-green-500';
+}
+
+/**
+ * Update player count circle display
+ * Story 11.5: Shows player count in colored circle
+ * @param {number} count - Current player count
+ */
+function updatePlayerCountCircle(count) {
+    const circle = document.getElementById('player-count-circle');
+    if (!circle) return;
+
+    // Update count display
+    circle.textContent = count;
+
+    // Update color based on count
+    circle.classList.remove('bg-gray-400', 'bg-blue-500', 'bg-green-500');
+    const colorClass = getPlayerCountColor(count);
+    circle.classList.add(colorClass);
+
+    console.log(`Player count circle updated: ${count} players`);
 }
 
 /**
@@ -1937,11 +2091,14 @@ function handleWebSocketMessage(event) {
                     // Story 11.3: Add player to ticker immediately (AC-1, AC-2, AC-5)
                     if (data.data && data.data.player_name) {
                         addPlayerToTicker(data.data.player_name);
-                        // Update player count if available
+                        // Story 11.5: Update player count circle (AC-13)
                         if (data.data.total_players !== undefined) {
-                            const playersElement = document.getElementById('status-players');
-                            if (playersElement) {
-                                playersElement.textContent = data.data.total_players;
+                            updatePlayerCountCircle(data.data.total_players);
+                        } else {
+                            // Fallback: count from ticker children
+                            const ticker = document.getElementById('players-list');
+                            if (ticker) {
+                                updatePlayerCountCircle(ticker.children.length);
                             }
                         }
                     }
@@ -2345,7 +2502,6 @@ export {
     startGame,
     showToast,
     displayPlayerUrl,
-    setupCopyButton,
     // Story 3.7 exports
     loadGameStatus,
     updateStatusPanel,
@@ -2360,5 +2516,11 @@ export {
     setupConflictModalListeners,
     getFriendlyEntityName,
     // Story 7.5 exports
-    showPlaybackErrorNotification
+    showPlaybackErrorNotification,
+    // Story 11.6 exports
+    generateQRCode,
+    showQRModal,
+    hideQRModal,
+    setupModalCopyButton,
+    initQRModal
 };

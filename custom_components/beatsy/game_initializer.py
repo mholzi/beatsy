@@ -455,50 +455,34 @@ async def create_game_session(
     await save_config(hass, state.game_config, state.entry_id)
     _LOGGER.debug("Config persisted to storage for entry %s", state.entry_id)
 
-    # Step 4: Store playlist songs and enrich with Spotify metadata
+    # Step 4: Store playlist songs directly from JSON (Story 11.9 AC-3, AC-4)
+    # No Spotify API enrichment - use JSON data directly for faster initialization
     songs = playlist_data.get("songs", [])
 
-    # Enrich songs with Spotify metadata (fetch title, artist, album, cover_url)
+    # Story 11.9 AC-4, AC-5: Use placeholder cover URL (1x1 transparent pixel)
+    # Media player entity_picture will override this at runtime (game_state.py:1197-1198)
+    default_cover = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+
+    # Story 11.9 AC-4: Build song structure directly from JSON
     enriched_songs = []
-    spotify_helper = state.spotify
-
     for song in songs:
-        # If song already has full metadata, use as-is
-        if all(field in song for field in ["uri", "title", "artist", "album", "cover_url"]):
-            enriched_songs.append(song)
-            continue
-
-        # Otherwise, fetch from Spotify
         spotify_uri = song.get("spotify_uri") or song.get("uri")
         if not spotify_uri:
             _LOGGER.warning("Song missing spotify_uri, skipping: %s", song)
             continue
 
-        try:
-            # Extract track ID from URI (spotify:track:ID)
-            track_id = spotify_uri.split(":")[-1]
-
-            # Fetch track data from Spotify
-            # Note: This requires spotify integration to be set up
-            # For now, create a minimal enriched song with available data
-            # Use placeholder cover URL if missing (data URI for 1x1 transparent pixel)
-            default_cover = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-
-            enriched_song = {
-                "uri": spotify_uri,
-                "title": song.get("title", "Unknown"),
-                "artist": song.get("artist", "Unknown"),
-                "album": song.get("album", "Unknown"),
-                "year": song.get("year", 2000),
-                "cover_url": song.get("cover_url") or default_cover,
-                "fun_fact": song.get("fun_fact", ""),
-                "spotify_uri": spotify_uri,
-            }
-            enriched_songs.append(enriched_song)
-
-        except Exception as e:
-            _LOGGER.warning("Failed to enrich song %s: %s", spotify_uri, e)
-            continue
+        # Story 11.9 AC-4: Create song structure with all required fields from JSON
+        # Fields: id, uri, title, artist, year, fun_fact, cover_url (NO album)
+        enriched_song = {
+            "id": song.get("id"),  # Story 11.9 AC-1: Required field from JSON
+            "uri": spotify_uri,
+            "title": song.get("title", "Unknown"),
+            "artist": song.get("artist", "Unknown"),
+            "year": song.get("year", 2000),
+            "fun_fact": song.get("fun_fact", ""),  # Story 11.10 dependency
+            "cover_url": default_cover,  # Story 11.9 AC-5: Placeholder, overridden at runtime
+        }
+        enriched_songs.append(enriched_song)
 
     state.available_songs = enriched_songs.copy()  # Make a copy to avoid mutations
 

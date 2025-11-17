@@ -135,16 +135,40 @@
         <!-- Story 4.3: Lobby View with Player List -->
         <div id="lobby-view" class="hidden min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 p-4">
             <div class="max-w-md mx-auto mt-8">
-                <!-- Header -->
-                <div class="text-center mb-6">
-                    <h1 class="text-2xl font-bold text-gray-800">Waiting for game to start...</h1>
-                    <p id="lobby-player-count" class="text-lg text-gray-600 mt-2">0 players joined</p>
-                </div>
+                <!-- Story 11.8: White Card Container -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <!-- Header -->
+                    <div class="text-center mb-4">
+                        <h1 class="text-2xl font-bold text-gray-800">Waiting for game to start...</h1>
+                        <p id="lobby-player-count" class="text-lg text-gray-600 mt-2">0 players joined</p>
+                    </div>
 
-                <!-- Story 11.4: Horizontal Player Ticker -->
-                <div class="mt-4 p-3 bg-white/50 rounded-lg border border-blue-200">
-                    <div id="lobby-players-ticker" class="flex flex-wrap gap-2 justify-center">
-                        <!-- Player badges will be inserted here by JavaScript -->
+                    <!-- Story 11.8: Motivational Content -->
+                    <div class="mb-6 space-y-3">
+                        <div class="flex items-start gap-3">
+                            <span class="text-2xl">🎵</span>
+                            <p class="text-gray-700">Get ready to test your music knowledge!</p>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="text-2xl">🎯</span>
+                            <p class="text-gray-700">Listen to each song and guess its release year</p>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="text-2xl">💰</span>
+                            <p class="text-gray-700">Bet on your answers to double your points!</p>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="text-2xl">🏆</span>
+                            <p class="text-gray-700">Compete for the top spot on the leaderboard</p>
+                        </div>
+                    </div>
+
+                    <!-- Story 11.4/11.8: Horizontal Player Ticker with Updated Styling -->
+                    <div class="p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <p class="text-xs text-gray-600 mb-2">Players Joined:</p>
+                        <div id="lobby-players-ticker" class="flex flex-wrap gap-2 justify-center">
+                            <!-- Player badges will be inserted here by JavaScript -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -237,6 +261,17 @@
                 <div id="correct-year-section" class="text-center mb-6">
                     <h2 class="text-2xl text-gray-700 mb-2">The answer was:</h2>
                     <div id="correct-year" class="text-6xl font-bold text-gray-900"></div>
+                </div>
+
+                <!-- Story 11.10: Fun Fact Section -->
+                <div id="fun-fact-section" class="hidden bg-white rounded-lg shadow-md p-4 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                        <span class="text-xl">💡</span>
+                        Fun Fact
+                    </h3>
+                    <p id="fun-fact-text" class="text-gray-700 text-sm leading-relaxed">
+                        <!-- Fun fact text inserted here by JavaScript -->
+                    </p>
                 </div>
 
                 <!-- Story 9.3: Round Results Board -->

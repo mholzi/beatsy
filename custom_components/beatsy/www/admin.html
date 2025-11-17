@@ -14,6 +14,9 @@
 
     <!-- Custom CSS for Beatsy branding and mobile-first overrides -->
     <link rel="stylesheet" href="/api/beatsy/static/css/custom.css">
+
+    <!-- Story 11.6: QR Code Library for Player URL Sharing -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Header Section -->
@@ -37,8 +40,19 @@
 
         <!-- Game Control Section -->
         <section id="game-control" class="bg-white rounded-lg shadow-md p-6" aria-labelledby="control-heading">
-            <h2 id="control-heading" class="text-xl sm:text-2xl font-semibold text-gray-800 mb-4">
-                Game Control
+            <h2 id="control-heading" class="text-xl sm:text-2xl font-semibold text-gray-800 mb-4 flex items-center justify-between">
+                <span>Game Control</span>
+                <!-- Story 11.6: QR Code Icon for Player URL Sharing -->
+                <button id="qr-icon-btn"
+                        class="hidden w-8 h-8 text-purple-600 hover:text-purple-800 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 rounded"
+                        title="Share player URL with QR code"
+                        aria-label="Open QR code sharing modal"
+                        tabindex="0">
+                    <!-- QR Code Icon SVG -->
+                    <svg class="w-full h-full" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M3 11h8V3H3v8zm2-6h4v4H5V5zM3 21h8v-8H3v8zm2-6h4v4H5v-4zM13 3v8h8V3h-8zm6 6h-4V5h4v4zM13 13h2v2h-2v-2zm2 2h2v2h-2v-2zm-2 2h2v2h-2v-2zm4-2h2v2h-2v-2zm0-2h2v2h-2v-2zm2 2h2v2h-2v-2zm0 4h2v2h-2v-2zm-4 0h2v2h-2v-2z"/>
+                    </svg>
+                </button>
             </h2>
             <p class="text-sm text-gray-600 mb-6">Start and manage the game session</p>
 
@@ -100,61 +114,40 @@
                     <span>Reset Game</span>
                 </span>
             </button>
-
-            <!-- Story 3.5: Player URL Display (Hidden by default) -->
-            <div id="game-info-section" class="hidden mt-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
-                <h3 class="text-lg font-semibold text-gray-800 mb-3">Share with Players</h3>
-                <p class="text-sm text-gray-600 mb-3">Players can join using this link:</p>
-
-                <div class="flex gap-2">
-                    <input
-                        id="player-url"
-                        type="text"
-                        readonly
-                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 font-mono text-sm"
-                        value=""
-                        aria-label="Player URL"
-                    />
-                    <button
-                        id="copy-url-btn"
-                        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors min-h-[44px] min-w-[44px]"
-                        title="Copy player URL to clipboard"
-                        aria-label="Copy URL"
-                    >
-                        <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                        </svg>
-                    </button>
-                </div>
-
-                <p class="text-xs text-gray-500 mt-2">
-                    Players can scan a QR code or manually enter this URL on their devices
-                </p>
-            </div>
         </section>
 
         <!-- Game Status Section (Story 3.7) -->
         <section id="game-status" class="bg-white rounded-lg shadow-md p-6" aria-labelledby="status-heading">
-            <h2 id="status-heading" class="text-xl sm:text-2xl font-semibold text-gray-800 mb-4">
-                Game Status
+            <h2 id="status-heading" class="flex items-center justify-between text-xl sm:text-2xl font-semibold text-gray-800 mb-4">
+                <span class="flex items-center">
+                    <span>Game Status</span>
+                    <span id="game-active-badge" class="hidden ml-3 px-3 py-1 bg-green-500 text-white text-sm font-semibold rounded-full">Game Active</span>
+                </span>
+                <span id="connection-indicator-circle"
+                      class="w-3 h-3 rounded-full bg-gray-400"
+                      title="Connecting..."
+                      aria-label="Connection status indicator"></span>
             </h2>
             <p class="text-sm text-gray-600 mb-4">Live game state updates</p>
 
-            <!-- Connection Status Indicator (AC-8) -->
-            <div id="connection-status" class="flex items-center gap-2 mb-4 p-2 bg-gray-50 rounded-lg border border-gray-200">
-                <span id="connection-indicator" class="inline-block w-3 h-3 rounded-full bg-gray-400" aria-label="Connection status"></span>
-                <span id="connection-text" class="text-sm text-gray-600">Connecting...</span>
+            <!-- Story 11.3: Player Ticker (repositioned in Story 11.5) -->
+            <div id="players-ticker" class="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs text-gray-600">Players Joined:</p>
+                    <span id="player-count-circle"
+                          class="w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center text-xs font-semibold text-white"
+                          aria-label="Player count">0</span>
+                </div>
+                <div id="players-list" class="flex flex-wrap gap-2">
+                    <!-- Player badges inserted here by JavaScript -->
+                </div>
             </div>
 
-            <!-- Status Grid -->
-            <div class="grid grid-cols-2 gap-4">
+            <!-- Status Grid (Story 11.5: 3 boxes instead of 4) -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
                     <p class="text-xs sm:text-sm text-gray-600 mb-1">Game State</p>
                     <p id="status-state" class="text-lg sm:text-xl font-semibold text-gray-800">No active game</p>
-                </div>
-                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <p class="text-xs sm:text-sm text-gray-600 mb-1">Player Count</p>
-                    <p id="status-players" class="text-lg sm:text-xl font-semibold text-gray-800">0</p>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
                     <p class="text-xs sm:text-sm text-gray-600 mb-1">Songs Remaining</p>
@@ -163,14 +156,6 @@
                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
                     <p class="text-xs sm:text-sm text-gray-600 mb-1">Current Round</p>
                     <p id="status-round" class="text-lg sm:text-xl font-semibold text-gray-800">-</p>
-                </div>
-            </div>
-
-            <!-- Story 11.3: Player Ticker -->
-            <div id="players-ticker" class="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <p class="text-xs text-gray-600 mb-2">Players Joined:</p>
-                <div id="players-list" class="flex flex-wrap gap-2">
-                    <!-- Player badges inserted here by JavaScript -->
                 </div>
             </div>
 
@@ -448,6 +433,61 @@
         </section>
 
     </main>
+
+    <!-- Story 11.6: QR Code Modal for Player URL Sharing -->
+    <div id="qr-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+         role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 transform transition-all relative">
+            <!-- Close button -->
+            <button id="qr-modal-close"
+                    class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                    aria-label="Close modal">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+
+            <!-- Modal content -->
+            <div class="text-center">
+                <h2 id="qr-modal-title" class="text-xl font-semibold text-gray-800 mb-4">
+                    Share with Players
+                </h2>
+
+                <!-- QR Code Canvas -->
+                <div class="flex justify-center mb-4">
+                    <canvas id="qr-canvas" class="border border-gray-200 rounded-lg"></canvas>
+                </div>
+
+                <!-- Player URL Input and Copy Button -->
+                <div class="flex gap-2 mb-3">
+                    <input
+                        id="qr-modal-player-url"
+                        type="text"
+                        readonly
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 font-mono text-sm"
+                        value=""
+                        aria-label="Player URL"
+                    />
+                    <button
+                        id="qr-modal-copy-btn"
+                        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors min-h-[44px] min-w-[44px]"
+                        title="Copy player URL to clipboard"
+                        aria-label="Copy URL"
+                    >
+                        <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Help text -->
+                <p class="text-xs text-gray-500">
+                    Players can scan this QR code or manually enter the URL
+                </p>
+            </div>
+        </div>
+    </div>
 
     <!-- Story 7.3: Media Player Conflict Warning Modal -->
     <div id="conflict-warning-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="conflict-modal-title">

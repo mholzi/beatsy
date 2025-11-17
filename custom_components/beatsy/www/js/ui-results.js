@@ -146,6 +146,44 @@ export function renderCorrectYear(correctYear) {
 }
 
 /**
+ * Story 11.10: Display fun fact in results view
+ *
+ * Shows a fun fact about the song if available. Section is hidden by default
+ * and only shown when a valid fun fact exists. Uses textContent for XSS prevention.
+ *
+ * @param {string} funFact - Fun fact text from song data
+ *
+ * AC-2: Extracts fun_fact from round_ended event payload
+ * AC-2: Handles missing or undefined fun_fact gracefully
+ * AC-2: XSS prevention using textContent assignment (auto-escapes HTML)
+ * AC-3: Section visible when fun_fact exists and is non-empty string
+ * AC-3: Section hidden when fun_fact is missing, null, undefined, or empty string
+ *
+ * @see Story 11.10 AC-2, AC-3
+ */
+export function displayFunFact(funFact) {
+    const funFactSection = document.getElementById('fun-fact-section');
+    const funFactText = document.getElementById('fun-fact-text');
+
+    if (!funFactSection || !funFactText) {
+        console.error('Fun fact elements not found');
+        return;
+    }
+
+    // Check if fun fact exists and is non-empty
+    if (funFact && funFact.trim() !== '') {
+        // Escape HTML to prevent XSS - textContent auto-escapes
+        funFactText.textContent = funFact;
+        funFactSection.classList.remove('hidden');
+        console.log('✓ Fun fact displayed:', funFact.substring(0, 50) + '...');
+    } else {
+        // Hide section if no fun fact
+        funFactSection.classList.add('hidden');
+        console.log('Fun fact not available, section hidden');
+    }
+}
+
+/**
  * Story 9.4: Render overall leaderboard
  *
  * Displays top 5 players by total points with rank, name, and total points.
@@ -276,6 +314,10 @@ export function renderResultsView(resultsData) {
         renderCorrectYear(resultsData.correct_year);
     }
 
+    // Story 11.10: Display fun fact if available
+    const funFact = resultsData.song?.fun_fact;
+    displayFunFact(funFact);
+
     // Story 9.3: Render round results board
     if (resultsData.results && resultsData.results.length > 0) {
         // Get current player from localStorage
@@ -316,6 +358,7 @@ export function renderResultsView(resultsData) {
 export default {
     renderRoundResults,
     renderCorrectYear,
+    displayFunFact,
     renderLeaderboard,
     renderResultsView,
     showWaitingState

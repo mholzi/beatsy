@@ -1,0 +1,806 @@
+{
+  "playlist_name": "Greatest Hits",
+  "playlist_id": "Greatest_Hits",
+  "songs": [
+    {
+      "spotify_uri": "spotify:track:4u7EnebtmKWzUH433cf5Qv",
+      "title": "Bohemian Rhapsody - Remastered 2011",
+      "artist": "Queen",
+      "year": 1975,
+      "fun_fact": "The tape was run over recording heads so many times during the 180 vocal overdubs that it became transparent",
+      "id": 1
+    },
+    {
+      "spotify_uri": "spotify:track:2374M0fQpWi3dLnB54qaLX",
+      "title": "Africa",
+      "artist": "TOTO",
+      "year": 1982,
+      "fun_fact": "David Paich wrote the chorus melody and lyrics in just 10 minutes on his new CS-80 keyboard",
+      "id": 2
+    },
+    {
+      "spotify_uri": "spotify:track:1M2nd8jNUkkwrc1dgBPTJz",
+      "title": "Angels",
+      "artist": "Robbie Williams",
+      "year": 1997,
+      "fun_fact": "Robbie wrote it after leaving Take That, and it became his signature song and biggest hit",
+      "id": 3
+    },
+    {
+      "spotify_uri": "spotify:track:08mG3Y1vljYA6bvDt4Wqkj",
+      "title": "Back In Black",
+      "artist": "AC/DC",
+      "year": 1980,
+      "fun_fact": "Recorded in the Bahamas while tropical storms kept hitting, causing electricity problems in the studio",
+      "id": 4
+    },
+    {
+      "spotify_uri": "spotify:track:7azo4rpSUh8nXgtonC6Pkq",
+      "title": "Thriller",
+      "artist": "Michael Jackson",
+      "year": 1982,
+      "fun_fact": "The album was recorded with a $750,000 budget, massive for 1982, and became the best-selling album ever",
+      "id": 5
+    },
+    {
+      "spotify_uri": "spotify:track:7yzbimr8WVyAtBX3Eg6UL9",
+      "title": "Hallelujah",
+      "artist": "Leonard Cohen",
+      "year": 1984,
+      "fun_fact": "Cohen wrote over 80 verses for this song, choosing only the best ones for the final version",
+      "id": 6
+    },
+    {
+      "spotify_uri": "spotify:track:19slC7k8bsPOAKDjHYLU2W",
+      "title": "Father And Son",
+      "artist": "Yusuf / Cat Stevens",
+      "year": 1970,
+      "fun_fact": "Cat Stevens wrote this for a musical about the Russian Revolution, representing generations in conflict",
+      "id": 7
+    },
+    {
+      "spotify_uri": "spotify:track:0aym2LBJBk9DAYuHHutrIl",
+      "title": "Hey Jude - Remastered 2015",
+      "artist": "The Beatles",
+      "year": 1968,
+      "fun_fact": "Paul wrote it to comfort John's son Julian during his parents' divorce, originally titled 'Hey Jules'",
+      "id": 8
+    },
+    {
+      "spotify_uri": "spotify:track:0GONea6G2XdnHWjNZd6zt3",
+      "title": "Summer Of '69",
+      "artist": "Bryan Adams",
+      "year": 1984,
+      "fun_fact": "Despite popular belief, Bryan Adams was only 9 years old in the summer of '69, not a teenager",
+      "id": 9
+    },
+    {
+      "spotify_uri": "spotify:track:7iN1s7xHE4ifF5povM6A48",
+      "title": "Let It Be - Remastered 2009",
+      "artist": "The Beatles",
+      "year": 1970,
+      "fun_fact": "Paul dreamed of his deceased mother Mary appearing to him saying 'let it be', inspiring the song",
+      "id": 10
+    },
+    {
+      "spotify_uri": "spotify:track:2zYzyRzz6pRmhPzyfMEC8s",
+      "title": "Highway to Hell",
+      "artist": "AC/DC",
+      "year": 1979,
+      "fun_fact": "Written about life on the road touring, not about Satan - the 'highway' was the Canning Highway in Australia",
+      "id": 11
+    },
+    {
+      "spotify_uri": "spotify:track:40riOy7x9W7GXjyGp4pjAv",
+      "title": "Hotel California - 2013 Remaster",
+      "artist": "Eagles",
+      "year": 1976,
+      "fun_fact": "The famous guitar solo at the end took two guitarists playing simultaneously to create the harmony",
+      "id": 12
+    },
+    {
+      "spotify_uri": "spotify:track:5vdp5UmvTsnMEMESIF2Ym7",
+      "title": "Another One Bites The Dust - Remastered 2011",
+      "artist": "Queen",
+      "year": 1980,
+      "fun_fact": "Michael Jackson convinced Queen to release this as a single, and it became their best-selling hit in the US",
+      "id": 13
+    },
+    {
+      "spotify_uri": "spotify:track:1OOtq8tRnDM8kG2gqUPjAj",
+      "title": "Beat It",
+      "artist": "Michael Jackson",
+      "year": 1982,
+      "fun_fact": "Eddie Van Halen recorded the iconic guitar solo for free as a favor, thinking it was a prank call at first",
+      "id": 14
+    },
+    {
+      "spotify_uri": "spotify:track:78lgmZwycJ3nzsdgmPPGNx",
+      "title": "Immigrant Song - Remaster",
+      "artist": "Led Zeppelin",
+      "year": 1970,
+      "fun_fact": "Robert Plant wrote the lyrics after the band's tour of Iceland, inspired by Viking culture and Norse mythology",
+      "id": 15
+    },
+    {
+      "spotify_uri": "spotify:track:3gdewACMIVMEWVbyb8O9sY",
+      "title": "Rocket Man (I Think It's Going To Be A Long, Long Time)",
+      "artist": "Elton John",
+      "year": 1972,
+      "fun_fact": "Bernie Taupin was inspired by a Ray Bradbury short story when writing the lyrics about space isolation",
+      "id": 16
+    },
+    {
+      "spotify_uri": "spotify:track:2HHtWyy5CgaQbC7XSoOb0e",
+      "title": "Eye of the Tiger",
+      "artist": "Survivor",
+      "year": 1982,
+      "fun_fact": "Sylvester Stallone commissioned this song specifically for Rocky III after Queen denied him 'Another One Bites the Dust'",
+      "id": 17
+    },
+    {
+      "spotify_uri": "spotify:track:57bgtoPSgt236HzfBOd8kj",
+      "title": "Thunderstruck",
+      "artist": "AC/DC",
+      "year": 1990,
+      "fun_fact": "Angus Young came up with the main riff on a plane, tapping it out with his fingers during turbulence",
+      "id": 18
+    },
+    {
+      "spotify_uri": "spotify:track:5MMnwYs0hIxkENRsbkWJ2G",
+      "title": "Smoke On The Water - Remastered 2012",
+      "artist": "Deep Purple",
+      "year": 1972,
+      "fun_fact": "Written about a real fire at a casino in Montreux where Frank Zappa was performing, watched from Lake Geneva",
+      "id": 19
+    },
+    {
+      "spotify_uri": "spotify:track:79hJaqmVdohltPBNN6BULM",
+      "title": "Stayin' Alive - From \"Saturday Night Fever\" Soundtrack",
+      "artist": "Bee Gees",
+      "year": 1977,
+      "fun_fact": "Medical professionals use this song's 103 BPM rhythm to teach proper CPR chest compression timing",
+      "id": 20
+    },
+    {
+      "spotify_uri": "spotify:track:1lCRw5FEZ1gPDNPzy1K4zW",
+      "title": "We Are The Champions - Remastered 2011",
+      "artist": "Queen",
+      "year": 1977,
+      "fun_fact": "Freddie Mercury wrote it as a crowd participation song, and it's now played at nearly every sports event worldwide",
+      "id": 21
+    },
+    {
+      "spotify_uri": "spotify:track:2WfaOiMkCvy7F5fcp2zZ8L",
+      "title": "Take on Me",
+      "artist": "a-ha",
+      "year": 1985,
+      "fun_fact": "The iconic music video took 16 weeks to create using rotoscoping, combining 3,000 sketched frames",
+      "id": 22
+    },
+    {
+      "spotify_uri": "spotify:track:7LRMbd3LEoV5wZJvXT1Lwb",
+      "title": "T.N.T.",
+      "artist": "AC/DC",
+      "year": 1976,
+      "fun_fact": "The song was recorded in just one take during their first album session, capturing their raw energy perfectly",
+      "id": 23
+    },
+    {
+      "spotify_uri": "spotify:track:3BQHpFgAp4l80e1XslIjNI",
+      "title": "Yesterday - Remastered 2009",
+      "artist": "The Beatles",
+      "year": 1965,
+      "fun_fact": "Paul McCartney woke up with the melody in his head and initially called it 'Scrambled Eggs' as placeholder lyrics",
+      "id": 24
+    },
+    {
+      "spotify_uri": "spotify:track:1TfqLAPs4K3s2rJMoCokcS",
+      "title": "Sweet Dreams (Are Made of This) - 2005 Remaster",
+      "artist": "Eurythmics",
+      "year": 1983,
+      "fun_fact": "Recorded in a cramped 8-track home studio above a shop, using a tiny budget and innovative synthesizer techniques",
+      "id": 25
+    },
+    {
+      "spotify_uri": "spotify:track:0v1XpBHnsbkCn7iJ9Ucr1l",
+      "title": "It's My Life",
+      "artist": "Bon Jovi",
+      "year": 2000,
+      "fun_fact": "The music video features a then-unknown Shiri Appleby and helped revitalize Bon Jovi's career in the new millennium",
+      "id": 26
+    },
+    {
+      "spotify_uri": "spotify:track:0ikz6tENMONtK6qGkOrU3c",
+      "title": "Wake Me Up Before You Go-Go",
+      "artist": "Wham!",
+      "year": 1984,
+      "fun_fact": "Inspired by a note Andrew Ridgeley left for his parents that accidentally said 'go-go' instead of just 'go'",
+      "id": 27
+    },
+    {
+      "spotify_uri": "spotify:track:4pbJqGIASGPr0ZpGpnWkDn",
+      "title": "We Will Rock You - Remastered 2011",
+      "artist": "Queen",
+      "year": 1977,
+      "fun_fact": "Brian May created the iconic stomp-stomp-clap rhythm to get audience participation at live shows",
+      "id": 28
+    },
+    {
+      "spotify_uri": "spotify:track:3ovjw5HZZv43SxTwApooCM",
+      "title": "Wind Of Change",
+      "artist": "Scorpions",
+      "year": 1990,
+      "fun_fact": "Written about the fall of the Berlin Wall, it became an anthem for the end of the Cold War in Europe",
+      "id": 29
+    },
+    {
+      "spotify_uri": "spotify:track:3ic5SdHoppddKCuXPUz2fV",
+      "title": "Wonderwall",
+      "artist": "Oasis",
+      "year": 1995,
+      "fun_fact": "Noel Gallagher said the song is about an imaginary friend who saves you from yourself when you're struggling",
+      "id": 30
+    },
+    {
+      "spotify_uri": "spotify:track:44AyOl4qVkzS48vBsbNXaC",
+      "title": "Can't Help Falling in Love",
+      "artist": "Elvis Presley",
+      "year": 1961,
+      "fun_fact": "Based on an 18th-century French love song 'Plaisir d'amour', Elvis closed almost every concert with this song",
+      "id": 31
+    },
+    {
+      "spotify_uri": "spotify:track:4S1VYqwfkLit9mKVY3MXoo",
+      "title": "Forever Young",
+      "artist": "Alphaville",
+      "year": 1984,
+      "fun_fact": "Written during the Cold War when nuclear war seemed imminent, reflecting fears about humanity's future",
+      "id": 32
+    },
+    {
+      "spotify_uri": "spotify:track:62AuGbAkt8Ox2IrFFb8GKV",
+      "title": "Sweet Caroline",
+      "artist": "Neil Diamond",
+      "year": 1969,
+      "fun_fact": "Originally about Caroline Kennedy, Neil Diamond later admitted it was actually about his wife at the time",
+      "id": 33
+    },
+    {
+      "spotify_uri": "spotify:track:3SdTKo2uVsxFblQjpScoHy",
+      "title": "Stand By Me",
+      "artist": "Ben E. King",
+      "year": 1961,
+      "fun_fact": "Ben E. King wrote this based on a gospel hymn, and it became one of the most-played songs of the 20th century",
+      "id": 34
+    },
+    {
+      "spotify_uri": "spotify:track:1qCQTy0fTXerET4x8VHyr9",
+      "title": "What A Wonderful World",
+      "artist": "Louis Armstrong",
+      "year": 1967,
+      "fun_fact": "Louis recorded this at age 66 in one take, and it was written to counter the negativity of the Vietnam War era",
+      "id": 35
+    },
+    {
+      "spotify_uri": "spotify:track:5LxvwujISqiB8vpRYv887S",
+      "title": "I Want You Back",
+      "artist": "The Jackson 5",
+      "year": 1969,
+      "fun_fact": "Michael was only 11 years old when this was recorded, making him the youngest artist to top the US charts",
+      "id": 36
+    },
+    {
+      "spotify_uri": "spotify:track:2xYlyywNgefLCRDG8hlxZq",
+      "title": "Take Me Home, Country Roads - Rerecorded",
+      "artist": "John Denver",
+      "year": 1971,
+      "fun_fact": "Written about West Virginia despite Denver never visiting the state before writing it, inspired by Clopper Road",
+      "id": 37
+    },
+    {
+      "spotify_uri": "spotify:track:3Z2tPWiNiIpg8UMMoowHIk",
+      "title": "We Are The World",
+      "artist": "U.S.A. For Africa",
+      "year": 1985,
+      "fun_fact": "45 of the biggest artists of the 80s recorded this in one night to raise money for African famine relief",
+      "id": 38
+    },
+    {
+      "spotify_uri": "spotify:track:2TxCwUlqaOH3TIyJqGgR91",
+      "title": "Mamma Mia",
+      "artist": "ABBA",
+      "year": 1975,
+      "fun_fact": "The title came from the band's manager exclaiming 'Mamma mia!' when he first heard the infectious melody",
+      "id": 39
+    },
+    {
+      "spotify_uri": "spotify:track:3pf96IFggfQuT6Gafqx2rt",
+      "title": "Sunny",
+      "artist": "Boney M.",
+      "year": 1976,
+      "fun_fact": "This Bobby Hebb cover became Boney M.'s breakthrough hit and topped charts across Europe in the disco era",
+      "id": 40
+    },
+    {
+      "spotify_uri": "spotify:track:4fXGWiVhlOLdhwRDP6pIFG",
+      "title": "Lemon Tree",
+      "artist": "Fools Garden",
+      "year": 1995,
+      "fun_fact": "This German band's only international hit, the catchy chorus made it a one-hit wonder heard worldwide",
+      "id": 41
+    },
+    {
+      "spotify_uri": "spotify:track:4hObp5bmIJ3PP3cKA9K9GY",
+      "title": "Don't Worry Be Happy",
+      "artist": "Bobby McFerrin",
+      "year": 1988,
+      "fun_fact": "The first a cappella song to reach #1 on the Billboard Hot 100, recorded entirely with Bobby's voice",
+      "id": 42
+    },
+    {
+      "spotify_uri": "spotify:track:3Dy4REq8O09IlgiwuHQ3sk",
+      "title": "Waterloo",
+      "artist": "ABBA",
+      "year": 1974,
+      "fun_fact": "Won the Eurovision Song Contest for Sweden, launching ABBA to international superstardom overnight",
+      "id": 43
+    },
+    {
+      "spotify_uri": "spotify:track:3ypMsqUwfNFMiooMLVHfkp",
+      "title": "YMCA",
+      "artist": "Village People",
+      "year": 1978,
+      "fun_fact": "The iconic dance with hand gestures spelling Y-M-C-A was created by fans, not the band themselves",
+      "id": 44
+    },
+    {
+      "spotify_uri": "spotify:track:5nNmj1cLH3r4aA4XDJ2bgY",
+      "title": "September",
+      "artist": "Earth, Wind & Fire",
+      "year": 1978,
+      "fun_fact": "The date 'September 21st' was chosen simply because it sounded good rhythmically, not for any special reason",
+      "id": 45
+    },
+    {
+      "spotify_uri": "spotify:track:6x4tKaOzfNJpEJHySoiJcs",
+      "title": "Mambo No. 5 (a Little Bit of...)",
+      "artist": "Lou Bega",
+      "year": 1999,
+      "fun_fact": "Based on a 1949 instrumental by Pérez Prado, Lou Bega's version added lyrics naming women alphabetically",
+      "id": 46
+    },
+    {
+      "spotify_uri": "spotify:track:7e89621JPkKaeDSTQ3avtg",
+      "title": "Sweet Home Alabama",
+      "artist": "Lynyrd Skynyrd",
+      "year": 1974,
+      "fun_fact": "Written as a response to Neil Young's critical songs about the South, but the two were actually friends",
+      "id": 47
+    },
+    {
+      "spotify_uri": "spotify:track:3WMbD1OyfKuwWDWMNbPQ4g",
+      "title": "Daddy Cool",
+      "artist": "Boney M.",
+      "year": 1976,
+      "fun_fact": "Producer Frank Farian actually sang most vocals himself, with the band mainly performing for videos and tours",
+      "id": 48
+    },
+    {
+      "spotify_uri": "spotify:track:6I9HXaU8zbTgASGe7evWnu",
+      "title": "The Final Countdown",
+      "artist": "Europe",
+      "year": 1986,
+      "fun_fact": "The keyboard riff was written on a cheap Yamaha keyboard Joey Tempest got as a kid, using factory presets",
+      "id": 49
+    },
+    {
+      "spotify_uri": "spotify:track:2Cdvbe2G4hZsnhNMKyGrie",
+      "title": "I Love Rock 'N Roll",
+      "artist": "Joan Jett & the Blackhearts",
+      "year": 1981,
+      "fun_fact": "Originally by the Arrows, Joan saw them perform it on UK TV in 1975 and spent years making her own version",
+      "id": 50
+    },
+    {
+      "spotify_uri": "spotify:track:7N3PAbqfTjSEU1edb2tY8j",
+      "title": "Jump - 2015 Remaster",
+      "artist": "Van Halen",
+      "year": 1984,
+      "fun_fact": "Eddie Van Halen wanted to use keyboards but was hesitant as fans expected only guitar; it became their biggest hit",
+      "id": 51
+    },
+    {
+      "spotify_uri": "spotify:track:4caiYv89C9GZdDD1RzshWd",
+      "title": "It's Raining Men - Single Version",
+      "artist": "The Weather Girls",
+      "year": 1982,
+      "fun_fact": "Originally offered to Cher and Diana Ross who both rejected it before the Weather Girls made it a disco anthem",
+      "id": 52
+    },
+    {
+      "spotify_uri": "spotify:track:39shmbIHICJ2Wxnk1fPSdz",
+      "title": "Should I Stay or Should I Go - Remastered",
+      "artist": "The Clash",
+      "year": 1982,
+      "fun_fact": "Became a hit 9 years after release when featured in a Levi's commercial, reaching #1 in the UK in 1991",
+      "id": 53
+    },
+    {
+      "spotify_uri": "spotify:track:7AMnWNkwYPxaVDgkwmEEKj",
+      "title": "Super Trouper",
+      "artist": "ABBA",
+      "year": 1980,
+      "fun_fact": "Named after the Super Trouper spotlight used in concerts, which felt like being in the sun to ABBA's Frida",
+      "id": 54
+    },
+    {
+      "spotify_uri": "spotify:track:05wIrZSwuaVWhcv5FfqeH0",
+      "title": "Walking On Sunshine",
+      "artist": "Katrina & The Waves",
+      "year": 1985,
+      "fun_fact": "Written in 10 minutes, this feel-good anthem has been used in over 100 commercials and countless films",
+      "id": 55
+    },
+    {
+      "spotify_uri": "spotify:track:4rDbp1vnvEhieiccprPMdI",
+      "title": "Somebody To Love - Remastered 2011",
+      "artist": "Queen",
+      "year": 1976,
+      "fun_fact": "Freddie Mercury wrote this inspired by Aretha Franklin's gospel style, with complex multi-layered harmonies",
+      "id": 56
+    },
+    {
+      "spotify_uri": "spotify:track:7s25THrKz86DM225dOYwnr",
+      "title": "Respect",
+      "artist": "Aretha Franklin",
+      "year": 1967,
+      "fun_fact": "Originally by Otis Redding, Aretha's version added 'R-E-S-P-E-C-T' spelling and became a feminist anthem",
+      "id": 57
+    },
+    {
+      "spotify_uri": "spotify:track:37BTh5g05cxBIRYMbw8g2T",
+      "title": "Rosanna",
+      "artist": "TOTO",
+      "year": 1982,
+      "fun_fact": "The famous 'half-time shuffle' drum pattern became one of the most studied and imitated in rock history",
+      "id": 58
+    },
+    {
+      "spotify_uri": "spotify:track:0GjEhVFGZW8afUYGChu3Rr",
+      "title": "Dancing Queen",
+      "artist": "ABBA",
+      "year": 1976,
+      "fun_fact": "The only ABBA song to hit #1 in the US, inspired by George McCrae's 'Rock Your Baby' rhythm",
+      "id": 59
+    },
+    {
+      "spotify_uri": "spotify:track:5T8EDUDqKcs6OSOwEsfqG7",
+      "title": "Don't Stop Me Now - Remastered 2011",
+      "artist": "Queen",
+      "year": 1978,
+      "fun_fact": "Freddie wrote this at 3 AM in his Munich apartment, capturing his euphoric lifestyle at the time",
+      "id": 60
+    },
+    {
+      "spotify_uri": "spotify:track:4eHbdreAnSOrDDsFfc4Fpm",
+      "title": "I Will Always Love You",
+      "artist": "Whitney Houston",
+      "year": 1992,
+      "fun_fact": "Originally by Dolly Parton, Whitney's version stayed at #1 for 14 weeks, one of the longest chart runs ever",
+      "id": 61
+    },
+    {
+      "spotify_uri": "spotify:track:0wz1LjDb9ZNEYwOmDJ3Q4b",
+      "title": "Surfin' U.S.A. - Remastered 2001",
+      "artist": "The Beach Boys",
+      "year": 1963,
+      "fun_fact": "Based on Chuck Berry's 'Sweet Little Sixteen' melody, Brian Wilson rewrote lyrics about California surf spots",
+      "id": 62
+    },
+    {
+      "spotify_uri": "spotify:track:2bCQHF9gdG5BNDVuEIEnNk",
+      "title": "Smooth Criminal - 2012 Remaster",
+      "artist": "Michael Jackson",
+      "year": 1988,
+      "fun_fact": "Michael's famous 45-degree lean required a specially patented shoe design to achieve without wires",
+      "id": 63
+    },
+    {
+      "spotify_uri": "spotify:track:1ot6jEe4w4hYnsOPjd3xKQ",
+      "title": "I'm So Excited",
+      "artist": "The Pointer Sisters",
+      "year": 1982,
+      "fun_fact": "Originally released in 1982, it became a massive hit when re-released in 1984 with a new remix",
+      "id": 64
+    },
+    {
+      "spotify_uri": "spotify:track:2tUBqZG2AbRi7Q0BIrVrEj",
+      "title": "I Wanna Dance with Somebody (Who Loves Me)",
+      "artist": "Whitney Houston",
+      "year": 1987,
+      "fun_fact": "Written in under 2 hours by the same team that created 'How Will I Know', earning them a Grammy",
+      "id": 65
+    },
+    {
+      "spotify_uri": "spotify:track:5zA8vzDGqPl2AzZkEYQGKh",
+      "title": "Uptown Girl",
+      "artist": "Billy Joel",
+      "year": 1983,
+      "fun_fact": "Billy wrote this as a tribute to Frankie Valli and the Four Seasons' doo-wop style from the 1960s",
+      "id": 66
+    },
+    {
+      "spotify_uri": "spotify:track:2oXchyEBxQBe8vH6iFgbv0",
+      "title": "Music",
+      "artist": "John Miles",
+      "year": 1976,
+      "fun_fact": "The dramatic orchestral arrangement made this prog-rock anthem a surprise hit, reaching #3 in the UK",
+      "id": 67
+    },
+    {
+      "spotify_uri": "spotify:track:4bHsxqR3GMrXTxEPLuK5ue",
+      "title": "Don't Stop Believin'",
+      "artist": "Journey",
+      "year": 1981,
+      "fun_fact": "Became the best-selling digital track from the 20th century after its use in The Sopranos finale",
+      "id": 68
+    },
+    {
+      "spotify_uri": "spotify:track:2IZZqH4K02UIYg5EohpNHF",
+      "title": "Zombie",
+      "artist": "The Cranberries",
+      "year": 1994,
+      "fun_fact": "Written in protest of IRA violence after two children were killed in a bombing in Warrington, England",
+      "id": 69
+    },
+    {
+      "spotify_uri": "spotify:track:4xmjDH6auBwuZ4GHimjXGe",
+      "title": "I Will Survive - Single Version",
+      "artist": "Gloria Gaynor",
+      "year": 1978,
+      "fun_fact": "Originally a B-side, DJs started playing it over the A-side, making it the ultimate empowerment anthem",
+      "id": 70
+    },
+    {
+      "spotify_uri": "spotify:track:5gOd6zDC8vhlYjqbQdJVWP",
+      "title": "Baker Street",
+      "artist": "Gerry Rafferty",
+      "year": 1978,
+      "fun_fact": "The iconic saxophone solo was played by Raphael Ravenscroft, who was paid just £27 for the session",
+      "id": 71
+    },
+    {
+      "spotify_uri": "spotify:track:3vkQ5DAB1qQMYO4Mr9zJN6",
+      "title": "Gimme! Gimme! Gimme! (A Man After Midnight)",
+      "artist": "ABBA",
+      "year": 1979,
+      "fun_fact": "Madonna sampled the main riff for her 2005 hit 'Hung Up' after personally asking ABBA for permission",
+      "id": 72
+    },
+    {
+      "spotify_uri": "spotify:track:5ChkMS8OtdzJeqyybCc9R5",
+      "title": "Billie Jean",
+      "artist": "Michael Jackson",
+      "year": 1982,
+      "fun_fact": "Michael recorded the vocals through a 5-foot cardboard tube to get that distinctive compressed sound",
+      "id": 73
+    },
+    {
+      "spotify_uri": "spotify:track:0QKfiqpEU4h9ycPSzIFwYe",
+      "title": "Maniac",
+      "artist": "Michael Sembello",
+      "year": 1983,
+      "fun_fact": "Originally written about a serial killer, the lyrics were changed for Flashdance to be about dancing",
+      "id": 74
+    },
+    {
+      "spotify_uri": "spotify:track:4aVuWgvD0X63hcOCnZtNFA",
+      "title": "Hold the Line",
+      "artist": "TOTO",
+      "year": 1978,
+      "fun_fact": "Toto's debut single that showcased their virtuoso musicianship, all members were top session players",
+      "id": 75
+    },
+    {
+      "spotify_uri": "spotify:track:0CUEc6T65lrU6rVW3HVYsl",
+      "title": "Celebration - Single Version",
+      "artist": "Kool & The Gang",
+      "year": 1980,
+      "fun_fact": "Written as an Islamic song about a holy celebration, it became the ultimate party anthem instead",
+      "id": 76
+    },
+    {
+      "spotify_uri": "spotify:track:6L89mwZXSOwYl76YXfX13s",
+      "title": "Basket Case",
+      "artist": "Green Day",
+      "year": 1994,
+      "fun_fact": "Billie Joe wrote this about his anxiety attacks and fear of going crazy, becoming their breakthrough hit",
+      "id": 77
+    },
+    {
+      "spotify_uri": "spotify:track:1di1BEgJYzPvXUuinsYJGP",
+      "title": "Everybody (Backstreet's Back) - Radio Edit",
+      "artist": "Backstreet Boys",
+      "year": 1997,
+      "fun_fact": "The Halloween-themed music video featured the boys as different monsters and became an MTV staple",
+      "id": 78
+    },
+    {
+      "spotify_uri": "spotify:track:1H5VQuShs4qfwBXyHF0PeH",
+      "title": "Narcotic - Radio Edit",
+      "artist": "Liquido",
+      "year": 1998,
+      "fun_fact": "This German band's whistled hook became instantly recognizable, making it a worldwide one-hit wonder",
+      "id": 79
+    },
+    {
+      "spotify_uri": "spotify:track:0Dmao2oWlAZzIBX2Q1B5AH",
+      "title": "Bitter Sweet Symphony - Remastered 2016",
+      "artist": "The Verve",
+      "year": 1997,
+      "fun_fact": "Used a Rolling Stones sample without full permission, losing all royalties until rights returned in 2019",
+      "id": 80
+    },
+    {
+      "spotify_uri": "spotify:track:1bx7OUl2UmAnA5oZkm9If7",
+      "title": "Jerk It Out",
+      "artist": "Caesars",
+      "year": 2002,
+      "fun_fact": "Featured in an iPod shuffle commercial, introducing this Swedish garage rock band to global audiences",
+      "id": 81
+    },
+    {
+      "spotify_uri": "spotify:track:0SLtqCrXBRrnkxSOMA3X4W",
+      "title": "Let Me Entertain You",
+      "artist": "Robbie Williams",
+      "year": 1997,
+      "fun_fact": "Written as Robbie's rebellious statement after leaving Take That, showcasing his new rock-oriented sound",
+      "id": 82
+    },
+    {
+      "spotify_uri": "spotify:track:5n6RDaGFSN88oRWuGtYAIN",
+      "title": "The Show Must Go On - Remastered 2011",
+      "artist": "Queen",
+      "year": 1991,
+      "fun_fact": "Freddie recorded vocals while gravely ill, Brian May doubted he could sing it but Freddie proved him wrong",
+      "id": 83
+    },
+    {
+      "spotify_uri": "spotify:track:1INWPr855fwWdAOeecbu0W",
+      "title": "Let's Twist Again",
+      "artist": "Chubby Checker",
+      "year": 1961,
+      "fun_fact": "Won a Grammy for Best Rock Performance, capitalizing on the massive twist dance craze Checker started",
+      "id": 84
+    },
+    {
+      "spotify_uri": "spotify:track:2fuCquhmrzHpu5xcA1ci9x",
+      "title": "Under Pressure - Remastered 2011",
+      "artist": "Queen",
+      "year": 1981,
+      "fun_fact": "Created spontaneously during a Queen/Bowie jam session, the famous bassline was nearly forgotten and had to be recreated",
+      "id": 85
+    },
+    {
+      "spotify_uri": "spotify:track:5ZBeML7Lf3FMEVviTyvi8l",
+      "title": "Twist And Shout - Remastered 2009",
+      "artist": "The Beatles",
+      "year": 1963,
+      "fun_fact": "Recorded in one take at the end of a grueling 12-hour session, John's voice was shredded afterwards",
+      "id": 86
+    },
+    {
+      "spotify_uri": "spotify:track:5y788ya4NvwhBznoDIcXwK",
+      "title": "The Sound of Silence - Acoustic Version",
+      "artist": "Simon & Garfunkel",
+      "year": 1964,
+      "fun_fact": "Originally flopped, then producer Tom Wilson added electric instruments without the duo knowing, making it a hit",
+      "id": 87
+    },
+    {
+      "spotify_uri": "spotify:track:3Cx4yrFaX8CeHwBMReOWXI",
+      "title": "We Didn't Start the Fire",
+      "artist": "Billy Joel",
+      "year": 1989,
+      "fun_fact": "Lists 118 historical events from 1949-1989 in rapid-fire lyrics, inspired by a conversation with a 21-year-old",
+      "id": 88
+    },
+    {
+      "spotify_uri": "spotify:track:6WCeFNVAXUtNczb7lqLiZU",
+      "title": "Crocodile Rock",
+      "artist": "Elton John",
+      "year": 1972,
+      "fun_fact": "Elton's homage to early rock and roll, deliberately written in a simple 1950s style with nonsense lyrics",
+      "id": 89
+    },
+    {
+      "spotify_uri": "spotify:track:0rmGAIH9LNJewFw7nKzZnc",
+      "title": "You Give Love A Bad Name",
+      "artist": "Bon Jovi",
+      "year": 1986,
+      "fun_fact": "Desmond Child co-wrote this mega-hit in just two hours, it became Bon Jovi's first #1 single",
+      "id": 90
+    },
+    {
+      "spotify_uri": "spotify:track:1f3yAtsJtY87CTmM8RLnxf",
+      "title": "Smells Like Teen Spirit",
+      "artist": "Nirvana",
+      "year": 1991,
+      "fun_fact": "Kurt Cobain was trying to write the ultimate pop song, accidentally creating the grunge anthem instead",
+      "id": 91
+    },
+    {
+      "spotify_uri": "spotify:track:4y1LsJpmMti1PfRQV9AWWe",
+      "title": "Girls Just Want to Have Fun",
+      "artist": "Cyndi Lauper",
+      "year": 1983,
+      "fun_fact": "Originally written by Robert Hazard from a male perspective, Cyndi transformed it into a feminist anthem",
+      "id": 92
+    },
+    {
+      "spotify_uri": "spotify:track:3NvS0SxNWIPiAJoPWUpZzr",
+      "title": "What Is Love - 7\" Mix",
+      "artist": "Haddaway",
+      "year": 1993,
+      "fun_fact": "The Saturday Night Live 'Roxbury guys' head-bobbing sketch made this song a cultural phenomenon again",
+      "id": 93
+    },
+    {
+      "spotify_uri": "spotify:track:6eN1f9KNmiWEhpE2RhQqB5",
+      "title": "Paradise City",
+      "artist": "Guns N' Roses",
+      "year": 1987,
+      "fun_fact": "Written on the back of a tour bus, contrasting the harsh life on the road with dreams of home",
+      "id": 94
+    },
+    {
+      "spotify_uri": "spotify:track:3cbV252akVZInSvJk7jAYX",
+      "title": "Flashdance...What a Feeling - Radio Edit",
+      "artist": "Irene Cara",
+      "year": 1983,
+      "fun_fact": "Won the Oscar for Best Original Song and stayed at #1 for six weeks, defining the 80s movie soundtrack era",
+      "id": 95
+    },
+    {
+      "spotify_uri": "spotify:track:3ZOEytgrvLwQaqXreDs2Jx",
+      "title": "Can't Stop",
+      "artist": "Red Hot Chili Peppers",
+      "year": 2002,
+      "fun_fact": "John Frusciante's intricate guitar work was inspired by Jimi Hendrix's avant-garde approach to funk",
+      "id": 96
+    },
+    {
+      "spotify_uri": "spotify:track:6e40mgJiCid5HRAGrbpGA6",
+      "title": "I Want It That Way",
+      "artist": "Backstreet Boys",
+      "year": 1999,
+      "fun_fact": "The lyrics deliberately make no logical sense, but Max Martin's melody made it their signature song anyway",
+      "id": 97
+    },
+    {
+      "spotify_uri": "spotify:track:37ZJ0p5Jm13JPevGcx4SkF",
+      "title": "Livin' On A Prayer",
+      "artist": "Bon Jovi",
+      "year": 1986,
+      "fun_fact": "The iconic talkbox intro was played by Richie Sambora using a Heil Talk Box pedal",
+      "id": 98
+    },
+    {
+      "spotify_uri": "spotify:track:7o2CTH4ctstm8TNelqjb51",
+      "title": "Sweet Child O' Mine",
+      "artist": "Guns N' Roses",
+      "year": 1987,
+      "fun_fact": "Slash created the iconic opening riff as a finger exercise, never expecting it to become a song",
+      "id": 99
+    },
+    {
+      "spotify_uri": "spotify:track:60a0Rd6pjrkxjPbaKzXjfq",
+      "title": "In the End",
+      "artist": "Linkin Park",
+      "year": 2000,
+      "fun_fact": "Chester Bennington recorded 50+ vocal takes because the band wanted perfection for this emotional centerpiece",
+      "id": 100
+    }
+  ]
+}

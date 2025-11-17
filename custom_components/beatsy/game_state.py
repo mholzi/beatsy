@@ -148,7 +148,7 @@ class RoundState:
     """
 
     round_number: int
-    song: dict[str, Any]  # {uri, title, artist, album, year, cover_url}
+    song: dict[str, Any]  # Story 11.9 AC-6: {id, uri, title, artist, year, fun_fact, cover_url} - NO album
     started_at: float
     timer_duration: int  # seconds (from config, default 30)
     status: str = "active"  # active, ended
@@ -945,7 +945,7 @@ async def select_random_song(
 
     Returns:
         Selected song dictionary with all required fields:
-        {uri, title, artist, album, year, cover_url}
+        Story 11.9 AC-6: {id, uri, title, artist, year, fun_fact, cover_url} - NO album
 
     Raises:
         PlaylistExhaustedError: If available_songs list is empty (all songs played).
@@ -976,7 +976,8 @@ async def select_random_song(
         selected_song = random.choice(state.available_songs)
 
         # AC-2: Validate song structure has all required fields
-        required_fields = ["uri", "title", "artist", "album", "year", "cover_url"]
+        # Story 11.9 AC-6: Removed album from required fields
+        required_fields = ["id", "uri", "title", "artist", "year", "cover_url"]
         missing_fields = [field for field in required_fields if field not in selected_song or not selected_song[field]]
 
         if missing_fields:
@@ -1030,7 +1031,7 @@ async def initialize_round(
     Args:
         hass: The Home Assistant instance.
         selected_song: Song dict from select_random_song() with all required fields:
-            {uri, title, artist, album, year, cover_url}
+            Story 11.9 AC-6: {id, uri, title, artist, year, fun_fact, cover_url} - NO album
         entry_id: The config entry ID. If None, uses first entry.
 
     Returns:
@@ -1162,9 +1163,10 @@ async def initialize_round(
 
     # AC-1: Create RoundState with all required fields
     # Story 7.5: Use current_song (may be different from selected_song if retries occurred)
+    # Story 11.9 AC-6: Song structure: {id, uri, title, artist, year, fun_fact, cover_url} - NO album
     round_state = RoundState(
         round_number=new_round_number,
-        song=current_song,  # Full song dict with uri, title, artist, album, year, cover_url
+        song=current_song,  # Story 11.9 AC-6: {id, uri, title, artist, year, fun_fact, cover_url} - NO album
         started_at=time.time(),  # UTC timestamp
         timer_duration=timer_duration,
         status="active",
@@ -1192,10 +1194,12 @@ async def initialize_round(
                 round_state.song["title"] = metadata["media_title"]
             if metadata.get("media_artist"):
                 round_state.song["artist"] = metadata["media_artist"]
-            if metadata.get("media_album_name"):
-                round_state.song["album"] = metadata["media_album_name"]
+            # Story 11.9 AC-6: Removed album field from song structure
             if metadata.get("entity_picture"):
                 round_state.song["cover_url"] = metadata["entity_picture"]
+                _LOGGER.debug("Story 11.9 AC-5: Cover URL overridden with media player entity_picture")
+            else:
+                _LOGGER.debug("Story 11.9 AC-5: Using placeholder cover URL (media player entity_picture not available)")
 
             _LOGGER.debug(
                 "Story 7.5: Enriched metadata from media player: title='%s', artist='%s'",
@@ -1250,7 +1254,7 @@ def prepare_round_started_payload(round_state: RoundState) -> dict[str, Any]:
         Payload dict ready for WebSocket broadcast with structure:
         {
             "type": "round_started",
-            "song": {title, artist, album, cover_url},  # year EXCLUDED
+            "song": {id, uri, title, artist, cover_url, fun_fact},  # year EXCLUDED, NO album
             "timer_duration": int,
             "started_at": float,
             "round_number": int
@@ -1258,6 +1262,7 @@ def prepare_round_started_payload(round_state: RoundState) -> dict[str, Any]:
 
     AC-3: Payload includes type, song (WITHOUT year), timer_duration, started_at, round_number
     AC-3: Song.year field MUST be excluded (security requirement)
+    Story 11.9 AC-6: Song does NOT include album field
     AC-7: Provides all data needed for Epic 8 active round UI
     """
     # AC-3: Copy song dict and explicitly remove year field (CRITICAL for game integrity)
@@ -1265,9 +1270,10 @@ def prepare_round_started_payload(round_state: RoundState) -> dict[str, Any]:
     payload_song.pop("year", None)  # Remove year - players are guessing it!
 
     # AC-3: Build payload with all required fields
+    # Story 11.9 AC-6: Song includes id, uri, title, artist, cover_url, fun_fact (NO year, NO album)
     payload = {
         "type": "round_started",
-        "song": payload_song,  # title, artist, album, cover_url (NO year)
+        "song": payload_song,  # id, uri, title, artist, cover_url, fun_fact (NO year, NO album)
         "timer_duration": round_state.timer_duration,
         "started_at": round_state.started_at,
         "round_number": round_state.round_number,
@@ -1661,11 +1667,12 @@ async def end_round(hass: HomeAssistant, entry_id: Optional[str] = None) -> dict
     actual_year = round_state.song.get("year")
 
     # AC-7: Prepare round_ended payload
+    # Story 11.9 AC-6: Song includes ALL metadata (id, uri, title, artist, year, cover_url, fun_fact) - NO album
     payload = {
         "type": "round_ended",
         "round_number": round_state.round_number,
         "actual_year": actual_year,
-        "song": round_state.song,  # Include ALL song metadata (title, artist, album, year, cover_url)
+        "song": round_state.song,  # Include ALL song metadata (id, uri, title, artist, year, cover_url, fun_fact) - NO album
         "results": results,  # Results from calculate_round_scores()
         "leaderboard": leaderboard,  # Leaderboard from get_leaderboard()
     }

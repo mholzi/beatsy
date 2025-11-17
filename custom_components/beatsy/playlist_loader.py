@@ -90,7 +90,10 @@ def validate_playlist_json(data: dict[str, Any]) -> list[str]:
     Validates:
         - Required playlist-level fields: playlist_name, playlist_id, songs
         - songs must be a list
-        - Each song must have: spotify_uri, year
+        - Each song must have: id, spotify_uri, year
+        - id must be unique within playlist
+
+    Story 11.9 AC-1, AC-7: Added id field validation
     """
     errors = []
 
@@ -110,11 +113,22 @@ def validate_playlist_json(data: dict[str, Any]) -> list[str]:
     elif not isinstance(data["songs"], list):
         errors.append("songs must be an array")
     else:
+        # Story 11.9 AC-1, AC-7: Collect IDs for duplicate check
+        song_ids = []
+
         # Validate each song
         for i, song in enumerate(data["songs"]):
             if not isinstance(song, dict):
                 errors.append(f"Song {i}: must be an object")
                 continue
+
+            # Story 11.9 AC-1, AC-7: Validate id field (required, integer)
+            if "id" not in song:
+                errors.append(f"Song {i}: Missing required field 'id' - add sequential integer ID to each track")
+            elif not isinstance(song["id"], int):
+                errors.append(f"Song {i}: Field 'id' must be an integer, got {type(song['id']).__name__}")
+            else:
+                song_ids.append(song["id"])
 
             if "spotify_uri" not in song:
                 errors.append(f"Song {i}: Missing field: spotify_uri")
@@ -125,6 +139,11 @@ def validate_playlist_json(data: dict[str, Any]) -> list[str]:
                 errors.append(f"Song {i}: Missing field: year")
             elif not isinstance(song["year"], int):
                 errors.append(f"Song {i}: year must be an integer")
+
+        # Story 11.9 AC-1, AC-7: Check for duplicate IDs
+        if song_ids and len(song_ids) != len(set(song_ids)):
+            duplicates = [id_val for id_val in set(song_ids) if song_ids.count(id_val) > 1]
+            errors.append(f"Duplicate ID values found in songs: {duplicates} - each track must have a unique ID")
 
     return errors
 
