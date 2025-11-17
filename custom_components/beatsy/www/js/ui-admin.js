@@ -1849,9 +1849,14 @@ function showNoGameStatus() {
         stateElement.className = 'text-lg sm:text-xl font-semibold text-gray-500';
     }
 
-    document.getElementById('status-players').textContent = '0';
-    document.getElementById('status-songs').textContent = '-';
-    document.getElementById('status-round').textContent = '-';
+    // Story 11.5: Use player count circle instead of deleted status-players element
+    updatePlayerCountCircle(0);
+
+    const songsElement = document.getElementById('status-songs');
+    if (songsElement) songsElement.textContent = '-';
+
+    const roundElement = document.getElementById('status-round');
+    if (roundElement) roundElement.textContent = '-';
 
     console.log('No active game status displayed');
 }
