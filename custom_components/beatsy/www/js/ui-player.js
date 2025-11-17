@@ -1219,7 +1219,8 @@ function handleRoundEnded(data) {
     console.log('Round ended event received:', data);
 
     // Validate event payload structure (AC-1)
-    if (!data.correct_year || !data.results || !data.leaderboard) {
+    // Note: results and leaderboard can be empty arrays (no submissions = 0 points)
+    if (!data.correct_year || data.results === undefined || data.leaderboard === undefined) {
         console.error('Round ended event missing required fields:', data);
         showError('Results unavailable, please refresh');
         return;
