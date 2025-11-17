@@ -236,29 +236,30 @@ class BeatsyWebSocketView(HomeAssistantView):
         class MockConnection:
             """Mock HA ActiveConnection for routing to command handlers."""
 
-            def __init__(self, ws_response, conn_id, command_type):
+            def __init__(self, ws_response, conn_id, command_type, hass):
                 self.ws = ws_response
                 self.id = conn_id
                 self.command_type = command_type
+                self.hass = hass
 
             def send_result(self, msg_id, result):
                 """Send success response to client."""
                 # For join_game and reconnect, use legacy response format for backward compatibility
                 if self.command_type == "beatsy/join_game":
-                    asyncio.create_task(self.ws.send_json({
+                    self.hass.async_create_task(self.ws.send_json({
                         "type": "join_game_response",
                         "success": True,
                         **result
                     }))
                 elif self.command_type == "beatsy/reconnect":
-                    asyncio.create_task(self.ws.send_json({
+                    self.hass.async_create_task(self.ws.send_json({
                         "type": "reconnect_response",
                         "success": True,
                         **result
                     }))
                 else:
                     # Standard HA WebSocket API response format
-                    asyncio.create_task(self.ws.send_json({
+                    self.hass.async_create_task(self.ws.send_json({
                         "id": msg_id,
                         "type": "result",
                         "success": True,
@@ -270,7 +271,7 @@ class BeatsyWebSocketView(HomeAssistantView):
                 # For join_game and reconnect, use legacy response format
                 if self.command_type in ("beatsy/join_game", "beatsy/reconnect"):
                     response_type = "join_game_response" if self.command_type == "beatsy/join_game" else "reconnect_response"
-                    asyncio.create_task(self.ws.send_json({
+                    self.hass.async_create_task(self.ws.send_json({
                         "type": response_type,
                         "success": False,
                         "error": code,
@@ -278,7 +279,7 @@ class BeatsyWebSocketView(HomeAssistantView):
                     }))
                 else:
                     # Standard HA WebSocket API error format
-                    asyncio.create_task(self.ws.send_json({
+                    self.hass.async_create_task(self.ws.send_json({
                         "id": msg_id,
                         "type": "result",
                         "success": False,
@@ -325,7 +326,7 @@ class BeatsyWebSocketView(HomeAssistantView):
                     data["id"] = int(time.time() * 1000)  # Generate timestamp-based ID
                     _LOGGER.debug("Generated message id: %s", data["id"])
 
-                mock_conn = MockConnection(ws, conn_id, command_type)
+                mock_conn = MockConnection(ws, conn_id, command_type, self.hass)
 
                 # Check if handler is async or sync (@callback)
                 import inspect
