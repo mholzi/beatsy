@@ -9,8 +9,14 @@
     <!-- Favicon (prevent browser 404 error) -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
 
-    <!-- Tailwind CSS CDN for development -->
+    <!-- Tailwind CSS CDN (sufficient for HA custom component - local party game use) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Suppress Tailwind production warning - this is a local HA component, not public web app
+        if (window.tailwind) {
+            window.tailwind.config = { corePlugins: { preflight: false } };
+        }
+    </script>
 
     <!-- Custom CSS for Beatsy branding and mobile-first overrides -->
     <link rel="stylesheet" href="/api/beatsy/static/css/custom.css">

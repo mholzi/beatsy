@@ -1672,6 +1672,7 @@ async def end_round(hass: HomeAssistant, entry_id: Optional[str] = None) -> dict
         "type": "round_ended",
         "round_number": round_state.round_number,
         "actual_year": actual_year,
+        "correct_year": actual_year,  # UI expects correct_year field
         "song": round_state.song,  # Include ALL song metadata (id, uri, title, artist, year, cover_url, fun_fact) - NO album
         "results": results,  # Results from calculate_round_scores()
         "leaderboard": leaderboard,  # Leaderboard from get_leaderboard()
