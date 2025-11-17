@@ -521,7 +521,8 @@ def handle_place_bet(
     """
     try:
         player_name = msg["player_name"]
-        bet = msg["bet"]
+        # Accept both 'bet' and 'bet_active' for compatibility
+        bet = msg.get("bet") or msg.get("bet_active", False)
 
         # Story 10.6: Rate limiting check (5 toggles per second per player)
         rate_limiter = hass.data[DOMAIN].get("rate_limiter")

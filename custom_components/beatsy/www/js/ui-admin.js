@@ -1490,9 +1490,9 @@ function displayPlayerUrl(playerUrl) {
  * Story 11.6: AC-4 (QR code generation with error handling)
  */
 function generateQRCode(playerUrl) {
-    const canvas = document.getElementById('qr-canvas');
+    const container = document.getElementById('qr-canvas');
 
-    if (!canvas) {
+    if (!container) {
         console.error('QR canvas element not found');
         return;
     }
@@ -1504,21 +1504,24 @@ function generateQRCode(playerUrl) {
         return;
     }
 
-    QRCode.toCanvas(canvas, playerUrl, {
-        width: 200,
-        margin: 2,
-        color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-        }
-    }, (error) => {
-        if (error) {
-            console.error('QR generation failed:', error);
-            alert('Failed to generate QR code. Please use the URL to share manually.');
-        } else {
-            console.log('QR code generated successfully');
-        }
-    });
+    // Clear any existing QR code
+    container.innerHTML = '';
+
+    try {
+        // QRCodeJS uses a different API - creates element inside container
+        new QRCode(container, {
+            text: playerUrl,
+            width: 200,
+            height: 200,
+            colorDark: '#000000',
+            colorLight: '#FFFFFF',
+            correctLevel: QRCode.CorrectLevel.H
+        });
+        console.log('QR code generated successfully');
+    } catch (error) {
+        console.error('QR generation failed:', error);
+        alert('Failed to generate QR code. Please use the URL to share manually.');
+    }
 }
 
 /**
