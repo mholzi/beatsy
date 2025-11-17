@@ -17,6 +17,7 @@ Implementation Status:
 - API endpoints: Stories 3.2-3.5 - Fully functional
 - Static files: Serves CSS/JS from www directory
 """
+import asyncio
 import logging
 import mimetypes
 from pathlib import Path
@@ -56,9 +57,11 @@ class BeatsyTestView(HomeAssistantView):
             module_dir = Path(__file__).parent
             test_html_path = module_dir / "www" / "test.html"
 
-            # Read the HTML content
-            # Note: Using synchronous read for now - file is small and read once per request
-            html_content = test_html_path.read_text(encoding="utf-8")
+            # Read the HTML content asynchronously to avoid blocking I/O
+            loop = asyncio.get_event_loop()
+            html_content = await loop.run_in_executor(
+                None, test_html_path.read_text, "utf-8"
+            )
 
             _LOGGER.debug("Serving test page from %s", test_html_path)
 
@@ -115,9 +118,11 @@ class BeatsyAdminView(HomeAssistantView):
             module_dir = Path(__file__).parent
             admin_html_path = module_dir / "www" / "admin.html"
 
-            # Read the HTML content
-            # Note: Using synchronous read for now - file is small and read once per request
-            html_content = admin_html_path.read_text(encoding="utf-8")
+            # Read the HTML content asynchronously to avoid blocking I/O
+            loop = asyncio.get_event_loop()
+            html_content = await loop.run_in_executor(
+                None, admin_html_path.read_text, "utf-8"
+            )
 
             _LOGGER.debug("Serving admin page from %s", admin_html_path)
 
