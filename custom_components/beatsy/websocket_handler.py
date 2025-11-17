@@ -200,6 +200,9 @@ class BeatsyWebSocketView(HomeAssistantView):
             # Convert legacy action names to beatsy/* format for routing
             if action == "join_game":
                 data["type"] = "beatsy/join_game"
+                # Convert legacy 'name' field to 'player_name' for schema compatibility
+                if "name" in data and "player_name" not in data:
+                    data["player_name"] = data["name"]
             elif action == "reconnect":
                 data["type"] = "beatsy/reconnect"
             await self._route_to_command_handler(conn_id, ws, data)
@@ -315,6 +318,13 @@ class BeatsyWebSocketView(HomeAssistantView):
         if handler:
             try:
                 _LOGGER.debug("Routing %s to command handler", command_type)
+
+                # Ensure message has 'id' field for HA WebSocket API compatibility
+                if "id" not in data:
+                    import time
+                    data["id"] = int(time.time() * 1000)  # Generate timestamp-based ID
+                    _LOGGER.debug("Generated message id: %s", data["id"])
+
                 mock_conn = MockConnection(ws, conn_id, command_type)
                 await handler(self.hass, mock_conn, data)
             except Exception as e:
