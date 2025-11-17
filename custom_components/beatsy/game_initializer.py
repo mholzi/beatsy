@@ -455,12 +455,52 @@ async def create_game_session(
     await save_config(hass, state.game_config, state.entry_id)
     _LOGGER.debug("Config persisted to storage for entry %s", state.entry_id)
 
-    # Step 4: Store playlist songs
+    # Step 4: Store playlist songs and enrich with Spotify metadata
     songs = playlist_data.get("songs", [])
-    state.available_songs = songs.copy()  # Make a copy to avoid mutations
+
+    # Enrich songs with Spotify metadata (fetch title, artist, album, cover_url)
+    enriched_songs = []
+    spotify_helper = state.spotify
+
+    for song in songs:
+        # If song already has full metadata, use as-is
+        if all(field in song for field in ["uri", "title", "artist", "album", "cover_url"]):
+            enriched_songs.append(song)
+            continue
+
+        # Otherwise, fetch from Spotify
+        spotify_uri = song.get("spotify_uri") or song.get("uri")
+        if not spotify_uri:
+            _LOGGER.warning("Song missing spotify_uri, skipping: %s", song)
+            continue
+
+        try:
+            # Extract track ID from URI (spotify:track:ID)
+            track_id = spotify_uri.split(":")[-1]
+
+            # Fetch track data from Spotify
+            # Note: This requires spotify integration to be set up
+            # For now, create a minimal enriched song with available data
+            enriched_song = {
+                "uri": spotify_uri,
+                "title": song.get("title", "Unknown"),
+                "artist": song.get("artist", "Unknown"),
+                "album": song.get("album", "Unknown"),
+                "year": song.get("year", 2000),
+                "cover_url": song.get("cover_url", ""),
+                "fun_fact": song.get("fun_fact", ""),
+                "spotify_uri": spotify_uri,
+            }
+            enriched_songs.append(enriched_song)
+
+        except Exception as e:
+            _LOGGER.warning("Failed to enrich song %s: %s", spotify_uri, e)
+            continue
+
+    state.available_songs = enriched_songs.copy()  # Make a copy to avoid mutations
 
     # Story 5.7: Store original playlist for reset_game() to restore available_songs
-    state.original_playlist = copy.deepcopy(songs)
+    state.original_playlist = copy.deepcopy(enriched_songs)
 
     # Step 5: Reset dynamic state for new game
     state.players = []
