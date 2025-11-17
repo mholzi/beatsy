@@ -481,13 +481,16 @@ async def create_game_session(
             # Fetch track data from Spotify
             # Note: This requires spotify integration to be set up
             # For now, create a minimal enriched song with available data
+            # Use placeholder cover URL if missing (data URI for 1x1 transparent pixel)
+            default_cover = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+
             enriched_song = {
                 "uri": spotify_uri,
                 "title": song.get("title", "Unknown"),
                 "artist": song.get("artist", "Unknown"),
                 "album": song.get("album", "Unknown"),
                 "year": song.get("year", 2000),
-                "cover_url": song.get("cover_url", ""),
+                "cover_url": song.get("cover_url") or default_cover,
                 "fun_fact": song.get("fun_fact", ""),
                 "spotify_uri": spotify_uri,
             }
