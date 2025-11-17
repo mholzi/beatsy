@@ -232,19 +232,16 @@ def handle_join_game(
         # Track WebSocket connection
         connection_id = str(uuid.uuid4())
 
-        # Get the first entry's state for connection tracking
-        entries = list(hass.data[DOMAIN].values())
-        if entries:
-            state = entries[0]
-            if "websocket_connections" not in state:
-                state["websocket_connections"] = {}
+        # Store connection in hass.data[DOMAIN] for WebSocket tracking
+        if "websocket_connections" not in hass.data[DOMAIN]:
+            hass.data[DOMAIN]["websocket_connections"] = {}
 
-            state["websocket_connections"][connection_id] = {
-                "player_name": unique_name,
-                "connected_at": time.time(),
-                "last_ping": time.time(),
-                "connection": connection,
-            }
+        hass.data[DOMAIN]["websocket_connections"][connection_id] = {
+            "player_name": unique_name,
+            "connected_at": time.time(),
+            "last_ping": time.time(),
+            "connection": connection,
+        }
 
         # Get all players for lobby initialization (Story 4.3 Task 4)
         all_players = get_players(hass)
@@ -371,19 +368,16 @@ def handle_reconnect(
         # Track WebSocket connection
         connection_id = str(uuid.uuid4())
 
-        # Get the first entry's state for connection tracking
-        entries = list(hass.data[DOMAIN].values())
-        if entries:
-            state = entries[0]
-            if "websocket_connections" not in state:
-                state["websocket_connections"] = {}
+        # Store connection in hass.data[DOMAIN] for WebSocket tracking
+        if "websocket_connections" not in hass.data[DOMAIN]:
+            hass.data[DOMAIN]["websocket_connections"] = {}
 
-            state["websocket_connections"][connection_id] = {
-                "player_name": player.name,
-                "connected_at": current_time,
-                "last_ping": current_time,
-                "connection": connection,
-            }
+        hass.data[DOMAIN]["websocket_connections"][connection_id] = {
+            "player_name": player.name,
+            "connected_at": current_time,
+            "last_ping": current_time,
+            "connection": connection,
+        }
 
         # Determine current game status
         current_round = get_current_round(hass)
