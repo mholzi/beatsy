@@ -289,6 +289,10 @@ class BeatsyWebSocketView(HomeAssistantView):
                         }
                     }))
 
+            async def send_json(self, message):
+                """Send JSON message to client (for broadcast compatibility)."""
+                await self.ws.send_json(message)
+
         # Import command handlers
         from .websocket_api import (
             handle_join_game,

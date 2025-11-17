@@ -1679,7 +1679,7 @@ async def end_round(hass: HomeAssistant, entry_id: Optional[str] = None) -> dict
 
     # AC-7: Broadcast round_ended event to ALL connected clients
     try:
-        await broadcast_event(hass, "round_ended", payload, entry_id=entry_id)
+        await broadcast_event(hass, "round_ended", payload)
 
         # AC-8: Log broadcast completion
         client_count = len(state.websocket_connections)
