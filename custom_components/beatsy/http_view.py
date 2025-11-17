@@ -57,9 +57,10 @@ class BeatsyTestView(HomeAssistantView):
             test_html_path = module_dir / "www" / "test.html"
 
             # Read the HTML content asynchronously to avoid blocking I/O
-            html_content = await self.hass.async_add_executor_job(
-                test_html_path.read_text, "utf-8"
-            )
+            def read_html():
+                return test_html_path.read_text(encoding="utf-8")
+
+            html_content = await self.hass.async_add_executor_job(read_html)
 
             _LOGGER.debug("Serving test page from %s", test_html_path)
 
@@ -117,9 +118,10 @@ class BeatsyAdminView(HomeAssistantView):
             admin_html_path = module_dir / "www" / "admin.html"
 
             # Read the HTML content asynchronously to avoid blocking I/O
-            html_content = await self.hass.async_add_executor_job(
-                admin_html_path.read_text, "utf-8"
-            )
+            def read_html():
+                return admin_html_path.read_text(encoding="utf-8")
+
+            html_content = await self.hass.async_add_executor_job(read_html)
 
             _LOGGER.debug("Serving admin page from %s", admin_html_path)
 
