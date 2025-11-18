@@ -6,20 +6,21 @@ Uses modern config entry pattern for Home Assistant 2025.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 from homeassistant.components import websocket_api as ha_websocket_api
+from homeassistant.components.http.static import CACHE_HEADERS
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
-from .game_state import init_game_state, load_config, save_config
+from .game_state import init_game_state, load_config
 from .http_view import (
     BeatsyTestView,
     BeatsyAdminView,
     BeatsyPlayerView,
     BeatsyAPIView,
-    BeatsyStaticView,
 )
 from .websocket_handler import BeatsyWebSocketView, close_all_connections
 from .spotify_helper import (
@@ -31,15 +32,11 @@ from .spotify_helper import (
 )
 from .websocket_api import (
     handle_join_game,
-    handle_reconnect,
     handle_submit_guess,
     handle_place_bet,
     handle_start_game,
     handle_next_song,
-    handle_skip_song,
-    handle_reset_game,
 )
-from .rate_limiter import RateLimiter
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,20 +80,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if persisted_config:
         state.game_config.update(persisted_config)
         _LOGGER.debug("Loaded persisted config for entry %s", entry.entry_id)
-    else:
-        # Story 11.1: AC-5 - Save default config on first installation
-        default_config = {
-            "round_timer_seconds": 30,
-            "points_exact": 10,
-            "points_close": 5,
-            "points_near": 2,
-            "bet_multiplier": 2,
-            "year_range_min": 1950,
-            "year_range_max": 2025,
-        }
-        state.game_config.update(default_config)
-        await save_config(hass, state.game_config, entry.entry_id)
-        _LOGGER.info("First installation: Default config saved for entry %s", entry.entry_id)
 
     # Store Spotify helper functions reference in state
     state.spotify = {
@@ -129,36 +112,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
 
-    # Initialize WebSocket connections registry (Epic 6, Story 6.1)
-    if "websocket_connections" not in hass.data[DOMAIN]:
-        hass.data[DOMAIN]["websocket_connections"] = {}
-        _LOGGER.debug("Initialized WebSocket connections registry")
-
-    # Legacy registry for backward compatibility
-    if "ws_connections" not in hass.data[DOMAIN]:
-        # Point to the same registry for backward compatibility
-        hass.data[DOMAIN]["ws_connections"] = hass.data[DOMAIN]["websocket_connections"]
-
-    # Initialize rate limiter (Story 10.6)
-    if "rate_limiter" not in hass.data[DOMAIN]:
-        rate_limiter = RateLimiter()
-        hass.data[DOMAIN]["rate_limiter"] = rate_limiter
-        # Start cleanup task to prevent memory leaks
-        await rate_limiter.start_cleanup_task()
-        _LOGGER.info("Rate limiter initialized with cleanup task")
-
     if not hass.data[DOMAIN].get("_http_views_registered", False):
         try:
             hass.http.register_view(BeatsyTestView())
             hass.http.register_view(BeatsyAdminView())
             hass.http.register_view(BeatsyPlayerView())
             hass.http.register_view(BeatsyAPIView())
-            hass.http.register_view(BeatsyStaticView())
             hass.http.register_view(BeatsyWebSocketView(hass))
+
+            # Register static path for www directory (Story 12-4: Tailwind CSS)
+            www_path = os.path.join(os.path.dirname(__file__), "www")
+            hass.http.register_static_path(
+                "/local/beatsy",
+                www_path,
+                cache_headers=True
+            )
+            _LOGGER.info("Static path registered: /local/beatsy -> %s", www_path)
+
             hass.data[DOMAIN]["_http_views_registered"] = True
             _LOGGER.info(
-                "HTTP routes registered: /api/beatsy/test.html, /api/beatsy/admin, "
-                "/api/beatsy/player, /api/beatsy/api/*, /api/beatsy/static/*, /api/beatsy/ws"
+                "HTTP routes registered: /api/beatsy/test.html, /beatsy/admin, "
+                "/api/beatsy/player, /api/beatsy/api/*, /api/beatsy/ws"
             )
         except Exception as e:
             _LOGGER.warning("Failed to register HTTP routes (may already exist): %s", str(e))
@@ -169,16 +143,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not hass.data[DOMAIN].get("_ws_commands_registered", False):
         try:
             ha_websocket_api.async_register_command(hass, handle_join_game)
-            ha_websocket_api.async_register_command(hass, handle_reconnect)
             ha_websocket_api.async_register_command(hass, handle_submit_guess)
             ha_websocket_api.async_register_command(hass, handle_place_bet)
             ha_websocket_api.async_register_command(hass, handle_start_game)
             ha_websocket_api.async_register_command(hass, handle_next_song)
-            ha_websocket_api.async_register_command(hass, handle_skip_song)
-            ha_websocket_api.async_register_command(hass, handle_reset_game)
             hass.data[DOMAIN]["_ws_commands_registered"] = True
             _LOGGER.info(
-                "WebSocket commands registered: join_game, reconnect, submit_guess, place_bet, start_game, next_song, skip_song, reset_game"
+                "WebSocket commands registered: join_game, submit_guess, place_bet, start_game, next_song"
             )
         except Exception as e:
             _LOGGER.warning("Failed to register WebSocket commands (may already exist): %s", str(e))
@@ -281,21 +252,27 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
             state = hass.data[DOMAIN].pop(entry.entry_id)
 
-            # Close all WebSocket connections (Epic 6, Story 6.1)
+            # Close all WebSocket connections (Story 2.6)
+            # Handle both dict (legacy) and BeatsyGameState (current)
             try:
-                from .websocket_handler import cleanup_all_connections
-                await cleanup_all_connections(hass)
+                if hasattr(state, "websocket_connections"):
+                    websocket_connections = state.websocket_connections
+                else:
+                    websocket_connections = state.get("websocket_connections", {})
+
+                for connection_id, conn_info in list(websocket_connections.items()):
+                    try:
+                        connection = conn_info.get("connection")
+                        if connection and hasattr(connection, "close"):
+                            await connection.close()
+                        _LOGGER.debug(f"Closed WebSocket connection: {connection_id}")
+                    except Exception as e:
+                        _LOGGER.warning(f"Error closing connection {connection_id}: {e}")
+
+                # Clear connection tracking
+                websocket_connections.clear()
             except Exception as e:
                 _LOGGER.warning(f"Error during WebSocket cleanup: {e}")
-
-            # Stop rate limiter cleanup task (Story 10.6)
-            if "rate_limiter" in hass.data[DOMAIN]:
-                try:
-                    rate_limiter = hass.data[DOMAIN].pop("rate_limiter")
-                    await rate_limiter.stop_cleanup_task()
-                    _LOGGER.info("Rate limiter cleanup task stopped")
-                except Exception as e:
-                    _LOGGER.warning(f"Error stopping rate limiter: {e}")
         else:
             _LOGGER.debug(f"Entry {entry.entry_id} not found in hass.data during unload")
 
