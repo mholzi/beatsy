@@ -9,8 +9,8 @@
     <!-- Favicon (prevent browser 404 error) -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
 
-    <!-- Tailwind CSS CDN for development -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind CSS Production Build -->
+    <link rel="stylesheet" href="/local/beatsy/css/tailwind.css">
 
     <!-- Custom CSS for Beatsy branding and mobile-first overrides -->
     <link rel="stylesheet" href="/api/beatsy/static/css/custom.css">
@@ -29,6 +29,30 @@
             <p class="mt-2 text-sm sm:text-base text-purple-100 text-center">Join the Music Year Guessing Game</p>
         </div>
     </header>
+
+    <!-- Story 12.8: Admin Controls Panel (visible only for admin) -->
+    <div id="admin-controls" class="hidden container mx-auto px-4 mt-4">
+        <div class="max-w-md mx-auto mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+            <p class="text-sm font-semibold text-yellow-800 mb-2">Admin Controls</p>
+            <div class="grid grid-cols-2 gap-2">
+                <button id="start-round-btn" class="hidden px-4 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 active:bg-green-700 transition-colors min-h-[44px]">
+                    Start Round
+                </button>
+                <button id="play-btn" class="hidden px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 active:bg-blue-700 transition-colors min-h-[44px]">
+                    Play
+                </button>
+                <button id="pause-btn" class="hidden px-4 py-2 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 active:bg-orange-700 transition-colors min-h-[44px]">
+                    Pause
+                </button>
+                <button id="volume-up-btn" class="px-4 py-2 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 active:bg-purple-700 transition-colors min-h-[44px]">
+                    Volume +
+                </button>
+                <button id="volume-down-btn" class="px-4 py-2 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 active:bg-purple-700 transition-colors min-h-[44px]">
+                    Volume -
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Story 4.2: Name Adjusted Notification -->
     <div id="name-notification" class="hidden fixed top-4 left-4 right-4 z-50 mx-auto max-w-md">

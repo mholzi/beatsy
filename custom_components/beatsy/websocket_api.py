@@ -41,6 +41,7 @@ from .game_state import (
     add_player,
     find_player_by_session,
     get_current_round,
+    get_game_config,
     get_players,
     initialize_game,
     initialize_round,
@@ -67,11 +68,13 @@ WS_TYPE_START_GAME = "beatsy/start_game"
 WS_TYPE_NEXT_SONG = "beatsy/next_song"
 WS_TYPE_SKIP_SONG = "beatsy/skip_song"  # Story 7.5
 WS_TYPE_RESET_GAME = "beatsy/reset_game"  # Story 5.7
+WS_TYPE_CONTROL_MEDIA = "beatsy/control_media"  # Story 12.7
 
 # Command schemas with voluptuous validation (HA 2025 format)
 SCHEMA_JOIN_GAME = {
     vol.Required("type"): WS_TYPE_JOIN_GAME,
     vol.Required("player_name"): vol.All(str, vol.Length(min=1, max=20)),
+    vol.Optional("is_admin", default=False): bool,  # Story 12.6: Admin flag from client
     vol.Optional("game_id"): str,  # Future multi-game support
 }
 
@@ -110,6 +113,12 @@ SCHEMA_SKIP_SONG = {
 
 SCHEMA_RESET_GAME = {
     vol.Required("type"): WS_TYPE_RESET_GAME,
+}
+
+SCHEMA_CONTROL_MEDIA = {
+    vol.Required("type"): WS_TYPE_CONTROL_MEDIA,
+    vol.Required("action"): vol.In(["play", "pause", "volume_up", "volume_down", "start_round"]),
+    vol.Optional("session_id"): str,
 }
 
 
@@ -196,6 +205,9 @@ def handle_join_game(
         requested_name = msg["player_name"].strip()
         game_id = msg.get("game_id")  # Optional, future use
 
+        # Story 12.6 Task 4.2: Extract is_admin from message payload (defaults to False)
+        is_admin = msg.get("is_admin", False)
+
         # Story 10.5: Validate and sanitize player name
         validation_result = validate_player_name(requested_name)
         if not validation_result.valid:
@@ -214,18 +226,20 @@ def handle_join_game(
         unique_name = find_unique_name(hass, sanitized_name)
         name_adjusted = unique_name != requested_name
 
+        # Story 12.6 Task 4.4: Log player join with admin status
         _LOGGER.info(
             f"Player '{requested_name}' joining game"
             + (f" as '{unique_name}'" if name_adjusted else "")
+            + f" with is_admin: {is_admin}"
         )
 
-        # Add player to game state
+        # Story 12.6 Task 4.3: Set Player.is_admin field when creating player record
         session_id = str(uuid.uuid4())
         add_player(
             hass,
             player_name=unique_name,
             session_id=session_id,
-            is_admin=False,
+            is_admin=is_admin,  # Pass admin flag from client
             original_name=requested_name,
         )
 
@@ -250,7 +264,7 @@ def handle_join_game(
             for p in sorted(all_players, key=lambda x: x.joined_at)
         ]
 
-        # Send success response
+        # Story 12.6 Task 5: Send success response with is_admin field
         connection.send_result(
             msg["id"],
             {
@@ -260,6 +274,7 @@ def handle_join_game(
                 "name_adjusted": name_adjusted or (unique_name != sanitized_name),
                 "session_id": session_id,
                 "connection_id": connection_id,
+                "is_admin": is_admin,  # Story 12.6 Task 5.1 & 5.2: Echo back admin status
                 "players": players_list,  # Story 4.3: Full player list for lobby
             },
         )
@@ -298,6 +313,9 @@ def handle_reconnect(
     Reconnects a player using their session_id without losing their
     identity, score, and game progress.
 
+    Story 12.5: Comprehensive logging for reconnection flow with
+    player name, session_id, and detailed error messages.
+
     Args:
         hass: Home Assistant instance
         connection: WebSocket connection
@@ -322,13 +340,15 @@ def handle_reconnect(
             )
             return
 
-        _LOGGER.info(f"Player '{player_name}' attempting reconnection (session: {session_id})")
+        # Story 12.5 AC-2: Log reconnection attempt with player name and session_id
+        _LOGGER.info(f"Player {player_name} reconnecting with session {session_id}")
 
         # Find player by session_id
         player = find_player_by_session(hass, session_id)
 
         if player is None:
-            _LOGGER.warning(f"Reconnection failed: session {session_id} not found")
+            # Story 12.5 AC-2: Log reconnection failure with reason
+            _LOGGER.warning(f"Reconnection failed for session {session_id}: Session not found")
             connection.send_result(
                 msg["id"],
                 {
@@ -343,8 +363,9 @@ def handle_reconnect(
         session_age = current_time - player.joined_at
 
         if session_age > 86400:  # 24 hours
+            # Story 12.5 AC-2: Log reconnection failure with reason
             _LOGGER.warning(
-                f"Reconnection failed: session {session_id} expired "
+                f"Reconnection failed for session {session_id}: Session expired "
                 f"(age: {session_age/3600:.1f}h)"
             )
             connection.send_result(
@@ -360,8 +381,17 @@ def handle_reconnect(
         player.connected = True
         player.last_activity = current_time
 
+        # Determine current game status
+        current_round = get_current_round(hass)
+        game_status = "lobby"  # Default to lobby
+        if current_round and current_round.status == "active":
+            game_status = "active"
+        elif current_round and current_round.status == "ended":
+            game_status = "results"
+
+        # Story 12.5 AC-2: Log successful reconnection with player name and restored state
         _LOGGER.info(
-            f"Player '{player.name}' reconnected successfully "
+            f"Reconnection successful: {player.name} restored to {game_status} "
             f"(score: {player.score}, session age: {session_age/60:.1f}m)"
         )
 
@@ -379,59 +409,78 @@ def handle_reconnect(
             "connection": connection,
         }
 
-        # Determine current game status
-        current_round = get_current_round(hass)
         all_players = get_players(hass)
 
-        game_status = "lobby"  # Default to lobby
-        if current_round and current_round.status == "active":
-            game_status = "active"
-        elif current_round and current_round.status == "ended":
-            game_status = "results"
+        # Derive current_view from game status (Story 12.2)
+        current_view = "lobby"  # Default view
+        if game_status == "active":
+            current_view = "active_round"
+        elif game_status == "results":
+            current_view = "results"
 
-        # Build game state response
-        game_state = {
-            "status": game_status,
-            "players": [p.name for p in sorted(all_players, key=lambda x: x.joined_at)],
-        }
-
-        # Add current round info if active
+        # Build round_data if round exists
+        round_data = None
         if current_round:
-            game_state["current_round"] = {
+            round_data = {
                 "round_number": current_round.round_number,
-                "track_name": current_round.track_name,
-                "track_artist": current_round.track_artist,
+                "track_name": current_round.song.get("title", ""),  # Story 12.2: Access from song dict
+                "track_artist": current_round.song.get("artist", ""),  # Story 12.2: Access from song dict
                 "status": current_round.status,
-                "timer_started_at": current_round.timer_started_at,
+                "timer_started_at": current_round.started_at,  # Use started_at
                 "started_at": current_round.started_at,
                 "guesses": {
-                    name: {
+                    player_name: {
                         "submitted": True,
                         "bet": guess_data.get("bet", False),
                     }
-                    for name, guess_data in current_round.guesses.items()
+                    for guess_data in current_round.guesses
+                    for player_name in [guess_data.get("player_name")]
                 },
             }
 
-        # Send success response
-        connection.send_result(
-            msg["id"],
-            {
-                "success": True,
-                "player": {
-                    "name": player.name,
-                    "score": player.score,
-                    "session_id": player.session_id,
-                },
-                "game_state": game_state,
+        # Build response matching frontend contract (Story 12.2)
+        response = {
+            "success": True,
+            "game_state": game_status,  # String status, not object
+            "player": {
+                "name": player.name,
+                "score": player.score,
+                "is_admin": player.is_admin,  # Story 12.2: Required by frontend
             },
+            "current_view": current_view,  # Story 12.2: Explicit view name
+        }
+
+        # Add round_data only if round exists
+        if round_data:
+            response["round_data"] = round_data
+
+        # Story 12.5 AC-5: Debug log - validate reconnect_response format before sending
+        _LOGGER.debug(
+            f"Validated reconnect_response format before sending: "
+            f"success={response['success']}, player={player.name}, "
+            f"game_state={game_status}, current_view={current_view}"
         )
+
+        # Story 12.5 AC-5: Debug log - sending reconnect_response with full payload
+        _LOGGER.debug(f"Sending reconnect_response: {response}")
+
+        # Validate all required fields are present (Story 12.2)
+        required_fields = ["success", "game_state", "player", "current_view"]
+        missing_fields = [field for field in required_fields if field not in response]
+        if missing_fields:
+            _LOGGER.warning(
+                f"Reconnect response missing required fields: {missing_fields}"
+            )
+
+        # Send success response
+        connection.send_result(msg["id"], response)
 
     except ValueError as e:
         _LOGGER.warning(f"Validation error in reconnect: {e}")
         connection.send_error(msg["id"], "validation_error", str(e))
     except Exception as e:
-        _LOGGER.error(f"Error in reconnect: {e}", exc_info=True)
+        # Story 12.5 AC-2: ERROR level log for unexpected errors with full exception details
+        _LOGGER.error(f"Unexpected error in reconnection handler: {e}", exc_info=True)
         connection.send_error(msg["id"], "internal_error", "Failed to reconnect")
 
 
@@ -1192,6 +1241,216 @@ async def handle_reset_game(
             "reset_failed",
             f"Failed to reset game: {str(e)}",
         )
+
+
+@websocket_api.websocket_command(SCHEMA_CONTROL_MEDIA)
+@websocket_api.async_response
+async def handle_control_media(
+    hass: HomeAssistant,
+    connection: ActiveConnection,
+    msg: dict,
+) -> None:
+    """Handle control_media command (admin only).
+
+    Story 12.7: Allows admin to control media player from player page.
+    Validates admin permission via Player.is_admin field, then executes
+    Home Assistant service calls for media player control (play, pause, volume).
+
+    Args:
+        hass: Home Assistant instance
+        connection: WebSocket connection
+        msg: Command message with:
+            - action: str (play, pause, volume_up, volume_down, start_round)
+            - session_id: str (optional - player session UUID)
+
+    Response:
+        Success: {"success": true, "result": {"action_executed": str}}
+        Error: {"success": false, "error": {"code": "...", "message": "..."}}
+
+    Error Codes:
+        - invalid_session: Session ID not found or expired
+        - permission_denied: Player is not admin
+        - service_call_failed: Home Assistant service call failed
+        - internal_error: Unexpected failure
+
+    AC-1: Process beatsy/control_media command
+    AC-2: Validate admin permission (Player.is_admin field)
+    AC-3: Execute media player actions
+    AC-4: Reject non-admin requests
+    AC-5: Log all admin actions
+    AC-6: Accept all specified actions
+    """
+    try:
+        action = msg["action"]
+        session_id = msg.get("session_id")
+
+        # AC-2: Validate session and find player
+        if not session_id:
+            # Story 12.5 AC-4: Log invalid session_id in control commands
+            _LOGGER.warning(
+                "Invalid session_id in control_media command: missing or empty"
+            )
+            connection.send_error(
+                msg["id"],
+                "invalid_session",
+                "session_id is required for control_media command"
+            )
+            return
+
+        player = find_player_by_session(hass, session_id)
+
+        if player is None:
+            # Story 12.5 AC-4: Log invalid session_id in control commands
+            _LOGGER.warning(
+                "Invalid session_id in control_media command: %s (not found)",
+                session_id
+            )
+            connection.send_error(
+                msg["id"],
+                "invalid_session",
+                "Session not found or expired"
+            )
+            return
+
+        # AC-2, AC-4: Validate admin permission (server-side authorization)
+        if not player.is_admin:
+            # AC-5: Log permission denied attempts (security monitoring)
+            _LOGGER.warning(
+                "Player '%s' attempted admin action without permission (action: %s, session: %s)",
+                player.name,
+                action,
+                session_id
+            )
+            connection.send_error(
+                msg["id"],
+                "permission_denied",
+                "Only admin can control media"
+            )
+            return
+
+        # AC-5: Log admin action (audit trail)
+        _LOGGER.info(
+            "Admin '%s' executed %s command",
+            player.name,
+            action
+        )
+
+        # AC-3, AC-6: Execute media player action based on action type
+        config = get_game_config(hass)
+        media_player_entity_id = config.get("media_player_entity_id")
+
+        if not media_player_entity_id:
+            _LOGGER.error(
+                "control_media failed: media_player_entity_id not configured"
+            )
+            connection.send_error(
+                msg["id"],
+                "configuration_error",
+                "Media player not configured"
+            )
+            return
+
+        # Execute action-specific logic
+        try:
+            if action == "play":
+                # AC-3: Play media
+                await hass.services.async_call(
+                    domain="media_player",
+                    service="media_play",
+                    service_data={"entity_id": media_player_entity_id}
+                )
+
+            elif action == "pause":
+                # AC-3: Pause media
+                await hass.services.async_call(
+                    domain="media_player",
+                    service="media_pause",
+                    service_data={"entity_id": media_player_entity_id}
+                )
+
+            elif action == "volume_up":
+                # AC-3: Increase volume
+                await hass.services.async_call(
+                    domain="media_player",
+                    service="volume_up",
+                    service_data={"entity_id": media_player_entity_id}
+                )
+
+            elif action == "volume_down":
+                # AC-3: Decrease volume
+                await hass.services.async_call(
+                    domain="media_player",
+                    service="volume_down",
+                    service_data={"entity_id": media_player_entity_id}
+                )
+
+            elif action == "start_round":
+                # AC-6: Start round action (trigger next_song logic)
+                # Delegate to handle_next_song logic - manually trigger round start
+                from .game_state import select_random_song, initialize_round, prepare_round_started_payload
+                from .websocket_handler import broadcast_event
+
+                _LOGGER.info("Admin '%s' triggered start_round via control_media", player.name)
+
+                # Select random song
+                selected_song = await select_random_song(hass)
+
+                # Initialize round
+                round_state = await initialize_round(hass, selected_song)
+
+                # Prepare payload
+                payload = prepare_round_started_payload(round_state)
+
+                # Broadcast round_started event
+                await broadcast_event(hass, "round_started", payload)
+
+                _LOGGER.info(
+                    "Round %d started via control_media by admin '%s': '%s' by %s",
+                    round_state.round_number,
+                    player.name,
+                    selected_song.get("title"),
+                    selected_song.get("artist")
+                )
+
+            # Send success response
+            connection.send_result(
+                msg["id"],
+                {
+                    "success": True,
+                    "result": {
+                        "action_executed": action,
+                    }
+                }
+            )
+
+        except Exception as service_error:
+            # Story 12.5 AC-3: WARNING level log when admin control fails
+            _LOGGER.warning(
+                "Admin control failed for %s: %s (action: %s)",
+                player.name,
+                str(service_error),
+                action
+            )
+            # AC-4: Handle service call failures gracefully
+            _LOGGER.error(
+                "Service call failed for action '%s' by admin '%s': %s",
+                action,
+                player.name,
+                str(service_error),
+                exc_info=True
+            )
+            connection.send_error(
+                msg["id"],
+                "service_call_failed",
+                f"Failed to execute {action}: {str(service_error)}"
+            )
+
+    except ValueError as e:
+        _LOGGER.warning("Validation error in control_media: %s", e)
+        connection.send_error(msg["id"], "validation_error", str(e))
+    except Exception as e:
+        _LOGGER.error("Error in control_media: %s", e, exc_info=True)
+        connection.send_error(msg["id"], "internal_error", "Failed to control media")
 
 
 # Import broadcast_event from websocket_handler (Epic 6, Story 6.1)

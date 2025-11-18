@@ -31,5 +31,9 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
+# Node.js (for Tailwind build)
+node_modules/
+package-lock.json
+
 # Submodule (keep local for development)
 home-assistant-config/

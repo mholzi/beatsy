@@ -73,10 +73,14 @@ function preloadYearDropdown() {
  * Initialize player UI on DOM ready
  * Story 4.4: Check for reconnection BEFORE showing registration
  * Story 4.5: Pre-load year dropdown for active round view
+ * Story 12.6: Parse URL parameter for admin mode
  */
 function initPlayerUI() {
     console.log('Beatsy Player UI initialized (Story 4.5)');
     console.log('Version: 4.5.0 - Active round transition support');
+
+    // Story 12.6 Task 1 & 2: Parse URL parameter and store admin flag
+    parseAdminParameter();
 
     // Story 4.5 Task 10: Pre-load year dropdown during page load
     preloadYearDropdown();
@@ -112,6 +116,118 @@ function initPlayerUI() {
     }
 
     console.log('Player UI ready');
+}
+
+/**
+ * Story 12.8: Get current view state
+ * Helper function to determine which view is currently visible
+ * @returns {string} 'lobby', 'active_round', 'results', or 'registration'
+ */
+function getCurrentView() {
+    const lobbyView = document.getElementById('lobby-view');
+    const activeRoundView = document.getElementById('active-round-view');
+    const resultsView = document.getElementById('results-view');
+    const registrationView = document.getElementById('registration-view');
+
+    if (lobbyView && !lobbyView.classList.contains('hidden')) {
+        return 'lobby';
+    }
+    if (activeRoundView && !activeRoundView.classList.contains('hidden')) {
+        return 'active_round';
+    }
+    if (resultsView && !resultsView.classList.contains('hidden')) {
+        return 'results';
+    }
+    if (registrationView && !registrationView.classList.contains('hidden')) {
+        return 'registration';
+    }
+
+    return 'unknown';
+}
+
+/**
+ * Story 12.8: Update admin controls visibility based on game state
+ * Called on page load and whenever game state changes
+ * AC-1: Admin controls panel visible only if is_admin = true
+ * AC-2: Control buttons present (Start Round, Play, Pause, Volume Up/Down)
+ * AC-4: Button visibility updates based on game state
+ */
+function updateAdminControls() {
+    const isAdmin = localStorage.getItem('beatsy_is_admin') === 'true';
+    const adminPanel = document.getElementById('admin-controls');
+
+    if (!isAdmin || !adminPanel) {
+        // Not admin or panel doesn't exist - keep hidden
+        return;
+    }
+
+    // Show admin panel for admin users
+    adminPanel.classList.remove('hidden');
+
+    // Get current game state from visible view
+    const currentView = getCurrentView();
+
+    // Control button visibility based on game state
+    const startRoundBtn = document.getElementById('start-round-btn');
+    const playBtn = document.getElementById('play-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+
+    if (currentView === 'lobby' || currentView === 'results') {
+        // Lobby/Results state: Show "Start Round" button
+        if (startRoundBtn) startRoundBtn.classList.remove('hidden');
+        if (playBtn) playBtn.classList.add('hidden');
+        if (pauseBtn) pauseBtn.classList.add('hidden');
+    } else if (currentView === 'active_round') {
+        // Active round state: Show "Play" and "Pause" buttons
+        if (startRoundBtn) startRoundBtn.classList.add('hidden');
+        if (playBtn) playBtn.classList.remove('hidden');
+        if (pauseBtn) pauseBtn.classList.remove('hidden');
+    } else {
+        // Unknown/Registration state: Hide all game control buttons
+        if (startRoundBtn) startRoundBtn.classList.add('hidden');
+        if (playBtn) playBtn.classList.add('hidden');
+        if (pauseBtn) pauseBtn.classList.add('hidden');
+    }
+
+    // Volume controls always visible (no state changes needed)
+    console.log(`Admin controls updated for view: ${currentView}`);
+}
+
+/**
+ * Story 12.6 Task 1 & 2: Parse URL query parameter for admin mode
+ * AC-1: Parse ?admin=true from URL and store in localStorage
+ *
+ * Extracts admin parameter from URL query string and stores it in localStorage
+ * if the value is exactly 'true' (case-sensitive).
+ */
+function parseAdminParameter() {
+    try {
+        // Task 1.1 & 1.2: Parse URL using URLSearchParams API
+        const urlParams = new URLSearchParams(window.location.search);
+        const adminParam = urlParams.get('admin');
+
+        // Task 1.3: Validate parameter value equals 'true' (case-sensitive)
+        if (adminParam === 'true') {
+            // Task 1.4: Log admin mode detection
+            console.log('Admin mode detected from URL parameter');
+
+            // Task 2.1 & 2.4: Store admin flag in localStorage
+            try {
+                localStorage.setItem('beatsy_is_admin', 'true');
+                console.log('Admin flag stored in localStorage: true');
+            } catch (storageError) {
+                // Task 2.3: Handle localStorage disabled/unavailable
+                console.warn('Failed to store admin flag in localStorage:', storageError);
+                console.warn('Admin mode will not persist across page reloads');
+            }
+        } else if (adminParam !== null) {
+            // URL has admin parameter but value is not 'true'
+            console.log(`Admin parameter ignored: value='${adminParam}' (expected 'true')`);
+        }
+    } catch (error) {
+        // Graceful degradation - don't crash if URL parsing fails
+        console.error('Error parsing URL parameters:', error);
+    }
 }
 
 /**
@@ -181,12 +297,24 @@ function hideReconnectionLoader() {
 
 /**
  * Story 4.4 Task 2: Send reconnect WebSocket message
+ * Story 12.3: Enhanced with reconnection attempt counter
  * AC-1: WebSocket establishes connection and sends reconnect message
  * AC-6: 5-second timeout for reconnection response
  */
 let reconnectTimeout = null;
 
 function attemptReconnection(sessionId, playerName) {
+    // Story 12.3: Check reconnection attempt counter (max 3 attempts)
+    const attempts = parseInt(localStorage.getItem('beatsy_reconnection_attempts') || '0');
+
+    if (attempts >= 3) {
+        console.warn('⚠️ Max reconnection attempts reached, forcing fresh registration');
+        logReconnectionError('Max attempts exceeded', `Attempted ${attempts} times`, { attempts });
+        displayReconnectionError('Unable to reconnect after multiple attempts. Please register again.');
+        fallbackToFreshRegistration();
+        return;
+    }
+
     if (!ws || ws.readyState !== WebSocket.OPEN) {
         console.error('WebSocket not connected, cannot send reconnect message');
         handleReconnectionFailure('timeout');
@@ -194,6 +322,12 @@ function attemptReconnection(sessionId, playerName) {
     }
 
     try {
+        // Story 12.3: Increment attempt counter
+        localStorage.setItem('beatsy_reconnection_attempts', (attempts + 1).toString());
+
+        // Story 12.5 AC-1: Reconnection attempt log with session_id
+        console.log(`🔄 Attempting reconnection with session_id: ${sessionId.substring(0, 8)}... (attempt ${attempts + 1}/3)`);
+
         // Send reconnect message following Story 4.4 protocol
         const message = {
             type: 'beatsy/reconnect',
@@ -214,6 +348,7 @@ function attemptReconnection(sessionId, playerName) {
 
     } catch (error) {
         console.error('Error sending reconnect message:', error);
+        logReconnectionError('Network error during reconnect attempt', error.message, error);
         handleReconnectionFailure('network_error');
     }
 }
@@ -230,67 +365,145 @@ function clearReconnectTimeout() {
 
 /**
  * Story 4.4 Task 5: Handle reconnection response
+ * Story 12.1: Enhanced to handle all game states (lobby, active, results)
+ * Story 12.3: Enhanced with comprehensive error handling and logging
  * AC-2: Valid session restoration - routes to appropriate view
  * AC-3: Invalid session handling - clears localStorage and shows registration
+ * AC-3 (12.1): Player restored to correct game state with preserved score
  */
 function handleReconnectResponse(data) {
-    clearReconnectTimeout();
-    hideReconnectionLoader();
+    try {
+        // Story 12.5 AC-5: Log WebSocket message handling for debugging
+        console.log('🔧 Handling reconnect_response:', data);
 
-    if (!data.success) {
-        // AC-3, AC-7: Reconnection failed
-        console.warn('Reconnection failed:', data.reason);
-        handleReconnectionFailure(data.reason);
-        return;
+        clearReconnectTimeout();
+        hideReconnectionLoader();
+
+        // Story 12.3 AC-5: Defensive null checking on data
+        if (!data) {
+            logReconnectionError('Null response', 'Reconnection response is null or undefined', { data });
+            displayReconnectionError('Unexpected error. Please try again.');
+            return;
+        }
+
+        // Story 12.3 AC-6: Handle failure responses with specific error messages
+        if (!data.success) {
+            const errorReason = data.reason || data.error?.message || data.error || 'unknown_error';
+            const errorCode = data.error?.code || data.reason;
+
+            // Story 12.5 AC-1: Log reconnection failure with error details
+            console.log(`❌ Reconnection failed: ${errorReason}`);
+            logReconnectionError('Backend rejected reconnection', errorReason, data);
+
+            // Map error codes to user-friendly messages
+            let userMessage;
+            switch (errorCode) {
+                case 'session_expired':
+                case 'session_not_found':
+                    userMessage = 'Your session expired. Please register again.';
+                    break;
+                case 'timeout':
+                    userMessage = 'Connection lost. Please check your connection.';
+                    break;
+                default:
+                    userMessage = 'Reconnection failed. Please try again.';
+            }
+
+            displayReconnectionError(userMessage);
+            return;
+        }
+
+        // Story 12.3 AC-5: Validate response structure with detailed logging
+        if (!data.player || !data.game_state) {
+            logReconnectionError('Invalid response structure', 'Missing player or game_state', data);
+            displayReconnectionError('Unexpected error. Please try again.');
+            return;
+        }
+
+        // Story 12.3: Reset reconnection attempt counter on success
+        localStorage.removeItem('beatsy_reconnection_attempts');
+        console.log('✅ Reconnection attempt counter reset');
+
+        // AC-2: Reconnection successful
+        const { player, game_state, current_view, round_data } = data;
+
+        // Story 12.5 AC-1: Log successful reconnection with restored view
+        console.log(`✅ Reconnection successful: restored to ${current_view} view`);
+        console.log(`📍 Current game state: ${game_state}`);
+        console.log(`Player: ${player.name} (Score: ${player.score || 0})`);
+
+        // Story 8.6: Initialize global gameState with player name
+        gameState.playerName = player.name;
+
+        // Update localStorage with current session info
+        localStorage.setItem('beatsy_session_id', player.session_id);
+        localStorage.setItem('beatsy_player_name', player.name);
+
+        // Story 12.1 AC-3: Route to appropriate view based on current_view from backend
+        // Backend provides current_view to indicate exact view player should see
+        switch (current_view) {
+            case 'lobby':
+                console.log('🏠 Restoring to lobby view');
+                showLobbyViewAfterReconnect(game_state, player);
+                break;
+
+            case 'active_round':
+                console.log('🎵 Restoring to active round view');
+                // Story 12.1: Implement active round restoration
+                showActiveRoundAfterReconnect(round_data, player);
+                break;
+
+            case 'results':
+                console.log('📊 Restoring to results view');
+                // Story 12.1: Implement results view restoration
+                showResultsViewAfterReconnect(round_data, player);
+                break;
+
+            default:
+                // Fallback: Use game_state.status if current_view not provided
+                console.warn('⚠️ current_view not provided, using game_state.status:', game_state.status);
+                switch (game_state.status) {
+                    case 'lobby':
+                        showLobbyViewAfterReconnect(game_state, player);
+                        break;
+                    case 'active':
+                        showActiveRoundAfterReconnect(round_data, player);
+                        break;
+                    case 'results':
+                        showResultsViewAfterReconnect(round_data, player);
+                        break;
+                    default:
+                        logReconnectionError('Unknown view type', `current_view: ${current_view}, status: ${game_state.status}`, data);
+                        // Fallback to lobby for safety
+                        showLobbyViewAfterReconnect(game_state, player);
+                }
+        }
+
+        // Setup form validation and event listeners
+        setupFormValidation();
+        setupEventListeners();
+
+    } catch (error) {
+        // Story 12.3 AC-5: Comprehensive error catching with full stack trace
+        logReconnectionError('Unexpected error in handleReconnectResponse', error.message, error);
+        displayReconnectionError('Reconnection failed. Please try again.');
+        fallbackToFreshRegistration();
     }
-
-    // AC-2: Reconnection successful
-    console.log('✅ Reconnection successful!', data);
-
-    // Story 8.6: Initialize global gameState with player name (before local variable shadows it)
-    gameState.playerName = data.player.name;
-
-    const reconnectGameState = data.game_state;
-    const player = data.player;
-
-    // Update localStorage with current session info
-    localStorage.setItem('beatsy_session_id', player.session_id);
-    localStorage.setItem('beatsy_player_name', player.name);
-
-    // Route to appropriate view based on game status
-    switch (reconnectGameState.status) {
-        case 'lobby':
-            console.log('Restoring to lobby view');
-            showLobbyViewAfterReconnect(reconnectGameState);
-            break;
-
-        case 'active':
-            console.log('Restoring to active round view');
-            // TODO Story 4.5+: Implement active round view restoration
-            showLobbyViewAfterReconnect(reconnectGameState);  // Fallback to lobby for now
-            break;
-
-        case 'results':
-            console.log('Restoring to results view');
-            // TODO Story 4.5+: Implement results view restoration
-            showLobbyViewAfterReconnect(reconnectGameState);  // Fallback to lobby for now
-            break;
-
-        default:
-            console.error('Unknown game status:', reconnectGameState.status);
-            showLobbyViewAfterReconnect(reconnectGameState);
-    }
-
-    // Setup form validation and event listeners
-    setupFormValidation();
-    setupEventListeners();
 }
 
 /**
- * Show lobby view after successful reconnection
+ * Story 12.1: Show lobby view after successful reconnection
+ * AC-3: Player restored to lobby view when game is in WAITING state
+ * @param {Object} gameState - Game state data from backend
+ * @param {Object} player - Player data {name, score, is_admin}
  */
-function showLobbyViewAfterReconnect(gameState) {
+function showLobbyViewAfterReconnect(gameState, player) {
+    // Hide all other views
     document.getElementById('registration-view').classList.add('hidden');
+    document.getElementById('active-round-view').classList.add('hidden');
+    document.getElementById('results-view').classList.add('hidden');
+
+    // Show lobby view
     document.getElementById('lobby-view').classList.remove('hidden');
 
     // Initialize lobby with current players
@@ -300,10 +513,241 @@ function showLobbyViewAfterReconnect(gameState) {
     }));
 
     initializeLobby(players);
+
+    // Story 12.8: Update admin controls for lobby view
+    updateAdminControls();
+
+    console.log(`✅ Lobby view restored - Player: ${player.name}, Score: ${player.score || 0}`);
+}
+
+/**
+ * Story 12.1: Show active round view after successful reconnection
+ * AC-3: Player restored to active round view when game is ACTIVE
+ * @param {Object} roundData - Round data from backend {song, timer_duration, started_at, round_number}
+ * @param {Object} player - Player data {name, score, is_admin}
+ */
+function showActiveRoundAfterReconnect(roundData, player) {
+    if (!roundData || !roundData.song) {
+        console.error('❌ Cannot restore active round: missing round data');
+        showError('Unable to restore game state');
+        return;
+    }
+
+    // Hide all other views
+    document.getElementById('registration-view').classList.add('hidden');
+    document.getElementById('lobby-view').classList.add('hidden');
+    document.getElementById('results-view').classList.add('hidden');
+
+    // Show active round view
+    const activeRoundView = document.getElementById('active-round-view');
+    if (activeRoundView) {
+        activeRoundView.classList.remove('hidden');
+    }
+
+    // Render active round with song metadata
+    showActiveRoundView(roundData.song);
+
+    // Initialize timer from server timestamp
+    if (roundData.started_at && roundData.timer_duration) {
+        startTimer(roundData.started_at, roundData.timer_duration);
+    }
+
+    // Populate year dropdown if year_range provided
+    if (roundData.year_range) {
+        populateYearSelector(roundData.year_range.min, roundData.year_range.max);
+    }
+
+    // Story 12.8: Update admin controls for active round view
+    updateAdminControls();
+
+    console.log(`✅ Active round view restored - Player: ${player.name}, Score: ${player.score || 0}, Round: ${roundData.round_number || 'unknown'}`);
+}
+
+/**
+ * Story 12.1: Show results view after successful reconnection
+ * AC-3: Player restored to results view when game is in RESULTS state
+ * @param {Object} roundData - Results data {correct_year, results, leaderboard}
+ * @param {Object} player - Player data {name, score, is_admin}
+ */
+function showResultsViewAfterReconnect(roundData, player) {
+    if (!roundData) {
+        console.error('❌ Cannot restore results view: missing round data');
+        showError('Unable to restore results');
+        return;
+    }
+
+    // Hide all other views
+    document.getElementById('registration-view').classList.add('hidden');
+    document.getElementById('lobby-view').classList.add('hidden');
+    document.getElementById('active-round-view').classList.add('hidden');
+
+    // Show results view using existing renderResultsView from ui-results.js
+    renderResultsView(roundData);
+
+    // Story 12.8: Update admin controls for results view
+    updateAdminControls();
+
+    console.log(`✅ Results view restored - Player: ${player.name}, Score: ${player.score || 0}`);
+}
+
+/**
+ * Story 12.3: Error logging utility for reconnection failures
+ * AC-2: Logs all reconnection errors to console with full details
+ * @param {string} context - Context of where error occurred
+ * @param {string} message - Error message
+ * @param {*} details - Additional error details or stack trace
+ */
+function logReconnectionError(context, message, details) {
+    const timestamp = new Date().toISOString();
+    const sessionId = localStorage.getItem('beatsy_session_id');
+
+    console.error(`❌ [${timestamp}] Reconnection Error`);
+    console.error(`Context: ${context}`);
+    console.error(`Message: ${message}`);
+
+    if (sessionId) {
+        console.error(`Session: ${sessionId.substring(0, 8)}...`);
+    }
+
+    if (details) {
+        console.error('Details:', details);
+    }
+
+    // AC-2: Preserve stack trace for debugging
+    if (details instanceof Error) {
+        console.error('Stack:', details.stack);
+    }
+}
+
+/**
+ * Story 12.3: Display user-friendly error modal for reconnection failures
+ * AC-1: Shows clear, non-technical error message in modal
+ * AC-3: Offers "Try Again" and "Register Fresh" options
+ * @param {string} errorMessage - User-friendly error message
+ */
+function displayReconnectionError(errorMessage) {
+    // AC-1: Remove any existing error modal
+    const existingModal = document.getElementById('reconnection-error-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // AC-1: Create modal dynamically
+    const modal = document.createElement('div');
+    modal.id = 'reconnection-error-modal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
+            <h3 class="text-xl font-bold text-red-600 mb-4">Reconnection Failed</h3>
+            <p class="text-gray-700 mb-6">${escapeHtml(errorMessage)}</p>
+            <div class="flex gap-3">
+                <button id="retry-reconnection" class="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Try Again
+                </button>
+                <button id="register-fresh" class="flex-1 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                    Register Fresh
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Append to body
+    document.body.appendChild(modal);
+
+    // AC-3: Button event listeners
+    const retryButton = document.getElementById('retry-reconnection');
+    const freshButton = document.getElementById('register-fresh');
+
+    if (retryButton) {
+        retryButton.addEventListener('click', () => {
+            modal.remove();
+            showReconnectionLoader();
+            const sessionId = localStorage.getItem('beatsy_session_id');
+            const playerName = localStorage.getItem('beatsy_player_name');
+            if (sessionId && playerName) {
+                attemptReconnection(sessionId, playerName);
+            }
+        });
+    }
+
+    if (freshButton) {
+        freshButton.addEventListener('click', () => {
+            modal.remove();
+            fallbackToFreshRegistration();
+        });
+    }
+
+    console.log('Error modal displayed:', errorMessage);
+}
+
+/**
+ * Story 12.3: XSS prevention for error messages
+ * AC-1: Error messages do not expose technical details or allow code injection
+ * @param {string} text - Text to escape
+ * @returns {string} HTML-safe text
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Story 12.3: Fallback to fresh registration
+ * AC-3: Clears session, offers fresh registration with pre-filled name
+ * @param {boolean} clearName - Whether to clear player name (default: false)
+ */
+function fallbackToFreshRegistration(clearName = false) {
+    console.log('📍 Falling back to fresh registration');
+
+    // AC-3: Preserve admin flag (admin persists across sessions)
+    const isAdmin = localStorage.getItem('beatsy_is_admin');
+    const previousName = localStorage.getItem('beatsy_player_name');
+
+    // Clear session data
+    localStorage.removeItem('beatsy_session_id');
+
+    // AC-3: Keep name for pre-fill unless explicitly cleared
+    if (clearName) {
+        localStorage.removeItem('beatsy_player_name');
+    }
+
+    // Reset reconnection attempt counter
+    localStorage.removeItem('beatsy_reconnection_attempts');
+
+    // Hide reconnection loader and error modal
+    hideReconnectionLoader();
+    const errorModal = document.getElementById('reconnection-error-modal');
+    if (errorModal) {
+        errorModal.remove();
+    }
+
+    // Hide all views
+    document.getElementById('lobby-view').classList.add('hidden');
+    document.getElementById('active-round-view').classList.add('hidden');
+    document.getElementById('results-view').classList.add('hidden');
+
+    // Show registration form
+    document.getElementById('registration-view').classList.remove('hidden');
+
+    // AC-3: Pre-fill name input if previous name available
+    if (!clearName && previousName) {
+        const nameInput = document.getElementById('player-name');
+        if (nameInput) {
+            nameInput.value = previousName;
+        }
+    }
+
+    // Setup form validation and event listeners
+    setupFormValidation();
+    setupEventListeners();
+
+    console.log('✅ Cleared session, ready for fresh registration');
 }
 
 /**
  * Story 4.4 Task 7: Handle reconnection failure
+ * Story 12.3: Enhanced with user-friendly error messages and modal
  * AC-3: Invalid session - clears localStorage and shows registration
  * AC-6: Reconnection failure fallback - shows error with retry options
  * AC-7: Session expiration - clears localStorage and shows registration
@@ -311,30 +755,22 @@ function showLobbyViewAfterReconnect(gameState) {
 function handleReconnectionFailure(reason) {
     hideReconnectionLoader();
 
-    console.warn('Reconnection failed, reason:', reason);
+    logReconnectionError('Reconnection failed', `Reason: ${reason}`, { reason });
 
-    // Determine error message based on reason
+    // Story 12.3 AC-6: Map error reasons to user-friendly messages
     const errorMessages = {
-        'session_not_found': 'Previous game ended. Please register again.',
-        'session_expired': 'Session expired. Please register again.',
-        'timeout': 'Reconnection failed. Please check your connection.',
-        'network_error': 'Network error. Please check your connection.'
+        'session_not_found': 'Your session expired. Please register again.',
+        'session_expired': 'Your session expired. Please register again.',
+        'timeout': 'Connection lost. Please check your connection.',
+        'network_error': 'Network error. Please check your connection.',
+        'invalid_response': 'Unexpected error. Please try again.',
+        'unknown_error': 'Reconnection failed. Please try again.'
     };
 
-    const message = errorMessages[reason] || 'Unable to reconnect. Please register again.';
+    const userMessage = errorMessages[reason] || 'Reconnection failed. Please try again.';
 
-    // AC-3, AC-7: Clear localStorage for session not found or expired
-    if (reason === 'session_not_found' || reason === 'session_expired') {
-        localStorage.removeItem('beatsy_session_id');
-        localStorage.removeItem('beatsy_player_name');
-        console.log('Session cleared from localStorage');
-
-        // Show registration form with error message
-        showRegistrationWithError(message);
-    } else {
-        // AC-6: Show error with retry option
-        showReconnectionError(message);
-    }
+    // Story 12.3 AC-1, AC-3: Display error modal with retry/fresh options
+    displayReconnectionError(userMessage);
 }
 
 /**
@@ -540,12 +976,16 @@ function setupEventListeners() {
     // Story 8.2: Year selector change handler
     setupYearSelectorListener();
 
+    // Story 12.10: Media control button listeners
+    setupMediaControlListeners();
+
     console.log('✓ Event listeners registered');
 }
 
 /**
  * Task 5: Implement join game request handler
  * Sends WebSocket message: {type: "join_game", name: "Sarah"}
+ * Story 12.6 Task 3: Include is_admin field in join_game command
  */
 async function joinGame() {
     const nameInput = document.getElementById('player-name');
@@ -574,10 +1014,18 @@ async function joinGame() {
         joinButton.disabled = true;
         joinButton.innerHTML = '<span class="inline-block animate-spin mr-2">⏳</span> Joining...';
 
+        // Story 12.6 Task 3.2: Retrieve admin flag from localStorage
+        const isAdmin = localStorage.getItem('beatsy_is_admin') === 'true';
+
+        // Story 12.6 Task 3.4: Log admin status being sent
+        console.log(`Sending join_game with is_admin: ${isAdmin}`);
+
         // Send WebSocket message (AC-4)
+        // Story 12.6 Task 3.1: Include is_admin field in payload
         const message = {
             type: 'join_game',
-            name: name
+            name: name,
+            is_admin: isAdmin  // Task 3.3: Defaults to false if localStorage doesn't contain flag
         };
 
         console.log('Sending join_game message:', message);
@@ -596,11 +1044,35 @@ async function joinGame() {
  * Task 6: Handle WebSocket messages (including join_game_response)
  * Story 4.3 Task 5: Added beatsy/event handler for player_joined
  * Story 4.4 Task 5: Added reconnect response handler
+ * Story 12.3: Enhanced with comprehensive error handling
  */
 function handleWebSocketMessage(event) {
     try {
-        const data = JSON.parse(event.data);
+        // Story 12.3 AC-5: Validate event data exists
+        if (!event || !event.data) {
+            console.warn('⚠️ Received empty WebSocket event');
+            return;
+        }
+
+        // Story 12.3 AC-5: Wrap JSON.parse in try-catch for malformed data
+        let data;
+        try {
+            data = JSON.parse(event.data);
+        } catch (parseError) {
+            logReconnectionError('JSON parse error', 'Malformed WebSocket message', parseError);
+            console.error('Raw message data:', event.data);
+            return;
+        }
+
+        // Story 12.5 AC-5: Log WebSocket message type for debugging
+        console.log(`📨 WebSocket message received: ${data.type || 'unknown'}`);
         console.log('WebSocket message received:', data);
+
+        // Story 12.3 AC-5: Validate message structure before accessing properties
+        if (!data || typeof data !== 'object') {
+            console.warn('⚠️ Invalid message structure (not an object)');
+            return;
+        }
 
         // Handle HA WebSocket API responses (type: "result")
         if (data.type === 'result') {
@@ -632,16 +1104,31 @@ function handleWebSocketMessage(event) {
                 handleSubmitGuessResponse(data.result);
                 return;
             }
+            // Story 12.10: Check if this is a control_media response
+            if (data.id && pendingControlRequests.has(data.id)) {
+                handleControlMediaResponse(data.result || data);
+                return;
+            }
         }
 
         // Handle message types
         if (data.type === 'connected') {
             // WebSocket connection confirmation (Story 4.5)
-            console.log('✅ WebSocket connection confirmed:', data.data.connection_id);
+            console.log('✅ WebSocket connection confirmed:', data.data?.connection_id || 'unknown');
+        } else if (data.type === 'reconnect_response') {
+            // Story 12.1: Handle direct reconnect_response message (not wrapped in result)
+            console.log('📨 Received reconnect_response');
+            handleReconnectResponse(data);
         } else if (data.type === 'join_game_response') {
             // Handle join game response (backward compatibility)
             handleJoinGameResponse(data);
         } else if (data.type === 'beatsy/event') {
+            // Story 12.3 AC-5: Validate event_type exists before handling
+            if (!data.event_type) {
+                console.warn('⚠️ beatsy/event missing event_type');
+                return;
+            }
+
             // Handle broadcast events (Story 4.3 Task 5, Story 4.5 Task 1, Story 8.5 Task 6)
             if (data.event_type === 'player_joined') {
                 handlePlayerJoined(data.data);
@@ -655,14 +1142,17 @@ function handleWebSocketMessage(event) {
                 // Story 8.4: Handle bet_placed event
                 handleBetPlaced(data.data);
             } else {
-                console.log('Unhandled event type:', data.event_type);
+                // Story 12.3 AC-5: Log unhandled message types as warnings (not errors)
+                console.warn('⚠️ Unhandled event type:', data.event_type);
             }
         } else {
-            console.log('Unhandled message type:', data.type);
+            // Story 12.3 AC-5: Log unhandled message types as warnings (not errors)
+            console.warn('⚠️ Unhandled message type:', data.type);
         }
 
     } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
+        // Story 12.3 AC-5: Comprehensive error logging for any unexpected errors
+        logReconnectionError('WebSocket message handler error', error.message, error);
     }
 }
 
@@ -670,6 +1160,7 @@ function handleWebSocketMessage(event) {
  * Handle join_game_response (AC-5, AC-6)
  * Story 4.2: Added duplicate name handling
  * Story 4.3: Added lobby initialization with player list (Task 2)
+ * Story 12.6 Task 5.3: Log admin confirmation from backend
  */
 function handleJoinGameResponse(data) {
     if (data.success) {
@@ -680,6 +1171,11 @@ function handleJoinGameResponse(data) {
         if (data.name_adjusted) {
             const message = `Your name "${data.original_name}" was taken. You're registered as: "${data.player_name}"`;
             showNameNotification(message);
+        }
+
+        // Story 12.6 Task 5.3: Log admin status confirmation from backend
+        if (data.is_admin !== undefined) {
+            console.log(`Admin status confirmed by backend: ${data.is_admin}`);
         }
 
         // Store session_id and player_name in localStorage
@@ -702,6 +1198,9 @@ function handleJoinGameResponse(data) {
 
         // Story 4.3 Task 2: Initialize lobby with current players
         initializeLobby(data.players || []);
+
+        // Story 12.8: Update admin controls for lobby view
+        updateAdminControls();
 
     } else {
         // Error response (AC-6)
@@ -1169,6 +1668,9 @@ function showResults(resultsData) {
 
     // Story 9.1-9.3: Call renderResultsView from ui-results.js
     renderResultsView(resultsData);
+
+    // Story 12.8: Update admin controls for results view
+    updateAdminControls();
 }
 
 /**
@@ -1420,6 +1922,9 @@ function transitionToActiveRound(roundData) {
         populateYearSelector(roundData.year_range.min, roundData.year_range.max);
     }
 
+    // Story 12.8: Update admin controls for active round view
+    updateAdminControls();
+
     // Measure transition latency
     const transitionEnd = performance.now();
     const transitionTime = transitionEnd - transitionStart;
@@ -1466,6 +1971,9 @@ function handleRoundStarted(data) {
 
         // Task 5: Initialize timer from server timestamp
         startTimer(data.started_at, data.timer_duration);
+
+        // Story 12.8: Update admin controls for active round view
+        updateAdminControls();
 
         // AC-4: Log transition timing
         const transitionEnd = performance.now();
@@ -1791,6 +2299,8 @@ function onTimerExpire() {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('=== Beatsy Player UI Starting (Story 4.1) ===');
     initPlayerUI();
+    // Story 12.8: Update admin controls visibility on page load
+    updateAdminControls();
     console.log('=== Beatsy Player UI Ready ===');
 });
 
@@ -2074,6 +2584,199 @@ function updateLocalPlayerBetStatus(betActive) {
     }
 }
 
+/**
+ * Story 12.10: Track pending media control requests
+ * Maps message ID to button element for re-enabling after response
+ */
+const pendingControlRequests = new Map();
+
+/**
+ * Story 12.10 Task 2: Send media control command via WebSocket
+ * AC-1: WebSocket command sent to backend
+ * AC-2: Backend executes Home Assistant service call
+ * AC-4: Button provides visual feedback (disabled during request)
+ *
+ * @param {string} action - Control action (play, pause, volume_up, volume_down, start_round)
+ * @param {HTMLElement} button - Button element that triggered the action
+ */
+function sendControlCommand(action, button) {
+    // Validate button parameter
+    if (!button) {
+        console.error('sendControlCommand called without button element');
+        return;
+    }
+
+    // Check WebSocket connection
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        displayControlError('Not connected to game server');
+        return;
+    }
+
+    // Get session_id from localStorage
+    const sessionId = localStorage.getItem('beatsy_session_id');
+    if (!sessionId) {
+        displayControlError('Session expired. Please refresh the page.');
+        return;
+    }
+
+    // AC-4: Set loading state on button
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = '...';
+
+    // Create unique message ID for tracking response
+    const messageId = Date.now();
+
+    // Store button reference for re-enabling after response
+    pendingControlRequests.set(messageId, { button, originalText, action });
+
+    // AC-1: Send WebSocket message with type 'beatsy/control_media'
+    const message = {
+        type: 'beatsy/control_media',
+        action: action,
+        session_id: sessionId,
+        id: messageId
+    };
+
+    console.log(`Sending control command: ${action} (id: ${messageId})`);
+    ws.send(JSON.stringify(message));
+
+    // Set timeout for response (5 seconds)
+    setTimeout(() => {
+        if (pendingControlRequests.has(messageId)) {
+            console.warn(`Control command timeout: ${action}`);
+            handleControlMediaResponse({
+                id: messageId,
+                success: false,
+                error: { message: 'Request timeout. Please try again.' }
+            });
+        }
+    }, 5000);
+}
+
+/**
+ * Story 12.10 Task 4: Handle control_media response
+ * AC-2: Backend executes Home Assistant service call
+ * AC-3: Media player responds
+ * AC-4: Button re-enabled after response
+ * AC-5: Errors displayed if action fails
+ *
+ * @param {Object} response - WebSocket response {id, success, result, error}
+ */
+function handleControlMediaResponse(response) {
+    console.log('Control media response:', response);
+
+    const { id, success, result, error } = response;
+
+    // Find pending request by message ID
+    const pendingRequest = pendingControlRequests.get(id);
+    if (!pendingRequest) {
+        console.warn('Received control response for unknown request ID:', id);
+        return;
+    }
+
+    const { button, originalText, action } = pendingRequest;
+
+    // AC-4: Re-enable button
+    button.disabled = false;
+    button.textContent = originalText;
+
+    // Remove from pending requests
+    pendingControlRequests.delete(id);
+
+    if (success) {
+        // AC-2 & AC-3: Action executed successfully
+        const actionExecuted = result?.action_executed || action;
+        console.log(`✅ ${actionExecuted} executed successfully`);
+
+        // Optional: Show brief success feedback
+        const originalColor = button.style.backgroundColor;
+        button.style.backgroundColor = '#10b981'; // Green flash
+        setTimeout(() => {
+            button.style.backgroundColor = originalColor;
+        }, 200);
+    } else {
+        // AC-5: Display error to user
+        const errorMsg = error?.message || 'Control action failed';
+        displayControlError(errorMsg);
+        console.error(`❌ Control failed: ${errorMsg}`);
+    }
+}
+
+/**
+ * Story 12.10 Task 4: Display error toast for control actions
+ * AC-5: Errors are displayed if action fails
+ *
+ * @param {string} message - Error message to display
+ */
+function displayControlError(message) {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg z-50';
+    toast.textContent = message;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+
+    document.body.appendChild(toast);
+
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+/**
+ * Story 12.10 Task 1: Setup media control button event listeners
+ * AC-1: Button clicks send WebSocket commands
+ * Wires all five admin control buttons (play, pause, volume_up, volume_down, start_round)
+ */
+function setupMediaControlListeners() {
+    // Play button
+    const playBtn = document.getElementById('play-btn');
+    if (playBtn) {
+        playBtn.addEventListener('click', () => {
+            sendControlCommand('play', playBtn);
+        });
+        console.log('✓ Play button listener registered');
+    }
+
+    // Pause button
+    const pauseBtn = document.getElementById('pause-btn');
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', () => {
+            sendControlCommand('pause', pauseBtn);
+        });
+        console.log('✓ Pause button listener registered');
+    }
+
+    // Volume Up button
+    const volumeUpBtn = document.getElementById('volume-up-btn');
+    if (volumeUpBtn) {
+        volumeUpBtn.addEventListener('click', () => {
+            sendControlCommand('volume_up', volumeUpBtn);
+        });
+        console.log('✓ Volume Up button listener registered');
+    }
+
+    // Volume Down button
+    const volumeDownBtn = document.getElementById('volume-down-btn');
+    if (volumeDownBtn) {
+        volumeDownBtn.addEventListener('click', () => {
+            sendControlCommand('volume_down', volumeDownBtn);
+        });
+        console.log('✓ Volume Down button listener registered');
+    }
+
+    // Start Round button
+    const startRoundBtn = document.getElementById('start-round-btn');
+    if (startRoundBtn) {
+        startRoundBtn.addEventListener('click', () => {
+            sendControlCommand('start_round', startRoundBtn);
+        });
+        console.log('✓ Start Round button listener registered');
+    }
+}
+
 
 export {
     initPlayerUI,
@@ -2115,7 +2818,21 @@ export {
     onSubmitGuess,
     showSubmissionConfirmation,
     handleSubmitGuessResponse,
-    onTimerExpire
+    onTimerExpire,
+    // Story 12.3: Reconnection error handling functions
+    logReconnectionError,
+    displayReconnectionError,
+    escapeHtml,
+    fallbackToFreshRegistration,
+    attemptReconnection,
+    // Story 12.8: Admin controls functions
+    getCurrentView,
+    updateAdminControls,
+    // Story 12.10: Media control functions
+    sendControlCommand,
+    handleControlMediaResponse,
+    displayControlError,
+    setupMediaControlListeners
 };
 
 // Duplicate updateLocalPlayerBetStatus() removed - using version from Story 8.4 (lines 2056-2068)

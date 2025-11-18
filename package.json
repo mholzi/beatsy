@@ -1,0 +1,11 @@
+{
+  "name": "beatsy",
+  "version": "1.0.0",
+  "description": "Beatsy - Music Year Guessing Game for Home Assistant",
+  "scripts": {
+    "build:css": "tailwindcss -i ./src/input.css -o ./custom_components/beatsy/www/css/tailwind.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}
