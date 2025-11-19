@@ -485,8 +485,19 @@ async def play_track(hass: HomeAssistant, entity_id: str, track_uri: str) -> boo
     Raises:
         HomeAssistantError: If service call fails
     """
+    _LOGGER.info("🎵 Attempting to play track: uri=%s, entity=%s", track_uri, entity_id)
+
     try:
+        # Check if media player entity exists
+        state = hass.states.get(entity_id)
+        if state is None:
+            _LOGGER.error("❌ Media player entity not found: %s", entity_id)
+            raise HomeAssistantError(f"Media player entity not found: {entity_id}")
+
+        _LOGGER.info("📱 Media player state: %s (attributes: %s)", state.state, list(state.attributes.keys()))
+
         # Call media_player.play_media service
+        _LOGGER.info("🎬 Calling media_player.play_media service...")
         await hass.services.async_call(
             domain="media_player",
             service="play_media",
@@ -498,7 +509,7 @@ async def play_track(hass: HomeAssistant, entity_id: str, track_uri: str) -> boo
             blocking=False
         )
 
-        _LOGGER.info("Beatsy: Playing track %s on %s", track_uri, entity_id)
+        _LOGGER.info("✅ Play track service call completed: %s on %s", track_uri, entity_id)
         return True
 
     except Exception as e:
@@ -532,12 +543,17 @@ async def get_media_player_metadata(hass: HomeAssistant, entity_id: str) -> dict
     Raises:
         HomeAssistantError: If entity not found or state unavailable
     """
+    _LOGGER.info("📋 Getting media player metadata from: %s", entity_id)
+
     try:
         # Get entity state
         state = hass.states.get(entity_id)
 
         if not state:
+            _LOGGER.error("❌ Media player entity not found: %s", entity_id)
             raise HomeAssistantError(f"Media player entity not found: {entity_id}")
+
+        _LOGGER.info("📊 Media player state: %s", state.state)
 
         # Extract attributes
         attributes = state.attributes
@@ -551,13 +567,18 @@ async def get_media_player_metadata(hass: HomeAssistant, entity_id: str) -> dict
             'media_position': attributes.get('media_position'),
         }
 
+        _LOGGER.info("📋 Extracted metadata: title=%s, artist=%s, has_picture=%s",
+                     metadata.get('media_title'),
+                     metadata.get('media_artist'),
+                     bool(metadata.get('entity_picture')))
+
         # Validate required fields are present
         required_fields = ['media_title', 'media_artist', 'media_album_name', 'entity_picture']
         missing_fields = [f for f in required_fields if not metadata.get(f)]
 
         if missing_fields:
             _LOGGER.warning(
-                "Media player %s missing metadata fields: %s",
+                "⚠️ Media player %s missing metadata fields: %s",
                 entity_id,
                 ', '.join(missing_fields)
             )

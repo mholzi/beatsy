@@ -1083,6 +1083,14 @@ async def initialize_round(
                 )
 
                 # Call play_track() - non-blocking service call
+                _LOGGER.info(
+                    "🎵 Starting playback: song='%s' artist='%s' year=%s uri=%s player=%s",
+                    current_song.get("title"),
+                    current_song.get("artist"),
+                    current_song.get("year"),
+                    current_song.get("uri"),
+                    media_player_entity_id
+                )
                 playback_success = await play_track(
                     hass, media_player_entity_id, current_song["uri"]
                 )
@@ -1180,13 +1188,14 @@ async def initialize_round(
     # Story 7.4 Task 7: Runtime metadata enrichment
     # Wait 2 seconds for HA media player state to update, then enrich metadata
     if playback_success and media_player_entity_id:
-        _LOGGER.debug(
-            "Story 7.5: Waiting 2 seconds for media player state to update..."
+        _LOGGER.info(
+            "⏱️ Waiting 2 seconds for media player state to update before fetching metadata..."
         )
         await asyncio.sleep(2.0)
 
         try:
             # Fetch runtime metadata from media player
+            _LOGGER.info("📥 Fetching runtime metadata from media player...")
             metadata = await get_media_player_metadata(hass, media_player_entity_id)
 
             # Enrich song metadata with runtime data (optional - fallback to existing)
@@ -1197,9 +1206,9 @@ async def initialize_round(
             # Story 11.9 AC-6: Removed album field from song structure
             if metadata.get("entity_picture"):
                 round_state.song["cover_url"] = metadata["entity_picture"]
-                _LOGGER.debug("Story 11.9 AC-5: Cover URL overridden with media player entity_picture")
+                _LOGGER.info("✅ Cover URL set from media player: %s", metadata["entity_picture"][:100])
             else:
-                _LOGGER.debug("Story 11.9 AC-5: Using placeholder cover URL (media player entity_picture not available)")
+                _LOGGER.warning("⚠️ No entity_picture from media player - using placeholder cover URL")
 
             _LOGGER.debug(
                 "Story 7.5: Enriched metadata from media player: title='%s', artist='%s'",
