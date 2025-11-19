@@ -504,20 +504,27 @@ def add_connection(
         connection: WebSocket response object.
         player_name: Optional player name (None if not registered yet).
     """
-    connections = hass.data[DOMAIN]["websocket_connections"]
-    connections[connection_id] = {
-        "connection": connection,
-        "connection_id": connection_id,
-        "player_name": player_name,
-        "connected_at": time.time(),
-        "last_ping": time.time(),
-        "subscribed_events": [],  # Empty list = all events
-    }
-    _LOGGER.info(
-        "WebSocket connected: conn_id=%s player=%s",
-        connection_id[:8] + "...",
-        player_name or "unregistered",
-    )
+    from .game_state import get_game_state
+
+    try:
+        state = get_game_state(hass)
+        connections = state.websocket_connections
+        connections[connection_id] = {
+            "connection": connection,
+            "connection_id": connection_id,
+            "player_name": player_name,
+            "connected_at": time.time(),
+            "last_ping": time.time(),
+            "subscribed_events": [],  # Empty list = all events
+        }
+        _LOGGER.info(
+            "WebSocket connected: conn_id=%s player=%s",
+            connection_id[:8] + "...",
+            player_name or "unregistered",
+        )
+    except ValueError:
+        _LOGGER.error("Cannot add connection: No game state initialized")
+        raise
 
 
 def remove_connection(hass: HomeAssistant, connection_id: str) -> None:
@@ -527,15 +534,21 @@ def remove_connection(hass: HomeAssistant, connection_id: str) -> None:
         hass: Home Assistant instance.
         connection_id: Connection identifier to remove.
     """
-    connections = hass.data[DOMAIN]["websocket_connections"]
-    if connection_id in connections:
-        player_name = connections[connection_id].get("player_name")
-        del connections[connection_id]
-        _LOGGER.info(
-            "WebSocket disconnected: conn_id=%s player=%s",
-            connection_id[:8] + "...",
-            player_name or "unregistered",
-        )
+    from .game_state import get_game_state
+
+    try:
+        state = get_game_state(hass)
+        connections = state.websocket_connections
+        if connection_id in connections:
+            player_name = connections[connection_id].get("player_name")
+            del connections[connection_id]
+            _LOGGER.info(
+                "WebSocket disconnected: conn_id=%s player=%s",
+                connection_id[:8] + "...",
+                player_name or "unregistered",
+            )
+    except ValueError:
+        _LOGGER.debug("Cannot remove connection: No game state initialized")
 
 
 def get_connection_count(hass: HomeAssistant) -> int:
@@ -547,7 +560,13 @@ def get_connection_count(hass: HomeAssistant) -> int:
     Returns:
         Number of active WebSocket connections.
     """
-    return len(hass.data[DOMAIN]["websocket_connections"])
+    from .game_state import get_game_state
+
+    try:
+        state = get_game_state(hass)
+        return len(state.websocket_connections)
+    except ValueError:
+        return 0
 
 
 def update_last_ping(hass: HomeAssistant, connection_id: str) -> None:
@@ -559,9 +578,15 @@ def update_last_ping(hass: HomeAssistant, connection_id: str) -> None:
         hass: Home Assistant instance.
         connection_id: Connection identifier to update.
     """
-    connections = hass.data[DOMAIN]["websocket_connections"]
-    if connection_id in connections:
-        connections[connection_id]["last_ping"] = time.time()
+    from .game_state import get_game_state
+
+    try:
+        state = get_game_state(hass)
+        connections = state.websocket_connections
+        if connection_id in connections:
+            connections[connection_id]["last_ping"] = time.time()
+    except ValueError:
+        _LOGGER.debug("Cannot update ping: No game state initialized")
 
 
 def get_connection_by_player_name(
@@ -578,11 +603,17 @@ def get_connection_by_player_name(
     Returns:
         Connection metadata dict or None if not found.
     """
-    connections = hass.data[DOMAIN]["websocket_connections"]
-    for conn_info in connections.values():
-        if conn_info.get("player_name") == player_name:
-            return conn_info
-    return None
+    from .game_state import get_game_state
+
+    try:
+        state = get_game_state(hass)
+        connections = state.websocket_connections
+        for conn_info in connections.values():
+            if conn_info.get("player_name") == player_name:
+                return conn_info
+        return None
+    except ValueError:
+        return None
 
 
 # ============================================================================
@@ -614,11 +645,14 @@ async def broadcast_event(
         payload: Event-specific data dict.
         exclude_connection_id: Optional connection ID to skip (for joining player).
     """
-    if DOMAIN not in hass.data or "websocket_connections" not in hass.data[DOMAIN]:
-        _LOGGER.warning("Cannot broadcast: WebSocket connections not initialized")
-        return
+    from .game_state import get_game_state
 
-    connections = hass.data[DOMAIN]["websocket_connections"]
+    try:
+        state = get_game_state(hass)
+        connections = state.websocket_connections
+    except ValueError:
+        _LOGGER.warning("Cannot broadcast: No game state initialized")
+        return
 
     if not connections:
         _LOGGER.debug("No WebSocket clients connected for broadcast")
@@ -716,10 +750,13 @@ async def cleanup_all_connections(hass: HomeAssistant) -> None:
     Args:
         hass: The Home Assistant instance.
     """
-    if DOMAIN not in hass.data or "websocket_connections" not in hass.data[DOMAIN]:
-        return
+    from .game_state import get_game_state
 
-    connections = hass.data[DOMAIN]["websocket_connections"]
+    try:
+        state = get_game_state(hass)
+        connections = state.websocket_connections
+    except ValueError:
+        return
 
     if not connections:
         return
