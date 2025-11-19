@@ -10,7 +10,7 @@ import os
 from typing import Any
 
 from homeassistant.components import websocket_api as ha_websocket_api
-from homeassistant.components.http.static import CACHE_HEADERS
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
@@ -122,11 +122,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
             # Register static path for www directory (Story 12-4: Tailwind CSS)
             www_path = os.path.join(os.path.dirname(__file__), "www")
-            hass.http.register_static_path(
-                "/local/beatsy",
-                www_path,
-                cache_headers=True
-            )
+            await hass.http.async_register_static_paths([
+                StaticPathConfig("/local/beatsy", www_path, False)
+            ])
             _LOGGER.info("Static path registered: /local/beatsy -> %s", www_path)
 
             hass.data[DOMAIN]["_http_views_registered"] = True
