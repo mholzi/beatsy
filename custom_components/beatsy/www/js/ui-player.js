@@ -2807,11 +2807,21 @@ function setupMediaControlListeners() {
         console.log('✓ Volume Down button listener registered');
     }
 
-    // Start Round button
+    // Start Round button - sends beatsy/next_song command (Story 12.8)
     const startRoundBtn = document.getElementById('start-round-btn');
     if (startRoundBtn) {
         startRoundBtn.addEventListener('click', () => {
-            sendControlCommand('start_round', startRoundBtn);
+            console.log('🎮 Start Round button clicked - sending beatsy/next_song command');
+            const message = {
+                type: 'beatsy/next_song',
+                id: Date.now()
+            };
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(message));
+                console.log('✓ beatsy/next_song command sent');
+            } else {
+                console.error('❌ WebSocket not connected');
+            }
         });
         console.log('✓ Start Round button listener registered');
     }
