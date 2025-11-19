@@ -496,6 +496,14 @@ async def play_track(hass: HomeAssistant, entity_id: str, track_uri: str) -> boo
 
         _LOGGER.info("📱 Media player state: %s (attributes: %s)", state.state, list(state.attributes.keys()))
 
+        # Convert Spotify URI format for Music Assistant compatibility
+        # Music Assistant requires spotify://track/xxx format instead of spotify:track:xxx
+        media_id = track_uri
+        if track_uri.startswith("spotify:"):
+            # Convert spotify:track:xxx to spotify://track/xxx
+            media_id = track_uri.replace("spotify:", "spotify://", 1).replace(":", "/")
+            _LOGGER.info("🔄 Converted URI for Music Assistant: %s → %s", track_uri, media_id)
+
         # Call media_player.play_media service
         _LOGGER.info("🎬 Calling media_player.play_media service...")
         await hass.services.async_call(
@@ -504,7 +512,7 @@ async def play_track(hass: HomeAssistant, entity_id: str, track_uri: str) -> boo
             service_data={
                 "entity_id": entity_id,
                 "media_content_type": "music",
-                "media_content_id": track_uri
+                "media_content_id": media_id
             },
             blocking=False
         )
@@ -515,19 +523,15 @@ async def play_track(hass: HomeAssistant, entity_id: str, track_uri: str) -> boo
     except Exception as e:
         # Story 7.5 Task 1: Log error with details
         _LOGGER.error(
-            "Failed to play track %s on %s: %s",
+            "❌ Failed to play track %s on %s: %s",
             track_uri,
             entity_id,
-            str(e)
-        )
-        _LOGGER.debug(
-            "Playback error details: track_uri=%s, entity_id=%s, error_type=%s",
-            track_uri,
-            entity_id,
-            type(e).__name__,
+            str(e),
             exc_info=True
         )
-        raise HomeAssistantError(f"Failed to initiate playback: {str(e)}") from e
+        # Don't raise - allow game to continue even if playback fails
+        # The game can still function without audio
+        return False
 
 
 async def get_media_player_metadata(hass: HomeAssistant, entity_id: str) -> dict[str, Any]:
