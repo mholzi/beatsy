@@ -1193,12 +1193,28 @@ async def initialize_round(
     state.current_round = round_state
 
     # Story 7.4 Task 7: Runtime metadata enrichment
-    # Wait 2 seconds for HA media player state to update, then enrich metadata
+    # Wait for media player state to update, then enrich metadata
     if playback_success and media_player_entity_id:
         _LOGGER.info(
-            "⏱️ Waiting 2 seconds for media player state to update before fetching metadata..."
+            "⏱️ Waiting for media player state to update before fetching metadata..."
         )
-        await asyncio.sleep(2.0)
+
+        # Poll for media player state change (up to 5 seconds)
+        max_attempts = 10
+        attempt = 0
+        while attempt < max_attempts:
+            await asyncio.sleep(0.5)
+            attempt += 1
+
+            # Check if media player has started playing
+            player_state = hass.states.get(media_player_entity_id)
+            if player_state and player_state.state == "playing":
+                _LOGGER.info("✅ Media player state changed to 'playing' after %.1fs", attempt * 0.5)
+                break
+
+            if attempt == max_attempts:
+                _LOGGER.warning("⚠️ Media player state still '%s' after 5 seconds",
+                              player_state.state if player_state else "unknown")
 
         try:
             # Fetch runtime metadata from media player
@@ -1212,7 +1228,10 @@ async def initialize_round(
                 round_state.song["artist"] = metadata["media_artist"]
             # Story 11.9 AC-6: Removed album field from song structure
             if metadata.get("entity_picture"):
-                round_state.song["cover_url"] = metadata["entity_picture"]
+                # Add timestamp to force cache bust in browser
+                cover_url = metadata["entity_picture"]
+                separator = "&" if "?" in cover_url else "?"
+                round_state.song["cover_url"] = f"{cover_url}{separator}_t={int(time.time())}"
                 _LOGGER.info("✅ Cover URL set from media player: %s", metadata["entity_picture"][:100])
             else:
                 _LOGGER.warning("⚠️ No entity_picture from media player - using placeholder cover URL")
