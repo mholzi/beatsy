@@ -973,6 +973,18 @@ function setupEventListeners() {
         console.log('✓ Bet toggle listener registered');
     }
 
+    // Story 8.6: Submit guess button listener
+    const submitButton = document.getElementById('submit-guess');
+    if (submitButton) {
+        submitButton.addEventListener('click', () => {
+            console.log('🎯 Submit button clicked');
+            onSubmitGuess();
+        });
+        console.log('✓ Submit guess listener registered');
+    } else {
+        console.warn('⚠️ Submit button not found - listener not registered');
+    }
+
     // Story 8.2: Year selector change handler
     setupYearSelectorListener();
 
@@ -1509,8 +1521,17 @@ function showActiveRound(roundData) {
     const songArtist = document.getElementById('song-artist') || document.getElementById('artist-name');
 
     if (albumCover && roundData.song.cover_url) {
+        console.log('🖼️ Setting album cover:', roundData.song.cover_url);
         albumCover.src = roundData.song.cover_url;
         albumCover.alt = `${roundData.song.title} by ${roundData.song.artist}`;
+        albumCover.onerror = () => {
+            console.error('❌ Failed to load album cover:', roundData.song.cover_url);
+        };
+        albumCover.onload = () => {
+            console.log('✅ Album cover loaded successfully');
+        };
+    } else {
+        console.warn('⚠️ Album cover not set:', { hasElement: !!albumCover, hasCoverUrl: !!roundData.song.cover_url });
     }
 
     if (songTitle) {
@@ -1944,10 +1965,22 @@ function transitionToActiveRound(roundData) {
  */
 function handleRoundStarted(data) {
     console.log('🎵 Round started event received:', data);
+    console.log('📋 Round data details:', {
+        hasSong: !!data.song,
+        hasTimerDuration: !!data.timer_duration,
+        hasStartedAt: !!data.started_at,
+        songDetails: data.song ? {
+            title: data.song.title,
+            artist: data.song.artist,
+            year: data.song.year,
+            cover_url: data.song.cover_url,
+            hasCoverUrl: !!data.song.cover_url
+        } : null
+    });
 
     // Validate event structure
     if (!data.song || !data.timer_duration || !data.started_at) {
-        console.error('Invalid round_started event structure:', data);
+        console.error('❌ Invalid round_started event structure:', data);
         return;
     }
 
@@ -2049,14 +2082,21 @@ function showNameNotification(message) {
  * AC-6: Executes within 200ms
  */
 function onSubmitGuess() {
+    console.log('🎯 onSubmitGuess() called');
     const startTime = performance.now();
 
     // Task 1.2: Validate year is selected
     const yearSelector = document.getElementById('year-selector');
+    console.log('📋 Year selector state:', {
+        hasElement: !!yearSelector,
+        value: yearSelector ? yearSelector.value : null,
+        isValid: yearSelector && !!yearSelector.value
+    });
+
     if (!yearSelector || !yearSelector.value) {
         // Task 1.3: Show error if no year selected
         showError('Please select a year');
-        console.warn('Guess submission validation failed: No year selected');
+        console.warn('❌ Guess submission validation failed: No year selected');
         return;
     }
 
