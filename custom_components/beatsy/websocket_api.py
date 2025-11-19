@@ -597,7 +597,7 @@ def handle_place_bet(
 
         # Verify round is active
         current_round = get_current_round(hass)
-        if not current_round or current_round.get("status") != "active":
+        if not current_round or current_round.status != "active":
             connection.send_error(
                 msg["id"], "no_active_round", "No active round to place bet"
             )

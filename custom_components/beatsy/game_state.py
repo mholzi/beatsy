@@ -1062,7 +1062,14 @@ async def initialize_round(
     timer_duration = state.game_config.get("round_timer_seconds", 30)
 
     # Story 7.4 Task 2: Get media player entity_id from game config
-    media_player_entity_id = state.game_config.get("media_player_entity_id")
+    media_player_entity_id = state.game_config.get("media_player_entity_id") or state.game_config.get("media_player")
+
+    _LOGGER.info(
+        "🎵 Media player config: entity_id=%s, has_uri=%s, game_config_keys=%s",
+        media_player_entity_id,
+        bool(selected_song.get("uri")),
+        list(state.game_config.keys())
+    )
 
     # Story 7.5: Retry logic with automatic song selection (max 3 attempts)
     playback_start_time = time.time()
