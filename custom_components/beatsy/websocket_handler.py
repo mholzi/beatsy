@@ -303,6 +303,7 @@ class BeatsyWebSocketView(HomeAssistantView):
             handle_next_song,
             handle_skip_song,
             handle_reset_game,
+            handle_control_media,
         )
 
         # Map command types to handlers
@@ -315,6 +316,7 @@ class BeatsyWebSocketView(HomeAssistantView):
             "beatsy/next_song": handle_next_song,
             "beatsy/skip_song": handle_skip_song,
             "beatsy/reset_game": handle_reset_game,
+            "beatsy/control_media": handle_control_media,
         }
 
         command_type = data.get("type")

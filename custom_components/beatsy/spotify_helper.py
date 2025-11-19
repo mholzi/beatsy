@@ -501,7 +501,10 @@ async def play_track(hass: HomeAssistant, entity_id: str, track_uri: str) -> boo
         media_id = track_uri
         if track_uri.startswith("spotify:"):
             # Convert spotify:track:xxx to spotify://track/xxx
-            media_id = track_uri.replace("spotify:", "spotify://", 1).replace(":", "/")
+            # Split on first colon, then replace remaining colons with slashes
+            parts = track_uri.split(":", 1)  # Split into ['spotify', 'track:xxx']
+            if len(parts) == 2:
+                media_id = f"spotify://{parts[1].replace(':', '/')}"
             _LOGGER.info("🔄 Converted URI for Music Assistant: %s → %s", track_uri, media_id)
 
         # Call media_player.play_media service
